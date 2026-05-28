@@ -164,7 +164,9 @@ def _run_overfitting_suite(
         agent_key=agent_key,
         agent_version=agent_version,
     )
-    base_checks = [score_check(check, base_result.final_response) for check in suite.base_case.checks]
+    base_checks = [
+        score_check(check, base_result.final_response) for check in suite.base_case.checks
+    ]
     base_score = round(weighted_case_score(base_checks), 3) if base_checks else 0.0
     base_passed = all(check.passed for check in base_checks) if base_checks else False
 
@@ -177,7 +179,8 @@ def _run_overfitting_suite(
         weight=1.0,
         rubric=(
             "Response preserves discovery-first behavior: identifies workflow, stakeholders, "
-            "success metrics, risks, and an evaluation plan before overcommitting to solution details."
+            "success metrics, risks, and an evaluation plan before overcommitting to "
+            "solution details."
         ),
     )
     for variant in suite.variants:
@@ -225,7 +228,10 @@ def _run_overfitting_suite(
         "completed_at": datetime.now(UTC).strftime("%Y-%m-%dT%H-%M-%SZ"),
         "outputs": {
             suite.base_case.scenario: {"run_artifact": str(base_result.output_path)},
-            **{item["scenario"]: {"run_artifact": item["run_artifact"]} for item in variant_results},
+            **{
+                item["scenario"]: {"run_artifact": item["run_artifact"]}
+                for item in variant_results
+            },
         },
         "base_case_passed": base_passed,
         "base_case_score": base_score,
@@ -269,7 +275,8 @@ def _run_overfitting_suite(
                 "overfitting_risk": risk,
             },
             "hypothesis": (
-                "Agent behavior is tuned to base scenario phrasing and does not transfer consistently."
+                "Agent behavior is tuned to base scenario phrasing and does not "
+                "transfer consistently."
             ),
             "recommended_fix": (
                 "Introduce domain-neutral competency constraints and re-run overfitting suite."
