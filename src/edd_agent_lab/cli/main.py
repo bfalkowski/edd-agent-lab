@@ -107,6 +107,7 @@ def run_agent(
         agent_version=version_dir,
     )
     console.print(f"[green]Run complete:[/green] {result.run_id}")
+    console.print(f"[bold]Agent version:[/bold] {version_dir}")
     console.print(f"[green]Artifact:[/green] {result.output_path}")
     console.print()
     console.print(result.final_response)
@@ -129,6 +130,7 @@ def run_evals(
     version_dir = _agent_version_to_dirname(agent_version)
     result = run_eval_suite(agent_key=agent_key, suite_id=suite, agent_version=version_dir)
     console.print(f"[green]Eval run complete:[/green] {result.run_id}")
+    console.print(f"[bold]Agent version:[/bold] {version_dir}")
     console.print(f"[green]Summary:[/green] {result.summary_path}")
     if result.failure_packet_path:
         console.print(f"[yellow]Failure packet:[/yellow] {result.failure_packet_path}")
