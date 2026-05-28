@@ -15,6 +15,45 @@ Most agent demos show the final polished behavior. This lab shows the engineerin
 
 **An agent improvement is not accepted until eval evidence improves.**
 
+## EDD Loop at a Glance
+
+```mermaid
+flowchart TD
+    A[v0 Baseline Agent] --> B[Run Eval Suite]
+    B --> C{Evidence Improved?}
+    C -- No --> D[Diagnose Failure]
+    D --> E[Define One Bounded Fix]
+    E --> F[Implement Next Version]
+    F --> B
+    C -- Yes --> G[Accept Version]
+    G --> H[Run Variant/Generalization Evals]
+```
+
+## Runtime Sequence
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant CLI as edd-lab CLI
+    participant AG as Agent Runner
+    participant EV as Eval Runner
+    participant AR as lab-runs artifacts
+
+    U->>CLI: run-agent --version v0|v1 --scenario ...
+    CLI->>AG: execute graph version
+    AG->>AR: write agent-output.json + run-*.json
+    AG-->>CLI: final response
+    CLI-->>U: render response + artifact path
+
+    U->>CLI: run-evals --version v0|v1 --suite ...
+    CLI->>EV: execute suite
+    EV->>AG: run scenario cases
+    EV->>AR: write eval-summary*.json
+    EV->>AR: write failure-packet*.json (if needed)
+    EV-->>CLI: overall score + paths
+    CLI-->>U: report evidence
+```
+
 ## Repo Structure
 
 ```text
