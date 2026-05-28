@@ -2,8 +2,10 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from edd_agent_lab.agents.customer_solution_agent import run_customer_solution_agent
 from edd_agent_lab import __version__
 from edd_agent_lab.evals.loading import list_eval_suite_ids, load_eval_suite
+from edd_agent_lab.evals.runner import run_eval_suite
 from edd_agent_lab.scenarios.loading import list_scenario_ids, load_scenario
 
 app = typer.Typer(
@@ -70,13 +72,18 @@ def run_agent(
     agent: str = typer.Option(..., "--agent", "-a", help="Agent key."),
     scenario: str = typer.Option(..., "--scenario", "-s", help="Scenario ID."),
 ) -> None:
-    """Run an agent against a scenario (Milestone 2+)."""
-    _ = load_scenario(_resolve_agent(agent), scenario)
-    console.print(
-        "[yellow]run-agent is not implemented yet.[/yellow] "
-        "See Milestone 2 in the build plan."
-    )
-    raise typer.Exit(code=2)
+    """Run an agent against a scenario and write a run artifact."""
+    agent_key = _resolve_agent(agent)
+    _ = load_scenario(agent_key, scenario)
+    if agent_key not in {"customer-solution", "customer_solution", "customer_solution_agent"}:
+        console.print(f"[red]Unsupported agent for now:[/red] {agent_key}")
+        raise typer.Exit(code=1)
+
+    result = run_customer_solution_agent(scenario_id=scenario, agent_key=agent_key)
+    console.print(f"[green]Run complete:[/green] {result.run_id}")
+    console.print(f"[green]Artifact:[/green] {result.output_path}")
+    console.print()
+    console.print(result.final_response)
 
 
 @app.command("run-evals")
@@ -84,13 +91,15 @@ def run_evals(
     agent: str = typer.Option(..., "--agent", "-a", help="Agent key."),
     suite: str = typer.Option(..., "--suite", help="Eval suite ID."),
 ) -> None:
-    """Run an eval suite (Milestone 3+)."""
-    _ = load_eval_suite(_resolve_agent(agent), suite)
-    console.print(
-        "[yellow]run-evals is not implemented yet.[/yellow] "
-        "See Milestone 3 in the build plan."
-    )
-    raise typer.Exit(code=2)
+    """Run an eval suite and write summary artifacts."""
+    agent_key = _resolve_agent(agent)
+    _ = load_eval_suite(agent_key, suite)
+    result = run_eval_suite(agent_key=agent_key, suite_id=suite)
+    console.print(f"[green]Eval run complete:[/green] {result.run_id}")
+    console.print(f"[green]Summary:[/green] {result.summary_path}")
+    if result.failure_packet_path:
+        console.print(f"[yellow]Failure packet:[/yellow] {result.failure_packet_path}")
+    console.print(f"[bold]Overall score:[/bold] {result.summary['overall_score']}")
 
 
 @app.command("compare-runs")
