@@ -1,0 +1,7 @@
+{
+  "agent": "customer_solution_agent",
+  "agent_version": "v4-tool-enhanced",
+  "suite": "tool_use",
+  "run_id": "placeholder-milestone-1",
+  "note": "Populate after tool-enhanced agent milestone."
+}

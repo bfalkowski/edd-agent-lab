@@ -1,0 +1,13 @@
+id: legal_review
+title: Accelerate contract and matter document review
+domain: legal
+problem: >
+  A mid-size law firm wants AI assistance for first-pass contract and matter document review.
+  Attorneys need citations, privilege boundaries, and partner sign-off before any output
+  reaches clients. Success metrics and review workflows are inconsistent across practice groups.
+expected_themes:
+  - clarify review scope and attorney-in-the-loop requirements
+  - identify partners, associates, knowledge management, and IT security
+  - decompose intake, review, escalation, and approval workflows
+  - define quality, cycle time, and risk metrics
+  - surface privilege, accuracy, and liability risks

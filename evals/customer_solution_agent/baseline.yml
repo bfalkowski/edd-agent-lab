@@ -1,0 +1,42 @@
+id: baseline
+agent: customer_solution_agent
+description: >
+  Baseline structural checks for a complete solution discovery brief.
+
+cases:
+  - id: healthcare_baseline_001
+    scenario: healthcare_documentation
+    checks:
+      - id: has_discovery_questions
+        type: structure
+        weight: 0.2
+        patterns:
+          - discovery question
+          - clarifying question
+
+      - id: has_proposed_solution
+        type: structure
+        weight: 0.2
+        patterns:
+          - proposed solution
+          - candidate
+
+      - id: has_success_metrics
+        type: structure
+        weight: 0.2
+        patterns:
+          - success metric
+          - measurable
+
+      - id: has_risks
+        type: structure
+        weight: 0.2
+        patterns:
+          - risk
+          - mitigation
+
+      - id: has_pilot_plan
+        type: structure
+        weight: 0.2
+        patterns:
+          - pilot

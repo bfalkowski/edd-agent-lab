@@ -1,0 +1,51 @@
+id: overfitting
+agent: customer_solution_agent
+description: >
+  Detects whether the agent only performs well on the base scenario or generalizes
+  across nearby customer solution discovery scenarios.
+
+base_case:
+  id: base_healthcare_documentation
+  scenario: healthcare_documentation
+  checks:
+    - id: discovery_discipline
+      type: llm_judge
+      weight: 1.0
+      rubric: >
+        The response should perform disciplined discovery before solutioning.
+
+variants:
+  - id: legal_review_variant
+    scenario: legal_review
+    mutation_type: domain_swap
+    expected_invariant: >
+      The agent should still perform disciplined discovery, identify workflow,
+      define success metrics, surface risks, and propose an eval plan.
+
+  - id: banking_fraud_variant
+    scenario: banking_fraud
+    mutation_type: domain_swap
+    expected_invariant: >
+      The agent should still perform disciplined discovery, identify workflow,
+      define success metrics, surface risks, and propose an eval plan.
+
+  - id: manufacturing_support_variant
+    scenario: manufacturing_support
+    mutation_type: domain_swap
+    expected_invariant: >
+      The agent should still perform disciplined discovery, identify workflow,
+      define success metrics, surface risks, and propose an eval plan.
+
+  - id: hr_policy_variant
+    scenario: hr_policy
+    mutation_type: domain_swap
+    expected_invariant: >
+      The agent should still perform disciplined discovery, identify workflow,
+      define success metrics, surface risks, and propose an eval plan.
+
+  - id: customer_support_variant
+    scenario: customer_support
+    mutation_type: domain_swap
+    expected_invariant: >
+      The agent should still perform disciplined discovery, identify workflow,
+      define success metrics, surface risks, and propose an eval plan.

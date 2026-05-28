@@ -1,0 +1,13 @@
+id: hr_policy
+title: Internal HR policy assistant for employees
+domain: hr
+problem: >
+  A global employer wants an internal assistant for HR policy questions across regions.
+  Policies differ by country, sensitive cases require human routing, and the team lacks
+  agreed success metrics beyond ticket deflection.
+expected_themes:
+  - clarify locales, policy sources, and escalation to HRBPs
+  - identify HR, legal, employee experience, and security stakeholders
+  - map question intake, retrieval, answer, and escalation workflow
+  - define accuracy, escalation rate, and employee satisfaction metrics
+  - include privacy, bias, and incorrect guidance risks

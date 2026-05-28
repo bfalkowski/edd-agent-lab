@@ -1,0 +1,22 @@
+id: risk_review
+agent: customer_solution_agent
+description: >
+  Evaluates depth and relevance of risk identification and mitigations.
+
+cases:
+  - id: healthcare_risk_001
+    scenario: healthcare_documentation
+    checks:
+      - id: compliance_risks
+        type: llm_judge
+        weight: 0.5
+        rubric: >
+          The response should surface compliance, privacy, or clinical safety risks
+          appropriate to healthcare documentation workflows.
+
+      - id: adoption_risks
+        type: llm_judge
+        weight: 0.5
+        rubric: >
+          The response should discuss adoption, change management, or human-in-the-loop
+          risks with concrete mitigations.

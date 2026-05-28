@@ -1,0 +1,13 @@
+id: banking_fraud
+title: Improve fraud investigation triage
+domain: banking
+problem: >
+  A regional bank wants AI to help fraud analysts triage alerts faster without increasing
+  false negatives. Legacy case management, model governance, and regulatory audit trails
+  constrain how automation can be introduced.
+expected_themes:
+  - ask about alert volumes, SLAs, and analyst workflows
+  - identify fraud ops, compliance, model risk, and engineering stakeholders
+  - map alert-to-case-to-resolution workflow
+  - define detection, precision, and analyst productivity metrics
+  - include model governance and regulatory risks

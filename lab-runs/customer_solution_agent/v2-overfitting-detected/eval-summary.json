@@ -1,0 +1,10 @@
+{
+  "agent": "customer_solution_agent",
+  "agent_version": "v2-overfitting-detected",
+  "suite": "overfitting",
+  "run_id": "placeholder-milestone-1",
+  "base_case_passed": true,
+  "variant_pass_rate": 0.42,
+  "overfitting_risk": "high",
+  "note": "Representative artifact; re-run after Milestone 5."
+}

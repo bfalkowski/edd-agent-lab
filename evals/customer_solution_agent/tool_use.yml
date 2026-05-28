@@ -1,0 +1,22 @@
+id: tool_use
+agent: customer_solution_agent
+description: >
+  Evaluates structured use of discovery tools (v4 tool-enhanced agent).
+
+cases:
+  - id: healthcare_tools_001
+    scenario: healthcare_documentation
+    checks:
+      - id: uses_discovery_framework
+        type: keyword
+        weight: 0.5
+        patterns:
+          - discovery framework
+          - competency
+
+      - id: includes_eval_plan
+        type: structure
+        weight: 0.5
+        patterns:
+          - eval plan
+          - evaluation plan

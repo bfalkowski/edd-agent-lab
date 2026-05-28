@@ -1,0 +1,13 @@
+id: customer_support
+title: Customer support ticket triage
+domain: customer_support
+problem: >
+  A B2B SaaS company wants AI to triage inbound support tickets by intent, urgency, and
+  product area before routing to specialists. Integrations with Zendesk exist but routing
+  rules and quality thresholds are debated across support leadership.
+expected_themes:
+  - clarify ticket channels, SLAs, and routing policies
+  - identify support ops, product specialists, and platform engineering
+  - decompose intake, classify, route, and resolve workflow
+  - define routing accuracy, handle time, and CSAT metrics
+  - include mis-routing, PII exposure, and customer trust risks

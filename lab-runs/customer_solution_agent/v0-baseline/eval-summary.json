@@ -1,0 +1,9 @@
+{
+  "agent": "customer_solution_agent",
+  "agent_version": "v0-baseline",
+  "suite": "discovery_quality",
+  "run_id": "placeholder-milestone-1",
+  "overall_score": 0.58,
+  "note": "Representative artifact; re-run with edd-lab run-evals after Milestone 3.",
+  "cases": []
+}

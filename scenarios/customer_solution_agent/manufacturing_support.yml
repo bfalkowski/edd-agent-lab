@@ -1,0 +1,13 @@
+id: manufacturing_support
+title: Reduce plant support escalation load
+domain: manufacturing
+problem: >
+  A discrete manufacturer wants AI to help frontline support engineers resolve equipment
+  issues before escalating to specialist teams. Documentation is fragmented across PLM, CMMS,
+  and tribal knowledge; downtime costs are high but pilot scope is unclear.
+expected_themes:
+  - clarify equipment types, shift coverage, and escalation rules
+  - identify plant ops, maintenance, quality, and IT stakeholders
+  - decompose diagnose, workaround, escalate, and close workflows
+  - define MTTR, first-contact resolution, and downtime metrics
+  - include safety, incorrect guidance, and adoption risks

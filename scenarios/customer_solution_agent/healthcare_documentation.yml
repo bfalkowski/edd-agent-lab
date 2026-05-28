@@ -1,0 +1,13 @@
+id: healthcare_documentation
+title: Reduce clinician documentation burden
+domain: healthcare
+problem: >
+  A regional healthcare provider wants to use AI to reduce clinician documentation burden.
+  They use an EHR, have strict compliance requirements, and do not yet have clear
+  success metrics or a scoped pilot workflow.
+expected_themes:
+  - ask clarifying questions before solutioning
+  - identify clinicians, compliance, IT, and operations as stakeholders
+  - discuss workflow integration
+  - propose measurable time-savings or documentation-quality metrics
+  - include human review and compliance risks

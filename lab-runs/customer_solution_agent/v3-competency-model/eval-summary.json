@@ -1,0 +1,10 @@
+{
+  "agent": "customer_solution_agent",
+  "agent_version": "v3-competency-model",
+  "suite": "overfitting",
+  "run_id": "placeholder-milestone-1",
+  "base_case_passed": true,
+  "variant_pass_rate": null,
+  "overfitting_risk": null,
+  "note": "Populate after Milestone 6."
+}

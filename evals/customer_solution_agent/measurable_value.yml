@@ -1,0 +1,22 @@
+id: measurable_value
+agent: customer_solution_agent
+description: >
+  Evaluates whether proposed solutions tie to measurable business value.
+
+cases:
+  - id: healthcare_value_001
+    scenario: healthcare_documentation
+    checks:
+      - id: defines_measurable_outcomes
+        type: llm_judge
+        weight: 0.5
+        rubric: >
+          The response should connect the AI solution to measurable outcomes such as
+          documentation time, quality scores, adoption, or cycle time—not vague productivity.
+
+      - id: ties_metrics_to_workflow
+        type: llm_judge
+        weight: 0.5
+        rubric: >
+          Success metrics should reference specific workflow steps or roles affected,
+          not generic ROI statements.

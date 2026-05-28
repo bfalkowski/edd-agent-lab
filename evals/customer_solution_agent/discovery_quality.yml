@@ -1,0 +1,35 @@
+id: discovery_quality
+agent: customer_solution_agent
+description: >
+  Evaluates whether the agent performs disciplined customer discovery before proposing a solution.
+
+cases:
+  - id: healthcare_discovery_001
+    scenario: healthcare_documentation
+    checks:
+      - id: asks_clarifying_questions
+        type: llm_judge
+        weight: 0.25
+        rubric: >
+          The response should ask meaningful clarifying questions or explicitly identify
+          missing information before proposing a full solution.
+
+      - id: identifies_workflow
+        type: llm_judge
+        weight: 0.25
+        rubric: >
+          The response should identify the workflow being changed and avoid treating
+          the problem as a generic chatbot request.
+
+      - id: defines_success_metrics
+        type: llm_judge
+        weight: 0.25
+        rubric: >
+          The response should define measurable success criteria such as time saved,
+          error reduction, adoption, quality, or cycle time.
+
+      - id: includes_risks
+        type: llm_judge
+        weight: 0.25
+        rubric: >
+          The response should include concrete risks and mitigations relevant to the scenario.
