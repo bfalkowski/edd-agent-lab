@@ -1,0 +1,90 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality-and-tests:
+    name: Quality and tests (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install package
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,agent]"
+
+      - name: Lint
+        run: ruff check .
+
+      - name: Compile source and tests
+        run: python -m compileall src tests
+
+      - name: Run unit tests
+        run: pytest -q
+
+  cli-smoke:
+    name: CLI smoke and artifact checks
+    runs-on: ubuntu-latest
+    needs: quality-and-tests
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install package
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,agent]"
+
+      - name: CLI help and listing commands
+        run: |
+          edd-lab --help
+          edd-lab list-scenarios --agent customer-solution
+          edd-lab list-evals --agent customer-solution
+
+      - name: Run v0 and v1 agents
+        run: |
+          edd-lab run-agent --agent customer-solution --version v0 --scenario healthcare_documentation
+          edd-lab run-agent --agent customer-solution --version v1 --scenario healthcare_documentation
+
+      - name: Run v0 and v1 discovery evals
+        run: |
+          edd-lab run-evals --agent customer-solution --version v0 --suite discovery_quality
+          edd-lab run-evals --agent customer-solution --version v1 --suite discovery_quality
+
+      - name: Compare v0 and v1 summaries
+        run: |
+          edd-lab compare-runs \
+            --before lab-runs/customer_solution_agent/v0-baseline/eval-summary-discovery_quality.json \
+            --after lab-runs/customer_solution_agent/v1-discovery-graph/eval-summary-discovery_quality.json \
+            --output lab-runs/customer_solution_agent/v1-discovery-graph/comparison.md
+
+      - name: Assert expected artifacts exist
+        run: |
+          test -f lab-runs/customer_solution_agent/v0-baseline/agent-output.json
+          test -f lab-runs/customer_solution_agent/v1-discovery-graph/agent-output.json
+          test -f lab-runs/customer_solution_agent/v0-baseline/eval-summary-discovery_quality.json
+          test -f lab-runs/customer_solution_agent/v1-discovery-graph/eval-summary-discovery_quality.json
+          test -f lab-runs/customer_solution_agent/v1-discovery-graph/comparison.md

@@ -19,14 +19,21 @@ def test_eval_runner_writes_summary_and_optional_failure_packet() -> None:
 
 
 def test_eval_runner_writes_version_specific_artifacts() -> None:
-    run_eval_suite(agent_key="customer-solution", suite_id="discovery_quality", agent_version="v0-baseline")
+    run_eval_suite(
+        agent_key="customer-solution",
+        suite_id="discovery_quality",
+        agent_version="v0-baseline",
+    )
     run_eval_suite(
         agent_key="customer-solution",
         suite_id="discovery_quality",
         agent_version="v1-discovery-graph",
     )
     v0_summary = (
-        LAB_RUNS_DIR / "customer_solution_agent" / "v0-baseline" / "eval-summary-discovery_quality.json"
+        LAB_RUNS_DIR
+        / "customer_solution_agent"
+        / "v0-baseline"
+        / "eval-summary-discovery_quality.json"
     )
     v1_summary = (
         LAB_RUNS_DIR

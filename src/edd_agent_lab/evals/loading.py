@@ -42,5 +42,7 @@ def load_eval_suite(agent_key: str, suite_id: str) -> EvalSuite | OverfittingEva
     return EvalSuite.model_validate(data)
 
 
-def load_eval_suite_by_id(suite_id: str, agent_key: str = "customer-solution") -> EvalSuite | OverfittingEvalSuite:
+def load_eval_suite_by_id(
+    suite_id: str, agent_key: str = "customer-solution"
+) -> EvalSuite | OverfittingEvalSuite:
     return load_eval_suite(agent_key, suite_id)

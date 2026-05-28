@@ -2,7 +2,7 @@
   "agent": "customer_solution_agent",
   "agent_version": "v1-discovery-graph",
   "suite": "discovery_quality",
-  "run_id": "2026-05-28T02-54-59Z",
+  "run_id": "2026-05-28T02-58-29Z",
   "overall_score": 1.0,
   "cases": [
     {
@@ -43,7 +43,7 @@
           "method": "heuristic"
         }
       ],
-      "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v1-discovery-graph/run-2026-05-28T02-54-59Z-healthcare_documentation.json"
+      "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v1-discovery-graph/run-2026-05-28T02-58-29Z-healthcare_documentation.json"
     }
   ]
 }

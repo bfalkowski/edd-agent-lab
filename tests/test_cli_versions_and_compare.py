@@ -42,7 +42,10 @@ def test_run_evals_accepts_version_flag() -> None:
 
 def test_compare_runs_reads_v0_and_v1_summaries() -> None:
     v0_summary = (
-        LAB_RUNS_DIR / "customer_solution_agent" / "v0-baseline" / "eval-summary-discovery_quality.json"
+        LAB_RUNS_DIR
+        / "customer_solution_agent"
+        / "v0-baseline"
+        / "eval-summary-discovery_quality.json"
     )
     v1_summary = (
         LAB_RUNS_DIR

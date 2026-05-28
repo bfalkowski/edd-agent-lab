@@ -2,8 +2,8 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from edd_agent_lab.agents.customer_solution_agent import run_customer_solution_agent
 from edd_agent_lab import __version__
+from edd_agent_lab.agents.customer_solution_agent import run_customer_solution_agent
 from edd_agent_lab.evals.loading import list_eval_suite_ids, load_eval_suite
 from edd_agent_lab.evals.runner import run_eval_suite
 from edd_agent_lab.scenarios.loading import list_scenario_ids, load_scenario
@@ -191,7 +191,10 @@ def compare_runs(
         for check_id in sorted(set(b_checks) | set(a_checks)):
             b_val = float(b_checks.get(check_id, 0.0))
             a_val = float(a_checks.get(check_id, 0.0))
-            common_checks.append(f"| {check_id} | {b_val:.3f} | {a_val:.3f} | {(a_val-b_val):+.3f} |")
+            delta_check = a_val - b_val
+            common_checks.append(
+                f"| {check_id} | {b_val:.3f} | {a_val:.3f} | {delta_check:+.3f} |"
+            )
 
     md_lines = [
         "# v0 -> v1 Comparison",

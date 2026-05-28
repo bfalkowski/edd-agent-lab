@@ -9,7 +9,8 @@ from .state import CustomerSolutionState, DiscoveryQuestion, Risk, SuccessMetric
 
 def intake_node(state: CustomerSolutionState) -> CustomerSolutionState:
     summary = (
-        "Customer needs an AI-assisted discovery and delivery plan for the stated business problem. "
+        "Customer needs an AI-assisted discovery and delivery plan "
+        "for the stated business problem. "
         "The first objective is to clarify constraints and define measurable outcomes."
     )
     state.problem_summary = summary
@@ -56,7 +57,10 @@ def solution_brief_node(state: CustomerSolutionState, scenario: Scenario) -> Cus
     state.risks = [
         Risk(
             risk="Incorrect or low-confidence recommendations in sensitive workflows.",
-            mitigation="Require human review for high-impact actions and confidence-based escalation.",
+            mitigation=(
+                "Require human review for high-impact actions "
+                "and confidence-based escalation."
+            ),
         ),
         Risk(
             risk="Poor integration with existing systems causing workflow friction.",
@@ -104,9 +108,12 @@ def clarify_problem_node(state: CustomerSolutionState, scenario: Scenario) -> Cu
     return state
 
 
-def identify_workflow_node(state: CustomerSolutionState, scenario: Scenario) -> CustomerSolutionState:
+def identify_workflow_node(
+    state: CustomerSolutionState, scenario: Scenario
+) -> CustomerSolutionState:
     state.workflow_summary = (
-        f"Target workflow in {scenario.domain}: step-by-step intake -> triage -> analysis -> human validation "
+        f"Target workflow in {scenario.domain}: step-by-step intake -> "
+        "triage -> analysis -> human validation "
         "-> action/communication -> audit logging."
     )
     state.assumptions.extend(
@@ -160,7 +167,9 @@ def define_success_metrics_node(
     return state
 
 
-def propose_solution_node(state: CustomerSolutionState, scenario: Scenario) -> CustomerSolutionState:
+def propose_solution_node(
+    state: CustomerSolutionState, scenario: Scenario
+) -> CustomerSolutionState:
     state.proposed_solution = (
         f"Deploy a discovery-first {scenario.domain} copilot that structures intake, provides "
         "context-aware recommendations, highlights uncertainty, and routes high-risk cases to "
@@ -173,11 +182,17 @@ def review_risks_node(state: CustomerSolutionState, scenario: Scenario) -> Custo
     state.risks = [
         Risk(
             risk="Incorrect recommendations on high-impact cases.",
-            mitigation="Enforce confidence thresholds, mandatory human review, and escalation paths.",
+            mitigation=(
+                "Enforce confidence thresholds, mandatory human review, "
+                "and escalation paths."
+            ),
         ),
         Risk(
             risk="Workflow disruption from weak integration and handoffs.",
-            mitigation="Start with one bounded integration path and monitor drop-off/failure points.",
+            mitigation=(
+                "Start with one bounded integration path and monitor "
+                "drop-off/failure points."
+            ),
         ),
         Risk(
             risk=f"Domain-specific governance gaps for {scenario.domain}.",
@@ -198,7 +213,8 @@ def create_pilot_plan_node(state: CustomerSolutionState) -> CustomerSolutionStat
 def create_eval_plan_node(state: CustomerSolutionState) -> CustomerSolutionState:
     state.eval_plan = (
         "Run discovery_quality, measurable_value, and risk_review suites each iteration. "
-        "Require score improvement versus prior run and no critical risk-regression before promotion."
+        "Require score improvement versus prior run and no "
+        "critical risk-regression before promotion."
     )
     return state
 
