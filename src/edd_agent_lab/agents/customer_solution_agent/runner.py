@@ -30,6 +30,7 @@ def run_customer_solution_agent(
     agent_key: str = "customer-solution",
     agent_version: str = "v0-baseline",
 ) -> AgentRunResult:
+    started_at = datetime.now(UTC).strftime("%Y-%m-%dT%H-%M-%SZ")
     scenario = load_scenario(agent_key=agent_key, scenario_id=scenario_id)
 
     graph = build_graph(scenario, agent_version=agent_version)
@@ -41,11 +42,14 @@ def run_customer_solution_agent(
     final_model = CustomerSolutionState.model_validate(final_state)
 
     run_id = datetime.now(UTC).strftime("%Y-%m-%dT%H-%M-%SZ")
+    completed_at = run_id
     output_path = _write_run_artifact(
         run_id=run_id,
         scenario_id=scenario.id,
         scenario_title=scenario.title,
         agent_version=agent_version,
+        started_at=started_at,
+        completed_at=completed_at,
         state=final_model,
     )
     return AgentRunResult(
@@ -64,6 +68,8 @@ def _write_run_artifact(
     scenario_id: str,
     scenario_title: str,
     agent_version: str,
+    started_at: str,
+    completed_at: str,
     state: CustomerSolutionState,
 ) -> Path:
     out_dir = LAB_RUNS_DIR / "customer_solution_agent" / agent_version
@@ -75,6 +81,28 @@ def _write_run_artifact(
         "run_id": run_id,
         "agent": "customer_solution_agent",
         "agent_version": agent_version,
+        "suite": "agent_run",
+        "scenario_ids": [scenario_id],
+        "started_at": started_at,
+        "completed_at": completed_at,
+        "outputs": {
+            scenario_id: {
+                "problem_summary": state.problem_summary,
+                "discovery_questions": [q.model_dump() for q in state.discovery_questions],
+                "proposed_solution": state.proposed_solution,
+                "success_metrics": [m.model_dump() for m in state.success_metrics],
+                "risks": [r.model_dump() for r in state.risks],
+                "pilot_plan": state.pilot_plan,
+                "eval_plan": state.eval_plan,
+                "final_response": state.final_response,
+            }
+        },
+        "eval_summary": None,
+        "failure_packet": None,
+        "artifact_paths": {
+            "timestamped_output": str(output_path),
+            "latest_output": str(latest_output_path),
+        },
         "scenario": {"id": scenario_id, "title": scenario_title},
         "response": {
             "problem_summary": state.problem_summary,

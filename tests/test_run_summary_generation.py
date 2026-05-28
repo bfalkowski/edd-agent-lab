@@ -14,6 +14,20 @@ def test_run_agent_writes_artifact() -> None:
     assert payload["agent_version"] == "v0-baseline"
     assert payload["scenario"]["id"] == "healthcare_documentation"
     assert "proposed_solution" in payload["response"]
+    for field in [
+        "run_id",
+        "agent",
+        "agent_version",
+        "suite",
+        "scenario_ids",
+        "started_at",
+        "completed_at",
+        "outputs",
+        "eval_summary",
+        "failure_packet",
+        "artifact_paths",
+    ]:
+        assert field in payload
     latest_output = LAB_RUNS_DIR / "customer_solution_agent" / "v0-baseline" / "agent-output.json"
     assert latest_output.is_file()
 

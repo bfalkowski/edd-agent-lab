@@ -40,7 +40,8 @@ def run_eval_suite(
 
 
 def _run_standard_suite(agent_key: str, suite: EvalSuite, agent_version: str) -> EvalRunResult:
-    run_id = datetime.now(UTC).strftime("%Y-%m-%dT%H-%M-%SZ")
+    started_at = datetime.now(UTC).strftime("%Y-%m-%dT%H-%M-%SZ")
+    run_id = started_at
     case_summaries: list[dict[str, object]] = []
 
     for case in suite.cases:
@@ -67,6 +68,12 @@ def _run_standard_suite(agent_key: str, suite: EvalSuite, agent_version: str) ->
         "agent_version": agent_version,
         "suite": suite.id,
         "run_id": run_id,
+        "scenario_ids": [case["scenario"] for case in case_summaries],
+        "started_at": started_at,
+        "completed_at": datetime.now(UTC).strftime("%Y-%m-%dT%H-%M-%SZ"),
+        "outputs": {
+            case["scenario"]: {"run_artifact": case["run_artifact"]} for case in case_summaries
+        },
         "overall_score": overall_score,
         "cases": case_summaries,
     }
@@ -111,6 +118,29 @@ def _run_standard_suite(agent_key: str, suite: EvalSuite, agent_version: str) ->
         latest_failure = out_dir / "failure-packet.json"
         if latest_failure.is_file():
             latest_failure.unlink()
+
+    run_record = {
+        "run_id": run_id,
+        "agent": suite.agent,
+        "agent_version": agent_version,
+        "suite": suite.id,
+        "scenario_ids": summary["scenario_ids"],
+        "started_at": started_at,
+        "completed_at": summary["completed_at"],
+        "outputs": summary["outputs"],
+        "eval_summary": summary,
+        "failure_packet": failure_packet if failed_checks else None,
+        "artifact_paths": {
+            "summary": str(summary_path),
+            "summary_by_suite": str(summary_by_suite_path),
+            "failure_packet": str(failure_packet_path) if failure_packet_path else None,
+            "failure_packet_by_suite": (
+                str(failure_packet_by_suite_path) if failed_checks else None
+            ),
+        },
+    }
+    run_record_path = out_dir / "run-record.json"
+    run_record_path.write_text(json.dumps(run_record, indent=2), encoding="utf-8")
 
     return EvalRunResult(
         run_id=run_id,

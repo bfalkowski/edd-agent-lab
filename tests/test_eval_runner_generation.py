@@ -12,10 +12,39 @@ def test_eval_runner_writes_summary_and_optional_failure_packet() -> None:
     assert summary["suite"] == "baseline"
     assert "overall_score" in summary
     assert summary["cases"]
+    for field in [
+        "run_id",
+        "agent",
+        "agent_version",
+        "suite",
+        "scenario_ids",
+        "started_at",
+        "completed_at",
+        "outputs",
+    ]:
+        assert field in summary
 
     if result.failure_packet_path is not None:
         packet = json.loads(result.failure_packet_path.read_text(encoding="utf-8"))
         assert packet["suite"] == "baseline"
+
+    run_record_path = LAB_RUNS_DIR / "customer_solution_agent" / "v0-baseline" / "run-record.json"
+    assert run_record_path.is_file()
+    run_record = json.loads(run_record_path.read_text(encoding="utf-8"))
+    for field in [
+        "run_id",
+        "agent",
+        "agent_version",
+        "suite",
+        "scenario_ids",
+        "started_at",
+        "completed_at",
+        "outputs",
+        "eval_summary",
+        "failure_packet",
+        "artifact_paths",
+    ]:
+        assert field in run_record
 
 
 def test_eval_runner_writes_version_specific_artifacts() -> None:

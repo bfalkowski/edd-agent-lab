@@ -10,6 +10,9 @@ def test_local_edd_client_supports_stable_interface() -> None:
         scenario_ids=["healthcare_documentation"],
     )
     assert run_id.startswith("local-")
+    assert "customer_solution_agent" in run_id
+    assert "v0-baseline" in run_id
+    assert "discovery_quality" in run_id
 
     client.log_agent_output(
         run_id=run_id,
