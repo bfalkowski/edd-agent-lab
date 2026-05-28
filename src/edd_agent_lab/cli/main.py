@@ -20,6 +20,10 @@ def _resolve_agent(agent: str) -> str:
     return agent or "customer-solution"
 
 
+def _agent_version_to_dirname(agent_version: str) -> str:
+    return agent_version
+
+
 @app.callback()
 def main(
     version: bool = typer.Option(
@@ -71,6 +75,11 @@ def list_evals_cmd(
 def run_agent(
     agent: str = typer.Option(..., "--agent", "-a", help="Agent key."),
     scenario: str = typer.Option(..., "--scenario", "-s", help="Scenario ID."),
+    agent_version: str = typer.Option(
+        "v0-baseline",
+        "--agent-version",
+        help="Agent version directory (e.g., v0-baseline, v1-discovery-graph).",
+    ),
 ) -> None:
     """Run an agent against a scenario and write a run artifact."""
     agent_key = _resolve_agent(agent)
@@ -79,7 +88,11 @@ def run_agent(
         console.print(f"[red]Unsupported agent for now:[/red] {agent_key}")
         raise typer.Exit(code=1)
 
-    result = run_customer_solution_agent(scenario_id=scenario, agent_key=agent_key)
+    result = run_customer_solution_agent(
+        scenario_id=scenario,
+        agent_key=agent_key,
+        agent_version=agent_version,
+    )
     console.print(f"[green]Run complete:[/green] {result.run_id}")
     console.print(f"[green]Artifact:[/green] {result.output_path}")
     console.print()
@@ -90,11 +103,16 @@ def run_agent(
 def run_evals(
     agent: str = typer.Option(..., "--agent", "-a", help="Agent key."),
     suite: str = typer.Option(..., "--suite", help="Eval suite ID."),
+    agent_version: str = typer.Option(
+        "v0-baseline",
+        "--agent-version",
+        help="Agent version directory (e.g., v0-baseline, v1-discovery-graph).",
+    ),
 ) -> None:
     """Run an eval suite and write summary artifacts."""
     agent_key = _resolve_agent(agent)
     _ = load_eval_suite(agent_key, suite)
-    result = run_eval_suite(agent_key=agent_key, suite_id=suite)
+    result = run_eval_suite(agent_key=agent_key, suite_id=suite, agent_version=agent_version)
     console.print(f"[green]Eval run complete:[/green] {result.run_id}")
     console.print(f"[green]Summary:[/green] {result.summary_path}")
     if result.failure_packet_path:
@@ -106,16 +124,59 @@ def run_evals(
 def compare_runs(
     before: str = typer.Option(..., "--before", help="Path to before eval-summary.json."),
     after: str = typer.Option(..., "--after", help="Path to after eval-summary.json."),
+    output: str | None = typer.Option(
+        None,
+        "--output",
+        help="Optional output markdown path for comparison report.",
+    ),
 ) -> None:
-    """Compare two eval run summaries (later milestone)."""
-    table = Table(title="compare-runs (not implemented)")
-    table.add_column("Argument")
-    table.add_column("Value")
-    table.add_row("before", before)
-    table.add_row("after", after)
+    """Compare two eval run summaries and print deltas."""
+    import json
+    from pathlib import Path
+
+    before_path = Path(before)
+    after_path = Path(after)
+    before_data = json.loads(before_path.read_text(encoding="utf-8"))
+    after_data = json.loads(after_path.read_text(encoding="utf-8"))
+
+    before_score = float(before_data.get("overall_score", 0.0))
+    after_score = float(after_data.get("overall_score", 0.0))
+    delta = round(after_score - before_score, 3)
+
+    table = Table(title="Eval Comparison")
+    table.add_column("Metric")
+    table.add_column("Before")
+    table.add_column("After")
+    table.add_column("Delta")
+    table.add_row("overall_score", f"{before_score:.3f}", f"{after_score:.3f}", f"{delta:+.3f}")
+
+    before_cases = {case["case_id"]: case for case in before_data.get("cases", [])}
+    after_cases = {case["case_id"]: case for case in after_data.get("cases", [])}
+    for case_id in sorted(set(before_cases) | set(after_cases)):
+        b_score = float(before_cases.get(case_id, {}).get("score", 0.0))
+        a_score = float(after_cases.get(case_id, {}).get("score", 0.0))
+        table.add_row(case_id, f"{b_score:.3f}", f"{a_score:.3f}", f"{(a_score-b_score):+.3f}")
+
     console.print(table)
-    console.print("[yellow]See Milestone 3+ in the build plan.[/yellow]")
-    raise typer.Exit(code=2)
+    if output:
+        output_path = Path(output)
+    else:
+        output_path = after_path.parent / "comparison.md"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(
+        "\n".join(
+            [
+                "# Run Comparison",
+                "",
+                f"- Before: `{before_path}`",
+                f"- After: `{after_path}`",
+                f"- Overall score delta: `{delta:+.3f}`",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    console.print(f"[green]Comparison report:[/green] {output_path}")
 
 
 @app.command("generate-variants")

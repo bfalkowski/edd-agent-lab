@@ -1,4 +1,4 @@
-"""Runner for Customer Solution Discovery Agent v0."""
+"""Runner for Customer Solution Discovery Agent versions."""
 
 from __future__ import annotations
 
@@ -32,7 +32,7 @@ def run_customer_solution_agent(
 ) -> AgentRunResult:
     scenario = load_scenario(agent_key=agent_key, scenario_id=scenario_id)
 
-    graph = build_graph(scenario)
+    graph = build_graph(scenario, agent_version=agent_version)
     initial_state = CustomerSolutionState(
         scenario_id=scenario.id,
         user_problem=scenario.problem,

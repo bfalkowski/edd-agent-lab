@@ -29,6 +29,9 @@ class CustomerSolutionState(BaseModel):
 
     problem_summary: str | None = None
     discovery_questions: list[DiscoveryQuestion] = Field(default_factory=list)
+    workflow_summary: str | None = None
+    stakeholders: list[str] = Field(default_factory=list)
+    assumptions: list[str] = Field(default_factory=list)
     proposed_solution: str | None = None
     success_metrics: list[SuccessMetric] = Field(default_factory=list)
     risks: list[Risk] = Field(default_factory=list)

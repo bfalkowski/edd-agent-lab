@@ -2,7 +2,7 @@
   "agent": "customer_solution_agent",
   "agent_version": "v0-baseline",
   "suite": "baseline",
-  "run_id": "2026-05-28T02-41-11Z",
+  "run_id": "2026-05-28T02-47-35Z",
   "overall_score": 0.8,
   "cases": [
     {
@@ -51,7 +51,7 @@
           "method": "deterministic"
         }
       ],
-      "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v0-baseline/run-2026-05-28T02-41-11Z-healthcare_documentation.json"
+      "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v0-baseline/run-2026-05-28T02-47-35Z-healthcare_documentation.json"
     }
   ]
 }

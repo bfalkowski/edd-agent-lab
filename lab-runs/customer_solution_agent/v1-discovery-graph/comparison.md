@@ -1,5 +1,5 @@
-# Comparison: v0 → v1
+# Run Comparison
 
-Populated after Milestone 4 when `edd-lab compare-runs` is implemented.
-
-Expected: discovery quality overall score improves; success metrics check passes more often.
+- Before: `lab-runs/customer_solution_agent/v0-baseline/eval-summary-discovery_quality.json`
+- After: `lab-runs/customer_solution_agent/v1-discovery-graph/eval-summary-discovery_quality.json`
+- Overall score delta: `+0.054`

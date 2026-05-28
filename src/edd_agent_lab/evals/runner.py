@@ -31,7 +31,11 @@ def run_eval_suite(
     if isinstance(suite, OverfittingEvalSuite):
         raise NotImplementedError("Overfitting suite execution lands in Milestone 5.")
 
-    result = _run_standard_suite(agent_key=agent_key, suite=suite, agent_version=agent_version)
+    result = _run_standard_suite(
+        agent_key=agent_key,
+        suite=suite,
+        agent_version=agent_version,
+    )
     return result
 
 
