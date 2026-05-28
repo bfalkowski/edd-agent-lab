@@ -4,6 +4,42 @@ EDD Agent Lab demonstrates how LangGraph agents evolve through **evaluation-driv
 
 Most agent demos show the final polished behavior. This lab shows the engineering loop: baseline behavior, eval failures, trace evidence, diagnosis, bounded fixes, and verification runs.
 
+## How This Fits With the EDD Platform and Langfuse
+
+EDD Agent Lab is not intended to replace the EDD platform or Langfuse. It is the agent development workshop that produces the evidence those systems organize and observe.
+
+```text
+edd-agent-lab
+  runs LangGraph agents
+  produces outputs, eval summaries, and failure packets
+        |
+        v
+eval-driven-design-platform
+  owns the EDD workflow:
+  agent versions, failure packets, fix plans, verification gates,
+  overfitting detection, run comparison, and MCP tools
+        |
+        v
+Langfuse
+  owns the observability and evaluation data plane:
+  traces, scores, datasets, experiments, prompt versions,
+  token usage, cost, and run observability
+```
+
+In other words:
+
+- edd-agent-lab is where agents are built and evolved.
+- eval-driven-design-platform is where the evaluation-driven design process is managed.
+- Langfuse is where traces, scores, datasets, and experiment observability live.
+
+The dependency direction should stay one-way:
+
+```text
+edd-agent-lab -> eval-driven-design-platform -> Langfuse
+```
+
+edd-agent-lab should not talk directly to Langfuse. It should publish agent outputs, eval summaries, failure packets, and comparison artifacts to the EDD platform. The EDD platform is responsible for integrating with Langfuse.
+
 ## What This Repo Shows
 
 - A LangGraph-based **Customer Solution Discovery** agent
