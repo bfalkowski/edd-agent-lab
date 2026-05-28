@@ -1,0 +1,57 @@
+{
+  "agent": "customer_solution_agent",
+  "agent_version": "v0-baseline",
+  "suite": "baseline",
+  "run_id": "2026-05-28T02-41-11Z",
+  "overall_score": 0.8,
+  "cases": [
+    {
+      "case_id": "healthcare_baseline_001",
+      "scenario": "healthcare_documentation",
+      "score": 0.8,
+      "checks": [
+        {
+          "id": "has_discovery_questions",
+          "score": 0.5,
+          "passed": false,
+          "comment": "Matched 1/2 expected patterns.",
+          "weight": 0.2,
+          "method": "deterministic"
+        },
+        {
+          "id": "has_proposed_solution",
+          "score": 0.5,
+          "passed": false,
+          "comment": "Matched 1/2 expected patterns.",
+          "weight": 0.2,
+          "method": "deterministic"
+        },
+        {
+          "id": "has_success_metrics",
+          "score": 1.0,
+          "passed": true,
+          "comment": "Matched 2/2 expected patterns.",
+          "weight": 0.2,
+          "method": "deterministic"
+        },
+        {
+          "id": "has_risks",
+          "score": 1.0,
+          "passed": true,
+          "comment": "Matched 2/2 expected patterns.",
+          "weight": 0.2,
+          "method": "deterministic"
+        },
+        {
+          "id": "has_pilot_plan",
+          "score": 1.0,
+          "passed": true,
+          "comment": "Matched 1/1 expected patterns.",
+          "weight": 0.2,
+          "method": "deterministic"
+        }
+      ],
+      "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v0-baseline/run-2026-05-28T02-41-11Z-healthcare_documentation.json"
+    }
+  ]
+}
