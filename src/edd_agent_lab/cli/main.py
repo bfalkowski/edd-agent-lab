@@ -21,7 +21,18 @@ def _resolve_agent(agent: str) -> str:
 
 
 def _agent_version_to_dirname(agent_version: str) -> str:
-    return agent_version
+    version = agent_version.strip().lower()
+    mapping = {
+        "v0": "v0-baseline",
+        "v0-baseline": "v0-baseline",
+        "v1": "v1-discovery-graph",
+        "v1-discovery-graph": "v1-discovery-graph",
+    }
+    if version not in mapping:
+        raise typer.BadParameter(
+            "Unsupported version. Use v0, v1, v0-baseline, or v1-discovery-graph."
+        )
+    return mapping[version]
 
 
 @app.callback()
@@ -76,9 +87,10 @@ def run_agent(
     agent: str = typer.Option(..., "--agent", "-a", help="Agent key."),
     scenario: str = typer.Option(..., "--scenario", "-s", help="Scenario ID."),
     agent_version: str = typer.Option(
-        "v0-baseline",
+        "v0",
+        "--version",
         "--agent-version",
-        help="Agent version directory (e.g., v0-baseline, v1-discovery-graph).",
+        help="Agent version (v0|v1) or explicit directory name.",
     ),
 ) -> None:
     """Run an agent against a scenario and write a run artifact."""
@@ -88,10 +100,11 @@ def run_agent(
         console.print(f"[red]Unsupported agent for now:[/red] {agent_key}")
         raise typer.Exit(code=1)
 
+    version_dir = _agent_version_to_dirname(agent_version)
     result = run_customer_solution_agent(
         scenario_id=scenario,
         agent_key=agent_key,
-        agent_version=agent_version,
+        agent_version=version_dir,
     )
     console.print(f"[green]Run complete:[/green] {result.run_id}")
     console.print(f"[green]Artifact:[/green] {result.output_path}")
@@ -104,15 +117,17 @@ def run_evals(
     agent: str = typer.Option(..., "--agent", "-a", help="Agent key."),
     suite: str = typer.Option(..., "--suite", help="Eval suite ID."),
     agent_version: str = typer.Option(
-        "v0-baseline",
+        "v0",
+        "--version",
         "--agent-version",
-        help="Agent version directory (e.g., v0-baseline, v1-discovery-graph).",
+        help="Agent version (v0|v1) or explicit directory name.",
     ),
 ) -> None:
     """Run an eval suite and write summary artifacts."""
     agent_key = _resolve_agent(agent)
     _ = load_eval_suite(agent_key, suite)
-    result = run_eval_suite(agent_key=agent_key, suite_id=suite, agent_version=agent_version)
+    version_dir = _agent_version_to_dirname(agent_version)
+    result = run_eval_suite(agent_key=agent_key, suite_id=suite, agent_version=version_dir)
     console.print(f"[green]Eval run complete:[/green] {result.run_id}")
     console.print(f"[green]Summary:[/green] {result.summary_path}")
     if result.failure_packet_path:
@@ -163,19 +178,49 @@ def compare_runs(
     else:
         output_path = after_path.parent / "comparison.md"
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(
-        "\n".join(
-            [
-                "# Run Comparison",
-                "",
-                f"- Before: `{before_path}`",
-                f"- After: `{after_path}`",
-                f"- Overall score delta: `{delta:+.3f}`",
-            ]
-        )
-        + "\n",
-        encoding="utf-8",
+    common_checks = []
+    if before_data.get("cases") and after_data.get("cases"):
+        b_checks = {
+            item["id"]: item.get("score", 0.0)
+            for item in before_data["cases"][0].get("checks", [])
+        }
+        a_checks = {
+            item["id"]: item.get("score", 0.0)
+            for item in after_data["cases"][0].get("checks", [])
+        }
+        for check_id in sorted(set(b_checks) | set(a_checks)):
+            b_val = float(b_checks.get(check_id, 0.0))
+            a_val = float(a_checks.get(check_id, 0.0))
+            common_checks.append(f"| {check_id} | {b_val:.3f} | {a_val:.3f} | {(a_val-b_val):+.3f} |")
+
+    md_lines = [
+        "# v0 -> v1 Comparison",
+        "## Change",
+        "v1 replaced the broad v0 flow with a discovery-first graph.",
+        "## Why This Change",
+        "The v0 eval showed weak discovery discipline relative to the target behavior.",
+        "## Evaluation Evidence",
+        "| Metric / Check | v0 | v1 | Change |",
+        "|---|---:|---:|---:|",
+        f"| Overall discovery score | {before_score:.3f} | {after_score:.3f} | {delta:+.3f} |",
+    ]
+    md_lines.extend(common_checks)
+    md_lines.extend(
+        [
+            "## Interpretation",
+            (
+                "The evidence supports accepting v1 for discovery_quality."
+                if delta > 0
+                else "The evidence does not yet support accepting v1 without further refinement."
+            ),
+            "## Decision",
+            "Accepted" if delta > 0 else "Needs more work",
+            "## Remaining Gaps",
+            "- Overfitting/generalization across domain variants is not yet tested (Milestone 5).",
+            "- Platform API/MCP integration is intentionally deferred.",
+        ]
     )
+    output_path.write_text("\n".join(md_lines) + "\n", encoding="utf-8")
     console.print(f"[green]Comparison report:[/green] {output_path}")
 
 

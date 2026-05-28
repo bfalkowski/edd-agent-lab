@@ -69,6 +69,7 @@ def _write_run_artifact(
     out_dir = LAB_RUNS_DIR / "customer_solution_agent" / agent_version
     out_dir.mkdir(parents=True, exist_ok=True)
     output_path = out_dir / f"run-{run_id}-{scenario_id}.json"
+    latest_output_path = out_dir / "agent-output.json"
 
     payload = {
         "run_id": run_id,
@@ -86,5 +87,7 @@ def _write_run_artifact(
             "final_response": state.final_response,
         },
     }
-    output_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    rendered = json.dumps(payload, indent=2)
+    output_path.write_text(rendered, encoding="utf-8")
+    latest_output_path.write_text(rendered, encoding="utf-8")
     return output_path

@@ -34,11 +34,13 @@ edd-agent-lab/
 cd edd-agent-lab
 python -m venv .venv
 source .venv/bin/activate   # Windows: .venv\Scripts\activate
-pip install -e ".[dev]"
+pip install -e ".[dev,agent]"
 
 edd-lab --help
 edd-lab list-scenarios --agent customer-solution
 edd-lab list-evals --agent customer-solution
+edd-lab run-agent --agent customer-solution --version v0 --scenario healthcare_documentation
+edd-lab run-evals --agent customer-solution --version v0 --suite discovery_quality
 pytest
 ```
 
@@ -47,7 +49,7 @@ Copy `.env.example` to `.env` when you add LLM-backed evals (Milestone 3+).
 ## Agent Evolution
 
 | Version | Change | Main failure addressed | Evidence |
-|---------|--------|------------------------|----------|
+|---|---|---|---|
 | v0 | Naive prompt agent | Generic solutioning | Discovery score low |
 | v1 | Discovery-first graph | Missing process discipline | Discovery score improves |
 | v2 | Overfitting evals | Brittle domain behavior | Variant pass rate exposed |
@@ -70,12 +72,12 @@ The platform must not depend on this repo. See `docs/05-platform-integration.md`
 ## Roadmap
 
 | Milestone | Status |
-|-----------|--------|
-| 1 — Repo skeleton, CLI, loaders, tests | **Current** |
-| 2 — v0 LangGraph agent + `run-agent` | Planned |
-| 3 — Eval runner + `run-evals` | Planned |
-| 4 — v1 discovery graph | Planned |
-| 5 — Overfitting eval | Planned |
+|---|---|
+| 1 — Repo skeleton, CLI, loaders, tests | Complete |
+| 2 — v0 LangGraph agent + `run-agent` | Complete |
+| 3 — Eval runner + `run-evals` | Complete |
+| 4 — v1 discovery graph | Complete |
+| 5 — Overfitting eval | Next |
 | 6 — v3 competency model | Planned |
 | 7 — EDD platform client | Planned |
 | 8 — MCP integration | Planned |

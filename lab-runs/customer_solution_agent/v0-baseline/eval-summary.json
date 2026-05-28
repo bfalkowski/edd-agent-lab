@@ -1,57 +1,49 @@
 {
   "agent": "customer_solution_agent",
   "agent_version": "v0-baseline",
-  "suite": "baseline",
-  "run_id": "2026-05-28T02-47-35Z",
-  "overall_score": 0.8,
+  "suite": "discovery_quality",
+  "run_id": "2026-05-28T02-54-59Z",
+  "overall_score": 1.0,
   "cases": [
     {
-      "case_id": "healthcare_baseline_001",
+      "case_id": "healthcare_discovery_001",
       "scenario": "healthcare_documentation",
-      "score": 0.8,
+      "score": 1.0,
       "checks": [
         {
-          "id": "has_discovery_questions",
-          "score": 0.5,
-          "passed": false,
-          "comment": "Matched 1/2 expected patterns.",
-          "weight": 0.2,
-          "method": "deterministic"
-        },
-        {
-          "id": "has_proposed_solution",
-          "score": 0.5,
-          "passed": false,
-          "comment": "Matched 1/2 expected patterns.",
-          "weight": 0.2,
-          "method": "deterministic"
-        },
-        {
-          "id": "has_success_metrics",
+          "id": "asks_clarifying_questions",
           "score": 1.0,
           "passed": true,
-          "comment": "Matched 2/2 expected patterns.",
-          "weight": 0.2,
-          "method": "deterministic"
+          "comment": "Heuristic judge fallback used (no LLM key or call unavailable).",
+          "weight": 0.25,
+          "method": "heuristic"
         },
         {
-          "id": "has_risks",
+          "id": "identifies_workflow",
           "score": 1.0,
           "passed": true,
-          "comment": "Matched 2/2 expected patterns.",
-          "weight": 0.2,
-          "method": "deterministic"
+          "comment": "Heuristic judge fallback used (no LLM key or call unavailable).",
+          "weight": 0.25,
+          "method": "heuristic"
         },
         {
-          "id": "has_pilot_plan",
+          "id": "defines_success_metrics",
           "score": 1.0,
           "passed": true,
-          "comment": "Matched 1/1 expected patterns.",
-          "weight": 0.2,
-          "method": "deterministic"
+          "comment": "Heuristic judge fallback used (no LLM key or call unavailable).",
+          "weight": 0.25,
+          "method": "heuristic"
+        },
+        {
+          "id": "includes_risks",
+          "score": 1.0,
+          "passed": true,
+          "comment": "Heuristic judge fallback used (no LLM key or call unavailable).",
+          "weight": 0.25,
+          "method": "heuristic"
         }
       ],
-      "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v0-baseline/run-2026-05-28T02-47-35Z-healthcare_documentation.json"
+      "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v0-baseline/run-2026-05-28T02-54-59Z-healthcare_documentation.json"
     }
   ]
 }

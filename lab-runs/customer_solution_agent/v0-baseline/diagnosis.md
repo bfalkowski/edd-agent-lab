@@ -2,23 +2,22 @@
 
 ## Summary
 
-The v0 agent produces a plausible solution brief, but it does not reliably perform discovery before solutioning.
+The v0 agent can produce a plausible solution brief, but eval evidence shows discovery behavior is shallow and inconsistent.
 
 ## Evidence
 
-- The discovery quality suite scored 0.58 (placeholder until eval runner is implemented).
-- The success metrics check failed.
-- The response mentioned productivity but did not define how improvement would be measured.
-- The risk review was generic and not tied to workflow, compliance, or adoption.
+- `discovery_quality` now passes structurally, but the response can still jump to solutioning before fully surfacing workflow and stakeholder constraints.
+- `baseline` checks demonstrate the core sections are present, but depth quality is uneven.
+- The response quality is sensitive to prompt wording and does not consistently force discovery-first reasoning.
 
 ## Likely Cause
 
-The agent is implemented as a single broad prompt. It has no graph-level pressure to complete discovery steps before generating a solution.
+The baseline flow is broad and lightly constrained. It does not impose explicit graph-level checkpoints for workflow identification, stakeholder mapping, and discovery planning.
 
 ## Recommended Fix
 
-Refactor the agent into a discovery-first LangGraph flow with separate nodes for problem clarification, workflow identification, success metrics, risk review, pilot planning, and eval planning.
+Refactor to a discovery-first LangGraph flow with separate nodes for clarification, workflow, stakeholders, metrics, risks, pilot, and eval planning.
 
 ## Verification Plan
 
-Run the same discovery quality suite after the graph refactor and compare the score against v0.
+Run `discovery_quality` for v0 and v1, then compare summaries with `edd-lab compare-runs`.

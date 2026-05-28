@@ -107,6 +107,10 @@ def _run_standard_suite(agent_key: str, suite: EvalSuite, agent_version: str) ->
         )
         failure_packet_path = out_dir / "failure-packet.json"
         failure_packet_path.write_text(json.dumps(failure_packet, indent=2), encoding="utf-8")
+    else:
+        latest_failure = out_dir / "failure-packet.json"
+        if latest_failure.is_file():
+            latest_failure.unlink()
 
     return EvalRunResult(
         run_id=run_id,

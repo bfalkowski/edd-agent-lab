@@ -2,11 +2,11 @@
 
 ## Goal
 
-Improve discovery quality by replacing the single broad response node with a structured LangGraph flow.
+Improve discovery quality by replacing the broad baseline flow with a structured discovery-first graph.
 
 ## Bounded Change
 
-Add dedicated graph nodes for:
+Implement v1 with dedicated nodes for:
 
 - clarify_problem
 - identify_workflow
@@ -28,11 +28,15 @@ Add dedicated graph nodes for:
 Run:
 
 ```bash
-edd-lab run-evals --agent customer-solution --suite discovery_quality
+edd-lab run-evals --agent customer-solution --version v0 --suite discovery_quality
+edd-lab run-evals --agent customer-solution --version v1 --suite discovery_quality
+edd-lab compare-runs \
+  --before lab-runs/customer_solution_agent/v0-baseline/eval-summary-discovery_quality.json \
+  --after lab-runs/customer_solution_agent/v1-discovery-graph/eval-summary-discovery_quality.json
 ```
 
 Accept the change only if:
 
-- overall_score improves by at least 0.15
-- success_metrics check improves
-- risk_review check does not regress
+- overall discovery score improves
+- clarifying/workflow checks do not regress
+- risk coverage remains at least as strong as v0

@@ -1,24 +1,28 @@
-# v0 — Naive Prompt Agent
+# v0 — Baseline Agent Narrative
 
-## What changed
+## What v0 Does
 
-Initial baseline: a simple LangGraph agent with a single broad reasoning path (Milestone 2).
+v0 runs a simple baseline flow that produces a plausible solution brief from one scenario input.
 
-## Evals run
+## Evals Run
 
 - `discovery_quality`
 - `baseline`
 
-## Failures (expected)
+## What Passed
 
-- Discovery quality: low/medium
-- Measurable value: low
-- Risk coverage: medium
+- The response usually includes a coherent proposal, success metrics, risks, and a pilot/eval section.
 
-## Evidence
+## What Scored Weakly
 
-See `eval-summary.json` (populated after Milestone 3 eval runner).
+- Discovery discipline is shallow and inconsistent.
+- Workflow and stakeholder framing are not reliably established before solutioning.
+- Current heuristic scoring can saturate on section presence, so high numeric score does not guarantee deep discovery quality.
 
-## Next bounded change
+## Why This Matters
 
-Refactor into a discovery-first LangGraph with dedicated nodes (v1). See `fix-plan.md`.
+The agent can sound polished while skipping key discovery work. That creates risk of proposing the wrong scope and weakly measurable outcomes.
+
+## Bounded Change Attempted in v1
+
+v1 replaces the broad baseline flow with explicit discovery-first graph nodes. See `fix-plan.md`.
