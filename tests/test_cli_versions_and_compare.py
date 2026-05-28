@@ -2,10 +2,17 @@ import json
 
 from typer.testing import CliRunner
 
-from edd_agent_lab.cli.main import app
+from edd_agent_lab.cli.main import _agent_version_to_dirname, app
 from edd_agent_lab.paths import LAB_RUNS_DIR
 
 runner = CliRunner()
+
+
+def test_version_resolver_maps_v0_and_v1() -> None:
+    assert _agent_version_to_dirname("v0") == "v0-baseline"
+    assert _agent_version_to_dirname("v0-baseline") == "v0-baseline"
+    assert _agent_version_to_dirname("v1") == "v1-discovery-graph"
+    assert _agent_version_to_dirname("v1-discovery-graph") == "v1-discovery-graph"
 
 
 def test_run_agent_accepts_version_flag() -> None:
@@ -22,6 +29,7 @@ def test_run_agent_accepts_version_flag() -> None:
         ],
     )
     assert result.exit_code == 0
+    assert "v1-discovery-graph" in result.stdout
 
 
 def test_run_evals_accepts_version_flag() -> None:
@@ -38,6 +46,7 @@ def test_run_evals_accepts_version_flag() -> None:
         ],
     )
     assert result.exit_code == 0
+    assert "v0-baseline" in result.stdout
 
 
 def test_compare_runs_reads_v0_and_v1_summaries() -> None:
