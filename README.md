@@ -27,9 +27,11 @@ flowchart TD
     F --> B
     C -- Yes --> G[Accept Version]
     G --> H[Run Variant/Generalization Evals]
+    H --> I[Publish Runs and Evidence to EDD Platform]
+    I --> J[Platform Quality Gates and Registry]
 ```
 
-## Runtime Sequence
+## Target End-State Sequence (Final Milestone)
 
 ```mermaid
 sequenceDiagram
@@ -37,11 +39,17 @@ sequenceDiagram
     participant CLI as edd-lab CLI
     participant AG as Agent Runner
     participant EV as Eval Runner
-    participant AR as lab-runs artifacts
+    participant AR as lab-runs artifacts (local)
+    participant EC as EDDClient seam
+    participant EP as eval-driven-design-platform
+    participant LF as Langfuse (via platform)
+    participant MCP as EDD MCP tools
 
     U->>CLI: run-agent --version v0|v1 --scenario ...
     CLI->>AG: execute graph version
     AG->>AR: write agent-output.json + run-*.json
+    AG->>EC: log_agent_output(...)
+    EC->>EP: publish agent output
     AG-->>CLI: final response
     CLI-->>U: render response + artifact path
 
@@ -50,8 +58,24 @@ sequenceDiagram
     EV->>AG: run scenario cases
     EV->>AR: write eval-summary*.json
     EV->>AR: write failure-packet*.json (if needed)
+    EV->>EC: log_eval_summary(...)
+    EV->>EC: log_failure_packet(...) (if needed)
+    EC->>EP: publish eval evidence
+    EP->>LF: emit traces/observability
+    EP-->>CLI: quality gate status + run IDs
     EV-->>CLI: overall score + paths
     CLI-->>U: report evidence
+
+    U->>CLI: compare-runs --before ... --after ...
+    CLI->>EC: compare_runs(...)
+    EC->>EP: fetch cross-run comparison
+    EP-->>CLI: normalized comparison payload
+    CLI-->>U: comparison + decision narrative
+
+    Note over AG,EP: External agent/tool access goes through MCP
+    U->>MCP: edd.run_eval_suite / edd.compare_runs
+    MCP->>EP: execute platform tool
+    EP-->>MCP: result
 ```
 
 ## Repo Structure
