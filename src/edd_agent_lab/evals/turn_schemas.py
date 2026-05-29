@@ -12,6 +12,7 @@ class TurnCheckResult(BaseModel):
     comment: str
     evidence: list[str] = Field(default_factory=list)
     fix_hint: str | None = None
+    method: str = "deterministic"
 
 
 class TurnVersionResult(BaseModel):
@@ -28,6 +29,7 @@ class TurnEvaluation(BaseModel):
     scenario_id: str
     suite_id: str
     user_input: str
+    judge_mode: str = "structure"
     versions: list[TurnVersionResult] = Field(default_factory=list)
 
 

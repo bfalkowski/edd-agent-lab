@@ -22,9 +22,10 @@ from edd_agent_lab.ui.components import (
     start_new_console_session,
     sync_console_session,
 )
+from edd_agent_lab.ui.conversation_scripts import DISCOVERY_PLAYBOOK
 from edd_agent_lab.ui.eval_publish import render_eval_publish_panel
 from edd_agent_lab.ui.layout import load_css, page_shell, sidebar_brand
-from edd_agent_lab.ui.session_store import ChatTurn, list_console_session_ids
+from edd_agent_lab.ui.session_store import ChatTurn, list_console_session_ids, load_turn_eval
 
 LAB_CONSOLE_PORT = 8502
 
@@ -86,6 +87,7 @@ def _process_turn(
             left_version: left["final_response"],
             right_version: right["final_response"],
         },
+        generation_mode=generation_mode,  # type: ignore[arg-type]
     )
     comparison = compare_turn_evaluation(
         evaluation,
@@ -106,6 +108,7 @@ def _process_turn(
     st.session_state.latest_evaluation = evaluation
     st.session_state.latest_comparison = comparison
     st.session_state.latest_artifact_dir = str(artifact_dir)
+    st.session_state.selected_turn_id = turn_id
 
 
 def _switch_session(session_id: str) -> None:
@@ -160,8 +163,11 @@ def main() -> None:
             st.warning("Live mode requires OPENAI_API_KEY in `.env`.")
         elif st.session_state.generation_mode == "live":
             st.caption("Using OpenAI-backed agent generation.")
+            if live_generation_available():
+                st.caption("Turn eval: hybrid (structure + LLM judge).")
         else:
             st.caption("Using deterministic template responses (CI-safe).")
+            st.caption("Turn eval: structure checks only.")
         console_session = st.session_state.get("console_session")
         if (
             console_session
@@ -211,6 +217,9 @@ def main() -> None:
             scenario = load_scenario("customer-solution", st.session_state.scenario_id)
             st.session_state.pending_message = scenario.problem
             st.rerun()
+        if st.button("Run discovery playbook", use_container_width=True):
+            st.session_state.pending_script_queue = list(DISCOVERY_PLAYBOOK)
+            st.rerun()
         st.divider()
         st.caption("Platform UI: :8501 · Lab chat: :8502")
 
@@ -228,6 +237,47 @@ def main() -> None:
     )
 
     evaluation = st.session_state.get("latest_evaluation")
+    comparison = st.session_state.get("latest_comparison")
+
+    console_session = st.session_state.get("console_session")
+    if console_session and console_session.turn_summaries:
+        turn_labels = {
+            summary.turn_id: (
+                f"{summary.user_input[:48]}…"
+                if len(summary.user_input) > 48
+                else summary.user_input
+            )
+            for summary in console_session.turn_summaries
+        }
+        turn_ids = list(turn_labels.keys())
+        default_turn = st.session_state.get("selected_turn_id") or turn_ids[-1]
+        selected_turn = st.selectbox(
+            "Turn analysis",
+            turn_ids,
+            index=turn_ids.index(default_turn) if default_turn in turn_ids else len(turn_ids) - 1,
+            format_func=lambda turn_id: turn_labels.get(turn_id, turn_id),
+        )
+        if selected_turn != st.session_state.get("selected_turn_id"):
+            loaded_eval, loaded_comparison = load_turn_eval(
+                st.session_state.session_id,
+                selected_turn,
+            )
+            st.session_state.selected_turn_id = selected_turn
+            if loaded_eval and loaded_comparison:
+                st.session_state.latest_evaluation = loaded_eval
+                st.session_state.latest_comparison = loaded_comparison
+                st.session_state.latest_artifact_dir = next(
+                    (
+                        summary.artifact_dir
+                        for summary in console_session.turn_summaries
+                        if summary.turn_id == selected_turn
+                    ),
+                    st.session_state.get("latest_artifact_dir"),
+                )
+                evaluation = loaded_eval
+                comparison = loaded_comparison
+            st.rerun()
+
     left_result = None
     right_result = None
     if evaluation:
@@ -269,6 +319,20 @@ def main() -> None:
     if pending:
         _process_turn(
             message=pending.strip(),
+            scenario_id=scenario_id,
+            suite_id=suite_id,
+            left_version=left_version,
+            right_version=right_version,
+            generation_mode=st.session_state.generation_mode,
+        )
+        st.rerun()
+
+    script_queue = st.session_state.get("pending_script_queue") or []
+    if script_queue:
+        next_message = script_queue[0]
+        st.session_state.pending_script_queue = script_queue[1:]
+        _process_turn(
+            message=next_message.strip(),
             scenario_id=scenario_id,
             suite_id=suite_id,
             left_version=left_version,

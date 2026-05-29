@@ -75,21 +75,27 @@ def list_console_session_ids(*, limit: int = 20) -> list[str]:
     return [session_id for _, session_id in sessions[:limit]]
 
 
-def load_latest_turn_eval(session_id: str) -> tuple[TurnEvaluation | None, TurnComparison | None]:
-    session = load_console_session(session_id)
-    if not session or not session.turn_summaries:
-        return None, None
-    last = session.turn_summaries[-1]
-    turn_dir = Path(last.artifact_dir)
+def load_turn_eval(
+    session_id: str,
+    turn_id: str,
+) -> tuple[TurnEvaluation | None, TurnComparison | None]:
+    turn_dir = CONSOLE_SESSIONS_DIR / session_id / "turns" / turn_id
     eval_path = turn_dir / "turn-evaluation.json"
     comparison_path = turn_dir / "turn-comparison.json"
     if not eval_path.is_file() or not comparison_path.is_file():
         return None, None
     evaluation = TurnEvaluation.model_validate(json.loads(eval_path.read_text(encoding="utf-8")))
     comparison = TurnComparison.model_validate(
-        json.loads(comparison_path.read_text(encoding="utf-8"))
+        json.loads(comparison_path.read_text(encoding="utf-8")),
     )
     return evaluation, comparison
+
+
+def load_latest_turn_eval(session_id: str) -> tuple[TurnEvaluation | None, TurnComparison | None]:
+    session = load_console_session(session_id)
+    if not session or not session.turn_summaries:
+        return None, None
+    return load_turn_eval(session_id, session.turn_summaries[-1].turn_id)
 
 
 def _normalize_session(data: dict[str, Any]) -> ConsoleSession:

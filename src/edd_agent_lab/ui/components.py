@@ -69,6 +69,7 @@ def render_turn_analysis(comparison: TurnComparison, evaluation: TurnEvaluation)
 
     with st.expander("Turn-level EDD analysis (latest message)", expanded=True):
         page_header("Latest turn comparison", comparison.decision)
+        st.caption(f"Judge mode: {evaluation.judge_mode}")
         c1, c2, c3 = st.columns(3)
         c1.metric("Left score", f"{comparison.before_score:.3f}")
         c2.metric("Right score", f"{comparison.after_score:.3f}")
@@ -101,7 +102,7 @@ def render_version_score(version: str, latest_result: TurnVersionResult | None) 
     with st.popover("Check details"):
         for check in latest_result.checks:
             st.write(
-                f"**{check.id}** — {check.score:.3f} "
+                f"**{check.id}** ({check.method}) — {check.score:.3f} "
                 f"({'pass' if check.passed else 'fail'})"
             )
 

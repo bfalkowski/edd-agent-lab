@@ -2,10 +2,16 @@
 
 from __future__ import annotations
 
+import os
+from typing import Literal
+
+from edd_agent_lab.agents.generation import resolve_generation_mode
 from edd_agent_lab.evals.loading import load_eval_suite
-from edd_agent_lab.evals.schemas import EvalCheck
-from edd_agent_lab.evals.scoring import score_check
+from edd_agent_lab.evals.schemas import EvalCheck, EvalSuite
+from edd_agent_lab.evals.scoring import CheckScore, _score_structure_or_keyword, score_check
 from edd_agent_lab.evals.turn_schemas import TurnCheckResult, TurnEvaluation, TurnVersionResult
+
+ConsoleGenerationMode = Literal["mock", "live", "auto"]
 
 TURN_CHECK_IDS = (
     "asks_clarifying_questions",
@@ -15,7 +21,7 @@ TURN_CHECK_IDS = (
     "proposes_eval_plan",
 )
 
-_TURN_CHECKS: list[EvalCheck] = [
+_STRUCTURE_CHECKS: list[EvalCheck] = [
     EvalCheck(
         id="asks_clarifying_questions",
         type="structure",
@@ -48,6 +54,8 @@ _TURN_CHECKS: list[EvalCheck] = [
     ),
 ]
 
+_PATTERN_BY_ID = {check.id: check.patterns for check in _STRUCTURE_CHECKS}
+
 
 def _fix_hint_for_check(check_id: str) -> str:
     hints = {
@@ -62,18 +70,74 @@ def _fix_hint_for_check(check_id: str) -> str:
     return hints.get(check_id, "Strengthen discovery discipline for this turn.")
 
 
-def _evidence_for_check(check_id: str, response_text: str) -> list[str]:
+def _evidence_for_check(check: EvalCheck, response_text: str) -> list[str]:
     lowered = response_text.lower()
     evidence: list[str] = []
-    for check in _TURN_CHECKS:
-        if check.id != check_id:
-            continue
-        for pattern in check.patterns:
-            if pattern in lowered:
-                evidence.append(f"Found signal: '{pattern}'")
+    for pattern in check.patterns:
+        if pattern.lower() in lowered:
+            evidence.append(f"Found signal: '{pattern}'")
     if not evidence:
         evidence.append("Expected signals were not found in the response.")
     return evidence
+
+
+def _checks_for_suite(suite_id: str) -> list[EvalCheck]:
+    suite = load_eval_suite(agent_key="customer-solution", suite_id=suite_id)
+    if isinstance(suite, EvalSuite) and suite.cases:
+        checks: list[EvalCheck] = []
+        for check in suite.cases[0].checks:
+            patterns = check.patterns or _PATTERN_BY_ID.get(check.id, [])
+            checks.append(check.model_copy(update={"patterns": patterns}))
+        if checks:
+            return checks
+    return list(_STRUCTURE_CHECKS)
+
+
+def _hybrid_judge_enabled(generation_mode: ConsoleGenerationMode) -> bool:
+    resolved = resolve_generation_mode(generation_mode)
+    return resolved == "live" and bool(os.environ.get("OPENAI_API_KEY", "").strip())
+
+
+def score_turn_check(
+    check: EvalCheck,
+    response_text: str,
+    *,
+    hybrid: bool,
+) -> CheckScore:
+    patterns = check.patterns or _PATTERN_BY_ID.get(check.id, [])
+    structure = _score_structure_or_keyword(
+        check.model_copy(update={"type": "structure", "patterns": patterns}),
+        response_text,
+    )
+    if not hybrid:
+        return structure
+
+    llm = score_check(
+        EvalCheck(
+            id=check.id,
+            type="llm_judge",
+            weight=check.weight,
+            rubric=check.rubric
+            or "Score whether the response satisfies disciplined customer discovery.",
+        ),
+        response_text,
+    )
+    if llm.method != "llm_judge":
+        return structure
+
+    combined_score = round((structure.score + llm.score) / 2, 3)
+    passed = structure.passed and llm.passed
+    return CheckScore(
+        id=check.id,
+        score=combined_score,
+        passed=passed,
+        comment=(
+            f"Hybrid structure={structure.score:.2f}, llm={llm.score:.2f}. "
+            f"{llm.comment[:160]}"
+        ),
+        weight=check.weight,
+        method="hybrid",
+    )
 
 
 def evaluate_turn(
@@ -82,22 +146,30 @@ def evaluate_turn(
     suite_id: str,
     user_input: str,
     responses_by_version: dict[str, str],
+    *,
+    generation_mode: ConsoleGenerationMode = "mock",
 ) -> TurnEvaluation:
-    _ = load_eval_suite(agent_key="customer-solution", suite_id=suite_id)
+    checks = _checks_for_suite(suite_id)
+    hybrid = _hybrid_judge_enabled(generation_mode)
+    judge_mode = "hybrid" if hybrid else "structure"
 
     version_results: list[TurnVersionResult] = []
     for agent_version, response_text in responses_by_version.items():
         check_results: list[TurnCheckResult] = []
-        for check in _TURN_CHECKS:
-            scored = score_check(check, response_text)
+        for check in checks:
+            scored = score_turn_check(check, response_text, hybrid=hybrid)
             check_results.append(
                 TurnCheckResult(
                     id=check.id,
                     score=scored.score,
                     passed=scored.passed,
                     comment=scored.comment,
-                    evidence=_evidence_for_check(check.id, response_text),
+                    evidence=_evidence_for_check(
+                        check.model_copy(update={"patterns": check.patterns or _PATTERN_BY_ID.get(check.id, [])}),
+                        response_text,
+                    ),
                     fix_hint=None if scored.passed else _fix_hint_for_check(check.id),
+                    method=scored.method,
                 )
             )
         overall = round(
@@ -120,6 +192,6 @@ def evaluate_turn(
         scenario_id=scenario_id,
         suite_id=suite_id,
         user_input=user_input,
+        judge_mode=judge_mode,
         versions=version_results,
     )
-
