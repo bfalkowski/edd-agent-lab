@@ -27,10 +27,13 @@ def _agent_version_to_dirname(agent_version: str) -> str:
         "v0-baseline": "v0-baseline",
         "v1": "v1-discovery-graph",
         "v1-discovery-graph": "v1-discovery-graph",
+        "v3": "v3-competency-model",
+        "v3-competency-model": "v3-competency-model",
     }
     if version not in mapping:
         raise typer.BadParameter(
-            "Unsupported version. Use v0, v1, v0-baseline, or v1-discovery-graph."
+            "Unsupported version. Use v0, v1, v3, or explicit directory names "
+            "(v0-baseline, v1-discovery-graph, v3-competency-model)."
         )
     return mapping[version]
 

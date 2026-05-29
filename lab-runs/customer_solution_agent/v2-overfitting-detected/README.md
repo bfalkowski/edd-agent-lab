@@ -1,5 +1,7 @@
 # v2 — Overfitting Exposed
 
-Variant evals across domain-swap scenarios (Milestone 5).
+Milestone 5 evidence package: v1-discovery-graph evaluated with the `overfitting` suite.
 
-Expected: base healthcare case passes; variant pass rate low/medium; overfitting risk high.
+Observed: base healthcare case passes; variant pass rate 0.40; overfitting risk **high**.
+
+Regenerate with `python scripts/refresh_overfitting_lab_artifacts.py`.

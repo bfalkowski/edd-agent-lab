@@ -1,0 +1,159 @@
+{
+  "run_id": "2026-05-29T00-39-25Z",
+  "agent": "customer_solution_agent",
+  "agent_version": "v3-competency-model",
+  "suite": "overfitting",
+  "scenario_ids": [
+    "healthcare_documentation",
+    "legal_review",
+    "banking_fraud",
+    "manufacturing_support",
+    "hr_policy",
+    "customer_support"
+  ],
+  "started_at": "2026-05-29T00-39-25Z",
+  "completed_at": "2026-05-29T00-39-25Z",
+  "outputs": {
+    "healthcare_documentation": {
+      "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v3-competency-model/run-2026-05-29T00-39-25Z-healthcare_documentation.json"
+    },
+    "legal_review": {
+      "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v3-competency-model/run-2026-05-29T00-39-25Z-legal_review.json"
+    },
+    "banking_fraud": {
+      "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v3-competency-model/run-2026-05-29T00-39-25Z-banking_fraud.json"
+    },
+    "manufacturing_support": {
+      "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v3-competency-model/run-2026-05-29T00-39-25Z-manufacturing_support.json"
+    },
+    "hr_policy": {
+      "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v3-competency-model/run-2026-05-29T00-39-25Z-hr_policy.json"
+    },
+    "customer_support": {
+      "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v3-competency-model/run-2026-05-29T00-39-25Z-customer_support.json"
+    }
+  },
+  "eval_summary": {
+    "agent": "customer_solution_agent",
+    "agent_version": "v3-competency-model",
+    "suite": "overfitting",
+    "run_id": "2026-05-29T00-39-25Z",
+    "scenario_ids": [
+      "healthcare_documentation",
+      "legal_review",
+      "banking_fraud",
+      "manufacturing_support",
+      "hr_policy",
+      "customer_support"
+    ],
+    "started_at": "2026-05-29T00-39-25Z",
+    "completed_at": "2026-05-29T00-39-25Z",
+    "outputs": {
+      "healthcare_documentation": {
+        "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v3-competency-model/run-2026-05-29T00-39-25Z-healthcare_documentation.json"
+      },
+      "legal_review": {
+        "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v3-competency-model/run-2026-05-29T00-39-25Z-legal_review.json"
+      },
+      "banking_fraud": {
+        "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v3-competency-model/run-2026-05-29T00-39-25Z-banking_fraud.json"
+      },
+      "manufacturing_support": {
+        "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v3-competency-model/run-2026-05-29T00-39-25Z-manufacturing_support.json"
+      },
+      "hr_policy": {
+        "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v3-competency-model/run-2026-05-29T00-39-25Z-hr_policy.json"
+      },
+      "customer_support": {
+        "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v3-competency-model/run-2026-05-29T00-39-25Z-customer_support.json"
+      }
+    },
+    "base_case_passed": true,
+    "base_case_score": 1.0,
+    "variant_pass_rate": 1.0,
+    "behavioral_consistency_score": 0.864,
+    "overall_score": 0.864,
+    "overfitting_risk": "low",
+    "failed_variants": [],
+    "base_case": {
+      "id": "base_healthcare_documentation",
+      "scenario": "healthcare_documentation",
+      "score": 1.0,
+      "checks": [
+        {
+          "id": "discovery_discipline",
+          "score": 1.0,
+          "passed": true,
+          "comment": "Heuristic judge fallback used (no LLM key or call unavailable).",
+          "weight": 1.0,
+          "method": "heuristic"
+        }
+      ],
+      "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v3-competency-model/run-2026-05-29T00-39-25Z-healthcare_documentation.json"
+    },
+    "variants": [
+      {
+        "id": "legal_review_variant",
+        "scenario": "legal_review",
+        "mutation_type": "domain_swap",
+        "expected_invariant": "The agent should still perform disciplined discovery, identify workflow, define success metrics, surface risks, and propose an eval plan.\n",
+        "score": 0.905,
+        "passed": true,
+        "comment": "Theme coverage 15/19; core discovery coverage 6/6.",
+        "method": "theme_invariant",
+        "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v3-competency-model/run-2026-05-29T00-39-25Z-legal_review.json"
+      },
+      {
+        "id": "banking_fraud_variant",
+        "scenario": "banking_fraud",
+        "mutation_type": "domain_swap",
+        "expected_invariant": "The agent should still perform disciplined discovery, identify workflow, define success metrics, surface risks, and propose an eval plan.\n",
+        "score": 0.85,
+        "passed": true,
+        "comment": "Theme coverage 10/15; core discovery coverage 6/6.",
+        "method": "theme_invariant",
+        "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v3-competency-model/run-2026-05-29T00-39-25Z-banking_fraud.json"
+      },
+      {
+        "id": "manufacturing_support_variant",
+        "scenario": "manufacturing_support",
+        "mutation_type": "domain_swap",
+        "expected_invariant": "The agent should still perform disciplined discovery, identify workflow, define success metrics, surface risks, and propose an eval plan.\n",
+        "score": 0.831,
+        "passed": true,
+        "comment": "Theme coverage 15/24; core discovery coverage 6/6.",
+        "method": "theme_invariant",
+        "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v3-competency-model/run-2026-05-29T00-39-25Z-manufacturing_support.json"
+      },
+      {
+        "id": "hr_policy_variant",
+        "scenario": "hr_policy",
+        "mutation_type": "domain_swap",
+        "expected_invariant": "The agent should still perform disciplined discovery, identify workflow, define success metrics, surface risks, and propose an eval plan.\n",
+        "score": 0.871,
+        "passed": true,
+        "comment": "Theme coverage 15/21; core discovery coverage 6/6.",
+        "method": "theme_invariant",
+        "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v3-competency-model/run-2026-05-29T00-39-25Z-hr_policy.json"
+      },
+      {
+        "id": "customer_support_variant",
+        "scenario": "customer_support",
+        "mutation_type": "domain_swap",
+        "expected_invariant": "The agent should still perform disciplined discovery, identify workflow, define success metrics, surface risks, and propose an eval plan.\n",
+        "score": 0.865,
+        "passed": true,
+        "comment": "Theme coverage 14/20; core discovery coverage 6/6.",
+        "method": "theme_invariant",
+        "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v3-competency-model/run-2026-05-29T00-39-25Z-customer_support.json"
+      }
+    ]
+  },
+  "failure_packet": null,
+  "artifact_paths": {
+    "summary": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v3-competency-model/eval-summary.json",
+    "summary_by_suite": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v3-competency-model/eval-summary-overfitting.json",
+    "failure_packet": null,
+    "failure_packet_by_suite": null
+  }
+}

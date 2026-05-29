@@ -146,6 +146,8 @@ edd-lab list-scenarios --agent customer-solution
 edd-lab list-evals --agent customer-solution
 edd-lab run-agent --agent customer-solution --version v0 --scenario healthcare_documentation
 edd-lab run-evals --agent customer-solution --version v0 --suite discovery_quality
+edd-lab run-evals --agent customer-solution --version v1 --suite overfitting
+edd-lab run-evals --agent customer-solution --version v3 --suite overfitting
 pytest
 ```
 
@@ -182,8 +184,8 @@ The platform must not depend on this repo. See `docs/05-platform-integration.md`
 | 2 — v0 LangGraph agent + `run-agent` | Complete |
 | 3 — Eval runner + `run-evals` | Complete |
 | 4 — v1 discovery graph | Complete |
-| 5 — Overfitting eval | Next |
-| 6 — v3 competency model | Planned |
+| 5 — Overfitting eval | Complete |
+| 6 — v3 competency model | Complete |
 | 7 — EDD platform client | Planned |
 | 8 — MCP integration | Planned |
 

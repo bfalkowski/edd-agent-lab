@@ -1,0 +1,127 @@
+{
+  "run_id": "2026-05-29T00-37-46Z",
+  "agent": "customer_solution_agent",
+  "agent_version": "v0-baseline",
+  "suite": "agent_run",
+  "scenario_ids": [
+    "customer_support"
+  ],
+  "started_at": "2026-05-29T00-37-46Z",
+  "completed_at": "2026-05-29T00-37-46Z",
+  "outputs": {
+    "customer_support": {
+      "problem_summary": "Customer needs an AI-assisted discovery and delivery plan for the stated business problem. The first objective is to clarify constraints and define measurable outcomes.",
+      "discovery_questions": [
+        {
+          "question": "Which workflow step creates the largest burden today?",
+          "reason": "Find the highest-leverage pilot scope."
+        },
+        {
+          "question": "What compliance or policy controls must any AI output satisfy?",
+          "reason": "Ensure feasibility and safety before solution design."
+        },
+        {
+          "question": "What baseline metric is available today (time, quality, or throughput)?",
+          "reason": "Enable measurable before/after verification."
+        }
+      ],
+      "proposed_solution": "Build a domain-specific copilot for customer_support that assists the target workflow, surfaces grounded recommendations, and routes uncertain cases to human reviewers.",
+      "success_metrics": [
+        {
+          "metric": "Cycle time reduction",
+          "why_it_matters": "Primary business value is faster workflow completion.",
+          "how_to_measure": "Compare median end-to-end task time before and after pilot rollout."
+        },
+        {
+          "metric": "Quality and safety score",
+          "why_it_matters": "Speed must not degrade outcomes or compliance quality.",
+          "how_to_measure": "Track QA review pass rate and critical error rate per 100 tasks."
+        },
+        {
+          "metric": "Adoption by frontline users",
+          "why_it_matters": "Sustained impact requires behavior change, not one-time usage.",
+          "how_to_measure": "Measure weekly active users and task-assist utilization rate."
+        }
+      ],
+      "risks": [
+        {
+          "risk": "Incorrect or low-confidence recommendations in sensitive workflows.",
+          "mitigation": "Require human review for high-impact actions and confidence-based escalation."
+        },
+        {
+          "risk": "Poor integration with existing systems causing workflow friction.",
+          "mitigation": "Start with one bounded pilot workflow and instrument handoff failures."
+        },
+        {
+          "risk": "Weak change management reduces adoption despite technical quality.",
+          "mitigation": "Run enablement sessions and collect role-specific feedback each sprint."
+        }
+      ],
+      "pilot_plan": "Pilot one workflow for 4-6 weeks with a defined user cohort, baseline metrics, weekly risk reviews, and go/no-go criteria tied to metric targets.",
+      "eval_plan": "Evaluate discovery quality, measurable value, and risk coverage on each run. Accept changes only when eval evidence improves against baseline.",
+      "final_response": "# Customer Solution Discovery Brief \u2014 Customer support ticket triage\n\n## Problem Summary\nCustomer needs an AI-assisted discovery and delivery plan for the stated business problem. The first objective is to clarify constraints and define measurable outcomes.\n\n## Clarifying Discovery Questions\n- Which workflow step creates the largest burden today? (Find the highest-leverage pilot scope.)\n- What compliance or policy controls must any AI output satisfy? (Ensure feasibility and safety before solution design.)\n- What baseline metric is available today (time, quality, or throughput)? (Enable measurable before/after verification.)\n\n## Workflow Decomposition\nWorkflow details to be confirmed.\n\n## Stakeholder Map\n- TBD\n\n## Data and Integration Assumptions\n- TBD\n\n## Proposed Solution\nBuild a domain-specific copilot for customer_support that assists the target workflow, surfaces grounded recommendations, and routes uncertain cases to human reviewers.\n\n## Success Metrics\n- Cycle time reduction: Primary business value is faster workflow completion. Measurement: Compare median end-to-end task time before and after pilot rollout.\n- Quality and safety score: Speed must not degrade outcomes or compliance quality. Measurement: Track QA review pass rate and critical error rate per 100 tasks.\n- Adoption by frontline users: Sustained impact requires behavior change, not one-time usage. Measurement: Measure weekly active users and task-assist utilization rate.\n\n## Risks and Mitigations\n- Incorrect or low-confidence recommendations in sensitive workflows. Mitigation: Require human review for high-impact actions and confidence-based escalation.\n- Poor integration with existing systems causing workflow friction. Mitigation: Start with one bounded pilot workflow and instrument handoff failures.\n- Weak change management reduces adoption despite technical quality. Mitigation: Run enablement sessions and collect role-specific feedback each sprint.\n\n## Pilot Plan\nPilot one workflow for 4-6 weeks with a defined user cohort, baseline metrics, weekly risk reviews, and go/no-go criteria tied to metric targets.\n\n## Evaluation Plan\nEvaluate discovery quality, measurable value, and risk coverage on each run. Accept changes only when eval evidence improves against baseline.\n"
+    }
+  },
+  "eval_summary": null,
+  "failure_packet": null,
+  "artifact_paths": {
+    "timestamped_output": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v0-baseline/run-2026-05-29T00-37-46Z-customer_support.json",
+    "latest_output": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v0-baseline/agent-output.json"
+  },
+  "scenario": {
+    "id": "customer_support",
+    "title": "Customer support ticket triage"
+  },
+  "response": {
+    "problem_summary": "Customer needs an AI-assisted discovery and delivery plan for the stated business problem. The first objective is to clarify constraints and define measurable outcomes.",
+    "discovery_questions": [
+      {
+        "question": "Which workflow step creates the largest burden today?",
+        "reason": "Find the highest-leverage pilot scope."
+      },
+      {
+        "question": "What compliance or policy controls must any AI output satisfy?",
+        "reason": "Ensure feasibility and safety before solution design."
+      },
+      {
+        "question": "What baseline metric is available today (time, quality, or throughput)?",
+        "reason": "Enable measurable before/after verification."
+      }
+    ],
+    "proposed_solution": "Build a domain-specific copilot for customer_support that assists the target workflow, surfaces grounded recommendations, and routes uncertain cases to human reviewers.",
+    "success_metrics": [
+      {
+        "metric": "Cycle time reduction",
+        "why_it_matters": "Primary business value is faster workflow completion.",
+        "how_to_measure": "Compare median end-to-end task time before and after pilot rollout."
+      },
+      {
+        "metric": "Quality and safety score",
+        "why_it_matters": "Speed must not degrade outcomes or compliance quality.",
+        "how_to_measure": "Track QA review pass rate and critical error rate per 100 tasks."
+      },
+      {
+        "metric": "Adoption by frontline users",
+        "why_it_matters": "Sustained impact requires behavior change, not one-time usage.",
+        "how_to_measure": "Measure weekly active users and task-assist utilization rate."
+      }
+    ],
+    "risks": [
+      {
+        "risk": "Incorrect or low-confidence recommendations in sensitive workflows.",
+        "mitigation": "Require human review for high-impact actions and confidence-based escalation."
+      },
+      {
+        "risk": "Poor integration with existing systems causing workflow friction.",
+        "mitigation": "Start with one bounded pilot workflow and instrument handoff failures."
+      },
+      {
+        "risk": "Weak change management reduces adoption despite technical quality.",
+        "mitigation": "Run enablement sessions and collect role-specific feedback each sprint."
+      }
+    ],
+    "pilot_plan": "Pilot one workflow for 4-6 weeks with a defined user cohort, baseline metrics, weekly risk reviews, and go/no-go criteria tied to metric targets.",
+    "eval_plan": "Evaluate discovery quality, measurable value, and risk coverage on each run. Accept changes only when eval evidence improves against baseline.",
+    "final_response": "# Customer Solution Discovery Brief \u2014 Customer support ticket triage\n\n## Problem Summary\nCustomer needs an AI-assisted discovery and delivery plan for the stated business problem. The first objective is to clarify constraints and define measurable outcomes.\n\n## Clarifying Discovery Questions\n- Which workflow step creates the largest burden today? (Find the highest-leverage pilot scope.)\n- What compliance or policy controls must any AI output satisfy? (Ensure feasibility and safety before solution design.)\n- What baseline metric is available today (time, quality, or throughput)? (Enable measurable before/after verification.)\n\n## Workflow Decomposition\nWorkflow details to be confirmed.\n\n## Stakeholder Map\n- TBD\n\n## Data and Integration Assumptions\n- TBD\n\n## Proposed Solution\nBuild a domain-specific copilot for customer_support that assists the target workflow, surfaces grounded recommendations, and routes uncertain cases to human reviewers.\n\n## Success Metrics\n- Cycle time reduction: Primary business value is faster workflow completion. Measurement: Compare median end-to-end task time before and after pilot rollout.\n- Quality and safety score: Speed must not degrade outcomes or compliance quality. Measurement: Track QA review pass rate and critical error rate per 100 tasks.\n- Adoption by frontline users: Sustained impact requires behavior change, not one-time usage. Measurement: Measure weekly active users and task-assist utilization rate.\n\n## Risks and Mitigations\n- Incorrect or low-confidence recommendations in sensitive workflows. Mitigation: Require human review for high-impact actions and confidence-based escalation.\n- Poor integration with existing systems causing workflow friction. Mitigation: Start with one bounded pilot workflow and instrument handoff failures.\n- Weak change management reduces adoption despite technical quality. Mitigation: Run enablement sessions and collect role-specific feedback each sprint.\n\n## Pilot Plan\nPilot one workflow for 4-6 weeks with a defined user cohort, baseline metrics, weekly risk reviews, and go/no-go criteria tied to metric targets.\n\n## Evaluation Plan\nEvaluate discovery quality, measurable value, and risk coverage on each run. Accept changes only when eval evidence improves against baseline.\n"
+  }
+}

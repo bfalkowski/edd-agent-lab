@@ -1,18 +1,22 @@
 {
   "agent": "customer_solution_agent",
   "suite": "overfitting",
-  "run_id": "placeholder-milestone-1",
+  "run_id": "2026-05-29T00-39-25Z",
   "failure_type": "overfitting",
-  "summary": "Placeholder — regenerate after Milestone 5 overfitting eval run.",
+  "summary": "Base case and variant behavior indicate overfitting risk.",
   "evidence": {
     "base_case_passed": true,
-    "variant_pass_rate": 0.42,
+    "variant_pass_rate": 0.4,
+    "behavioral_consistency_score": 0.773,
     "failed_variants": [
-      "legal_review_variant",
       "banking_fraud_variant",
-      "manufacturing_support_variant"
-    ]
+      "manufacturing_support_variant",
+      "hr_policy_variant"
+    ],
+    "overfitting_risk": "high"
   },
-  "hypothesis": "The agent is overfit to the healthcare documentation scenario rather than applying a general discovery framework.",
-  "recommended_fix": "Introduce a domain-neutral discovery competency model and require each final answer to address those dimensions."
+  "hypothesis": "Agent behavior is tuned to base scenario phrasing and does not transfer consistently.",
+  "recommended_fix": "Introduce domain-neutral competency constraints and re-run overfitting suite.",
+  "milestone": "v2-overfitting-detected",
+  "evaluated_agent_version": "v1-discovery-graph"
 }

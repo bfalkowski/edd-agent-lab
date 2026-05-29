@@ -3,9 +3,45 @@
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import dataclass
 
-from edd_agent_lab.evals.schemas import EvalCheck
+from edd_agent_lab.evals.schemas import EvalCheck, Scenario
+
+_THEME_STOPWORDS = frozenset(
+    {
+        "about",
+        "after",
+        "and",
+        "before",
+        "define",
+        "decompose",
+        "discuss",
+        "identify",
+        "include",
+        "into",
+        "map",
+        "metrics",
+        "propose",
+        "risks",
+        "surface",
+        "their",
+        "through",
+        "with",
+        "without",
+        "workflow",
+        "workflows",
+    }
+)
+
+_CORE_DISCOVERY_SIGNALS = (
+    "workflow",
+    "stakeholder",
+    "success metric",
+    "risk",
+    "evaluation plan",
+    "pilot",
+)
 
 
 @dataclass
@@ -85,6 +121,44 @@ def _score_structure_or_keyword(check: EvalCheck, response_text: str) -> CheckSc
     )
 
 
+def discovery_theme_patterns(scenario: Scenario) -> list[str]:
+    patterns: list[str] = [scenario.domain]
+    for theme in scenario.expected_themes:
+        for word in re.findall(r"[a-z]{5,}", theme.lower()):
+            if word not in _THEME_STOPWORDS:
+                patterns.append(word)
+    unique: list[str] = []
+    for pattern in patterns:
+        if pattern not in unique:
+            unique.append(pattern)
+    return unique
+
+
+def score_discovery_invariant(scenario: Scenario, response_text: str) -> CheckScore:
+    """Score whether a variant response reflects scenario-specific discovery themes."""
+    lowered = response_text.lower()
+    theme_patterns = discovery_theme_patterns(scenario)
+    theme_matches = sum(1 for pattern in theme_patterns if pattern in lowered)
+    theme_ratio = theme_matches / len(theme_patterns) if theme_patterns else 0.0
+
+    core_matches = sum(1 for signal in _CORE_DISCOVERY_SIGNALS if signal in lowered)
+    core_ratio = core_matches / len(_CORE_DISCOVERY_SIGNALS)
+
+    score = round(min(1.0, 0.45 * theme_ratio + 0.55 * core_ratio), 3)
+    passed = theme_ratio >= 0.55 and core_ratio >= 0.85
+    return CheckScore(
+        id="discovery_discipline_invariant",
+        score=score,
+        passed=passed,
+        comment=(
+            f"Theme coverage {theme_matches}/{len(theme_patterns)}; "
+            f"core discovery coverage {core_matches}/{len(_CORE_DISCOVERY_SIGNALS)}."
+        ),
+        weight=1.0,
+        method="theme_invariant",
+    )
+
+
 def _heuristic_judge(check: EvalCheck, response_text: str) -> CheckScore:
     # Fallback for local runs without model keys.
     lowered = response_text.lower()
@@ -93,6 +167,14 @@ def _heuristic_judge(check: EvalCheck, response_text: str) -> CheckScore:
         "identifies_workflow": ["workflow", "step", "handoff"],
         "defines_success_metrics": ["success metrics", "measurement", "baseline"],
         "includes_risks": ["risk", "mitigation"],
+        "discovery_discipline": [
+            "discovery questions",
+            "workflow",
+            "stakeholder",
+            "success metrics",
+            "risk",
+            "evaluation plan",
+        ],
     }
     expected = proxy_signals.get(check.id, ["##", "- "])
     matches = sum(1 for signal in expected if signal in lowered)

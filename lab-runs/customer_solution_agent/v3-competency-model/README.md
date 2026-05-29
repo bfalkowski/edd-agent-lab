@@ -1,5 +1,7 @@
 # v3 — Competency Model Fix
 
-Domain-neutral discovery competency model applied across scenarios (Milestone 6).
+Milestone 6: domain-neutral discovery competency model (`v3-competency-model` graph).
 
-Expected: variant pass rate improves; overfitting risk lowers.
+Observed after fix: variant pass rate 1.0; overfitting risk **low**.
+
+See `comparison.md` for v2 → v3 evidence and `eval-summary-overfitting.json` for metrics.

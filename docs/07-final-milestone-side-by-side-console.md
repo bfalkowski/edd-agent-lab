@@ -60,8 +60,8 @@ Important:
 | 2 — v0 LangGraph agent + `run-agent` | Complete |
 | 3 — Eval runner + `run-evals` | Complete |
 | 4 — v1 discovery graph | Complete |
-| 5 — Overfitting eval | Planned |
-| 6 — Competency model | Planned |
+| 5 — Overfitting eval | Complete |
+| 6 — Competency model | Complete |
 | 7 — EDD platform client | Planned |
 | 8 — MCP integration | Planned |
 | 9 — Side-by-side agent comparison console | Final milestone |

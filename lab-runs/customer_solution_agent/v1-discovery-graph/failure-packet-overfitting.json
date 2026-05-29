@@ -1,0 +1,20 @@
+{
+  "agent": "customer_solution_agent",
+  "suite": "overfitting",
+  "run_id": "2026-05-29T00-39-38Z",
+  "failure_type": "overfitting",
+  "summary": "Base case and variant behavior indicate overfitting risk.",
+  "evidence": {
+    "base_case_passed": true,
+    "variant_pass_rate": 0.4,
+    "behavioral_consistency_score": 0.773,
+    "failed_variants": [
+      "banking_fraud_variant",
+      "manufacturing_support_variant",
+      "hr_policy_variant"
+    ],
+    "overfitting_risk": "high"
+  },
+  "hypothesis": "Agent behavior is tuned to base scenario phrasing and does not transfer consistently.",
+  "recommended_fix": "Introduce domain-neutral competency constraints and re-run overfitting suite."
+}

@@ -1,0 +1,151 @@
+{
+  "run_id": "2026-05-29T00-39-10Z",
+  "agent": "customer_solution_agent",
+  "agent_version": "v3-competency-model",
+  "suite": "agent_run",
+  "scenario_ids": [
+    "manufacturing_support"
+  ],
+  "started_at": "2026-05-29T00-39-10Z",
+  "completed_at": "2026-05-29T00-39-10Z",
+  "outputs": {
+    "manufacturing_support": {
+      "problem_summary": "The customer needs to improve a manufacturing process with AI while balancing operational impact, risk controls, and measurable outcomes.",
+      "discovery_questions": [
+        {
+          "question": "Which part of the current workflow creates the highest cost or delay?",
+          "reason": "Defines the pilot boundary and business leverage."
+        },
+        {
+          "question": "What decision points require human review before action is taken?",
+          "reason": "Prevents unsafe automation and clarifies guardrail design."
+        },
+        {
+          "question": "Which systems are source-of-truth and what data quality gaps exist?",
+          "reason": "Determines technical feasibility and integration order."
+        },
+        {
+          "question": "What baseline KPI threshold must improve for the pilot to be accepted?",
+          "reason": "Anchors delivery to measurable value."
+        }
+      ],
+      "proposed_solution": "Deploy a discovery-first manufacturing copilot that structures intake, provides context-aware recommendations, highlights uncertainty, and routes high-risk cases to human reviewers with audit trails.",
+      "success_metrics": [
+        {
+          "metric": "Cycle time reduction",
+          "why_it_matters": "Primary customer value is faster completion of the target workflow.",
+          "how_to_measure": "Compare median task completion time pre/post pilot."
+        },
+        {
+          "metric": "Quality and risk adherence",
+          "why_it_matters": "Improvement must preserve quality and governance outcomes.",
+          "how_to_measure": "Track QA pass rate and policy exception rate per 100 cases."
+        },
+        {
+          "metric": "Adoption in target user cohort",
+          "why_it_matters": "Business impact requires real operational usage.",
+          "how_to_measure": "Measure weekly active pilot users and assist utilization."
+        }
+      ],
+      "risks": [
+        {
+          "risk": "Incorrect recommendations on high-impact cases.",
+          "mitigation": "Enforce confidence thresholds, mandatory human review, and escalation paths."
+        },
+        {
+          "risk": "Workflow disruption from weak integration and handoffs.",
+          "mitigation": "Start with one bounded integration path and monitor drop-off/failure points."
+        },
+        {
+          "risk": "Domain-specific governance gaps for manufacturing.",
+          "mitigation": "Map policy controls to each workflow stage before pilot launch."
+        },
+        {
+          "risk": "Competency gap if 'clarify equipment types, shift coverage, and escalation rules' is not validated before pilot launch.",
+          "mitigation": "Add explicit checklist evidence for this theme in weekly discovery reviews."
+        },
+        {
+          "risk": "Competency gap if 'identify plant ops, maintenance, quality, and IT stakeholders' is not validated before pilot launch.",
+          "mitigation": "Add explicit checklist evidence for this theme in weekly discovery reviews."
+        }
+      ],
+      "pilot_plan": "Run a 4-6 week pilot on one bounded workflow segment with named owners, weekly reviews, and go/no-go gates tied to KPI and risk thresholds.",
+      "eval_plan": "Run discovery_quality, measurable_value, and risk_review suites each iteration. Require score improvement versus prior run and no critical risk-regression before promotion.",
+      "final_response": "# Customer Solution Discovery Brief \u2014 Reduce plant support escalation load\n\n## Problem Summary\nThe customer needs to improve a manufacturing process with AI while balancing operational impact, risk controls, and measurable outcomes.\n\n## Discovery Competencies (Domain-Neutral Framework)\n- Business objective and constraints\n- Workflow decomposition\n- Stakeholders and decision rights\n- Data and integration assumptions\n- Compliance and policy controls\n- Adoption and change management\n- Measurable success metrics\n- Evaluation and verification plan\n\n## Clarifying Discovery Questions\n- Which part of the current workflow creates the highest cost or delay? (Defines the pilot boundary and business leverage.)\n- What decision points require human review before action is taken? (Prevents unsafe automation and clarifies guardrail design.)\n- Which systems are source-of-truth and what data quality gaps exist? (Determines technical feasibility and integration order.)\n- What baseline KPI threshold must improve for the pilot to be accepted? (Anchors delivery to measurable value.)\n\n## Workflow Decomposition\nTarget workflow in manufacturing: step-by-step intake -> triage -> analysis -> human validation -> action/communication -> audit logging.\n\n## Stakeholder Map\n- Plant Operations\n- Maintenance\n- Quality\n- IT\n- Manufacturing (theme owner)\n- Clarify (theme owner)\n- Equipment (theme owner)\n- Types (theme owner)\n\n## Data and Integration Assumptions\n- Discovery competencies are applied before solution design.\n- Pilot instrumentation must capture evidence for: manufacturing, clarify, equipment, types.\n- A single pilot workflow can be isolated without broad process redesign.\n- Current-state baseline metrics can be captured before intervention.\n- Metrics are feasible to instrument in manufacturing systems.\n\n## Proposed Solution\nDeploy a discovery-first manufacturing copilot that structures intake, provides context-aware recommendations, highlights uncertainty, and routes high-risk cases to human reviewers with audit trails.\n\n## Success Metrics\n- Cycle time reduction: Primary customer value is faster completion of the target workflow. Measurement: Compare median task completion time pre/post pilot.\n- Quality and risk adherence: Improvement must preserve quality and governance outcomes. Measurement: Track QA pass rate and policy exception rate per 100 cases.\n- Adoption in target user cohort: Business impact requires real operational usage. Measurement: Measure weekly active pilot users and assist utilization.\n\n## Risks and Mitigations\n- Incorrect recommendations on high-impact cases. Mitigation: Enforce confidence thresholds, mandatory human review, and escalation paths.\n- Workflow disruption from weak integration and handoffs. Mitigation: Start with one bounded integration path and monitor drop-off/failure points.\n- Domain-specific governance gaps for manufacturing. Mitigation: Map policy controls to each workflow stage before pilot launch.\n- Competency gap if 'clarify equipment types, shift coverage, and escalation rules' is not validated before pilot launch. Mitigation: Add explicit checklist evidence for this theme in weekly discovery reviews.\n- Competency gap if 'identify plant ops, maintenance, quality, and IT stakeholders' is not validated before pilot launch. Mitigation: Add explicit checklist evidence for this theme in weekly discovery reviews.\n\n## Pilot Plan\nRun a 4-6 week pilot on one bounded workflow segment with named owners, weekly reviews, and go/no-go gates tied to KPI and risk thresholds.\n\n## Evaluation Plan\nRun discovery_quality, measurable_value, and risk_review suites each iteration. Require score improvement versus prior run and no critical risk-regression before promotion.\n"
+    }
+  },
+  "eval_summary": null,
+  "failure_packet": null,
+  "artifact_paths": {
+    "timestamped_output": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v3-competency-model/run-2026-05-29T00-39-10Z-manufacturing_support.json",
+    "latest_output": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v3-competency-model/agent-output.json"
+  },
+  "scenario": {
+    "id": "manufacturing_support",
+    "title": "Reduce plant support escalation load"
+  },
+  "response": {
+    "problem_summary": "The customer needs to improve a manufacturing process with AI while balancing operational impact, risk controls, and measurable outcomes.",
+    "discovery_questions": [
+      {
+        "question": "Which part of the current workflow creates the highest cost or delay?",
+        "reason": "Defines the pilot boundary and business leverage."
+      },
+      {
+        "question": "What decision points require human review before action is taken?",
+        "reason": "Prevents unsafe automation and clarifies guardrail design."
+      },
+      {
+        "question": "Which systems are source-of-truth and what data quality gaps exist?",
+        "reason": "Determines technical feasibility and integration order."
+      },
+      {
+        "question": "What baseline KPI threshold must improve for the pilot to be accepted?",
+        "reason": "Anchors delivery to measurable value."
+      }
+    ],
+    "proposed_solution": "Deploy a discovery-first manufacturing copilot that structures intake, provides context-aware recommendations, highlights uncertainty, and routes high-risk cases to human reviewers with audit trails.",
+    "success_metrics": [
+      {
+        "metric": "Cycle time reduction",
+        "why_it_matters": "Primary customer value is faster completion of the target workflow.",
+        "how_to_measure": "Compare median task completion time pre/post pilot."
+      },
+      {
+        "metric": "Quality and risk adherence",
+        "why_it_matters": "Improvement must preserve quality and governance outcomes.",
+        "how_to_measure": "Track QA pass rate and policy exception rate per 100 cases."
+      },
+      {
+        "metric": "Adoption in target user cohort",
+        "why_it_matters": "Business impact requires real operational usage.",
+        "how_to_measure": "Measure weekly active pilot users and assist utilization."
+      }
+    ],
+    "risks": [
+      {
+        "risk": "Incorrect recommendations on high-impact cases.",
+        "mitigation": "Enforce confidence thresholds, mandatory human review, and escalation paths."
+      },
+      {
+        "risk": "Workflow disruption from weak integration and handoffs.",
+        "mitigation": "Start with one bounded integration path and monitor drop-off/failure points."
+      },
+      {
+        "risk": "Domain-specific governance gaps for manufacturing.",
+        "mitigation": "Map policy controls to each workflow stage before pilot launch."
+      },
+      {
+        "risk": "Competency gap if 'clarify equipment types, shift coverage, and escalation rules' is not validated before pilot launch.",
+        "mitigation": "Add explicit checklist evidence for this theme in weekly discovery reviews."
+      },
+      {
+        "risk": "Competency gap if 'identify plant ops, maintenance, quality, and IT stakeholders' is not validated before pilot launch.",
+        "mitigation": "Add explicit checklist evidence for this theme in weekly discovery reviews."
+      }
+    ],
+    "pilot_plan": "Run a 4-6 week pilot on one bounded workflow segment with named owners, weekly reviews, and go/no-go gates tied to KPI and risk thresholds.",
+    "eval_plan": "Run discovery_quality, measurable_value, and risk_review suites each iteration. Require score improvement versus prior run and no critical risk-regression before promotion.",
+    "final_response": "# Customer Solution Discovery Brief \u2014 Reduce plant support escalation load\n\n## Problem Summary\nThe customer needs to improve a manufacturing process with AI while balancing operational impact, risk controls, and measurable outcomes.\n\n## Discovery Competencies (Domain-Neutral Framework)\n- Business objective and constraints\n- Workflow decomposition\n- Stakeholders and decision rights\n- Data and integration assumptions\n- Compliance and policy controls\n- Adoption and change management\n- Measurable success metrics\n- Evaluation and verification plan\n\n## Clarifying Discovery Questions\n- Which part of the current workflow creates the highest cost or delay? (Defines the pilot boundary and business leverage.)\n- What decision points require human review before action is taken? (Prevents unsafe automation and clarifies guardrail design.)\n- Which systems are source-of-truth and what data quality gaps exist? (Determines technical feasibility and integration order.)\n- What baseline KPI threshold must improve for the pilot to be accepted? (Anchors delivery to measurable value.)\n\n## Workflow Decomposition\nTarget workflow in manufacturing: step-by-step intake -> triage -> analysis -> human validation -> action/communication -> audit logging.\n\n## Stakeholder Map\n- Plant Operations\n- Maintenance\n- Quality\n- IT\n- Manufacturing (theme owner)\n- Clarify (theme owner)\n- Equipment (theme owner)\n- Types (theme owner)\n\n## Data and Integration Assumptions\n- Discovery competencies are applied before solution design.\n- Pilot instrumentation must capture evidence for: manufacturing, clarify, equipment, types.\n- A single pilot workflow can be isolated without broad process redesign.\n- Current-state baseline metrics can be captured before intervention.\n- Metrics are feasible to instrument in manufacturing systems.\n\n## Proposed Solution\nDeploy a discovery-first manufacturing copilot that structures intake, provides context-aware recommendations, highlights uncertainty, and routes high-risk cases to human reviewers with audit trails.\n\n## Success Metrics\n- Cycle time reduction: Primary customer value is faster completion of the target workflow. Measurement: Compare median task completion time pre/post pilot.\n- Quality and risk adherence: Improvement must preserve quality and governance outcomes. Measurement: Track QA pass rate and policy exception rate per 100 cases.\n- Adoption in target user cohort: Business impact requires real operational usage. Measurement: Measure weekly active pilot users and assist utilization.\n\n## Risks and Mitigations\n- Incorrect recommendations on high-impact cases. Mitigation: Enforce confidence thresholds, mandatory human review, and escalation paths.\n- Workflow disruption from weak integration and handoffs. Mitigation: Start with one bounded integration path and monitor drop-off/failure points.\n- Domain-specific governance gaps for manufacturing. Mitigation: Map policy controls to each workflow stage before pilot launch.\n- Competency gap if 'clarify equipment types, shift coverage, and escalation rules' is not validated before pilot launch. Mitigation: Add explicit checklist evidence for this theme in weekly discovery reviews.\n- Competency gap if 'identify plant ops, maintenance, quality, and IT stakeholders' is not validated before pilot launch. Mitigation: Add explicit checklist evidence for this theme in weekly discovery reviews.\n\n## Pilot Plan\nRun a 4-6 week pilot on one bounded workflow segment with named owners, weekly reviews, and go/no-go gates tied to KPI and risk thresholds.\n\n## Evaluation Plan\nRun discovery_quality, measurable_value, and risk_review suites each iteration. Require score improvement versus prior run and no critical risk-regression before promotion.\n"
+  }
+}

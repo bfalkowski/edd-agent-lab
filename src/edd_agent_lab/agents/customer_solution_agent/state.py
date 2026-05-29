@@ -37,6 +37,7 @@ class CustomerSolutionState(BaseModel):
     risks: list[Risk] = Field(default_factory=list)
     pilot_plan: str | None = None
     eval_plan: str | None = None
+    discovery_competencies: list[str] = Field(default_factory=list)
     final_response: str | None = None
 
     messages: list[dict[str, Any]] = Field(default_factory=list)

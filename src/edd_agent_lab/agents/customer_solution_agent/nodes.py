@@ -4,7 +4,37 @@ from __future__ import annotations
 
 from edd_agent_lab.evals.schemas import Scenario
 
+from .competency import (
+    DISCOVERY_COMPETENCIES,
+    competency_problem_summary,
+    competency_vocabulary,
+)
 from .state import CustomerSolutionState, DiscoveryQuestion, Risk, SuccessMetric
+
+
+def apply_competency_model_node(
+    state: CustomerSolutionState, scenario: Scenario
+) -> CustomerSolutionState:
+    state.discovery_competencies = list(DISCOVERY_COMPETENCIES)
+    state.problem_summary = competency_problem_summary(scenario)
+    vocab = competency_vocabulary(scenario)
+    state.discovery_questions = [
+        DiscoveryQuestion(
+            question=f"What evidence do we need for '{theme}' before proposing a solution?",
+            reason="Tie each discovery question to scenario-specific competency themes.",
+        )
+        for theme in scenario.expected_themes
+    ]
+    state.workflow_summary = (
+        f"Competency-aligned workflow for {scenario.domain}: intake -> triage -> analysis -> "
+        f"human validation -> action -> audit logging. Scenario focus areas include "
+        f"{', '.join(vocab[:5])}."
+    )
+    state.assumptions = [
+        "Discovery competencies are applied before solution design.",
+        f"Pilot instrumentation must capture evidence for: {', '.join(vocab[:4])}.",
+    ]
+    return state
 
 
 def intake_node(state: CustomerSolutionState) -> CustomerSolutionState:
@@ -143,6 +173,18 @@ def identify_stakeholders_node(
     return state
 
 
+def identify_stakeholders_competency_node(
+    state: CustomerSolutionState, scenario: Scenario
+) -> CustomerSolutionState:
+    identify_stakeholders_node(state, scenario)
+    vocab = competency_vocabulary(scenario)
+    for term in vocab[:4]:
+        label = term.replace("_", " ").title()
+        if label not in state.stakeholders:
+            state.stakeholders.append(f"{label} (theme owner)")
+    return state
+
+
 def define_success_metrics_node(
     state: CustomerSolutionState, scenario: Scenario
 ) -> CustomerSolutionState:
@@ -202,6 +244,23 @@ def review_risks_node(state: CustomerSolutionState, scenario: Scenario) -> Custo
     return state
 
 
+def review_risks_competency_node(
+    state: CustomerSolutionState, scenario: Scenario
+) -> CustomerSolutionState:
+    review_risks_node(state, scenario)
+    for theme in scenario.expected_themes[:2]:
+        state.risks.append(
+            Risk(
+                risk=f"Competency gap if '{theme}' is not validated before pilot launch.",
+                mitigation=(
+                    "Add explicit checklist evidence for this theme in weekly "
+                    "discovery reviews."
+                ),
+            )
+        )
+    return state
+
+
 def create_pilot_plan_node(state: CustomerSolutionState) -> CustomerSolutionState:
     state.pilot_plan = (
         "Run a 4-6 week pilot on one bounded workflow segment with named owners, "
@@ -219,7 +278,9 @@ def create_eval_plan_node(state: CustomerSolutionState) -> CustomerSolutionState
     return state
 
 
-def final_response_node(state: CustomerSolutionState, scenario: Scenario) -> CustomerSolutionState:
+def final_response_node(
+    state: CustomerSolutionState, scenario: Scenario, *, include_competencies: bool = False
+) -> CustomerSolutionState:
     questions = "\n".join(
         f"- {item.question} ({item.reason})" for item in state.discovery_questions
     )
@@ -231,10 +292,19 @@ def final_response_node(state: CustomerSolutionState, scenario: Scenario) -> Cus
     stakeholders = "\n".join(f"- {item}" for item in state.stakeholders) or "- TBD"
     assumptions = "\n".join(f"- {item}" for item in state.assumptions) or "- TBD"
 
+    competency_section = ""
+    if include_competencies and state.discovery_competencies:
+        competency_lines = "\n".join(f"- {item}" for item in state.discovery_competencies)
+        competency_section = (
+            "## Discovery Competencies (Domain-Neutral Framework)\n"
+            f"{competency_lines}\n\n"
+        )
+
     state.final_response = (
         f"# Customer Solution Discovery Brief — {scenario.title}\n\n"
         "## Problem Summary\n"
         f"{state.problem_summary}\n\n"
+        f"{competency_section}"
         "## Clarifying Discovery Questions\n"
         f"{questions}\n\n"
         "## Workflow Decomposition\n"

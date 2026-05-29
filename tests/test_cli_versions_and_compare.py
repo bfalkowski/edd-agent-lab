@@ -8,11 +8,13 @@ from edd_agent_lab.paths import LAB_RUNS_DIR
 runner = CliRunner()
 
 
-def test_version_resolver_maps_v0_and_v1() -> None:
+def test_version_resolver_maps_v0_v1_and_v3() -> None:
     assert _agent_version_to_dirname("v0") == "v0-baseline"
     assert _agent_version_to_dirname("v0-baseline") == "v0-baseline"
     assert _agent_version_to_dirname("v1") == "v1-discovery-graph"
     assert _agent_version_to_dirname("v1-discovery-graph") == "v1-discovery-graph"
+    assert _agent_version_to_dirname("v3") == "v3-competency-model"
+    assert _agent_version_to_dirname("v3-competency-model") == "v3-competency-model"
 
 
 def test_run_agent_accepts_version_flag() -> None:

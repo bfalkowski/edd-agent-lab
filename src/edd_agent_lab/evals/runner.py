@@ -10,9 +10,14 @@ from pathlib import Path
 from edd_agent_lab.agents.customer_solution_agent.runner import run_customer_solution_agent
 from edd_agent_lab.evals.loading import load_eval_suite
 from edd_agent_lab.evals.overfitting import overfitting_risk
-from edd_agent_lab.evals.schemas import EvalCheck, EvalSuite, OverfittingEvalSuite
-from edd_agent_lab.evals.scoring import score_check, weighted_case_score
+from edd_agent_lab.evals.schemas import EvalSuite, OverfittingEvalSuite
+from edd_agent_lab.evals.scoring import (
+    score_check,
+    score_discovery_invariant,
+    weighted_case_score,
+)
 from edd_agent_lab.paths import LAB_RUNS_DIR
+from edd_agent_lab.scenarios.loading import load_scenario
 
 
 @dataclass
@@ -173,23 +178,14 @@ def _run_overfitting_suite(
     variant_results: list[dict[str, object]] = []
     failed_variants: list[str] = []
     variant_scores: list[float] = []
-    variant_check = EvalCheck(
-        id="discovery_discipline_invariant",
-        type="llm_judge",
-        weight=1.0,
-        rubric=(
-            "Response preserves discovery-first behavior: identifies workflow, stakeholders, "
-            "success metrics, risks, and an evaluation plan before overcommitting to "
-            "solution details."
-        ),
-    )
     for variant in suite.variants:
+        variant_scenario = load_scenario(agent_key, variant.scenario)
         agent_result = run_customer_solution_agent(
             scenario_id=variant.scenario,
             agent_key=agent_key,
             agent_version=agent_version,
         )
-        check = score_check(variant_check, agent_result.final_response)
+        check = score_discovery_invariant(variant_scenario, agent_result.final_response)
         variant_scores.append(check.score)
         if not check.passed:
             failed_variants.append(variant.id)
