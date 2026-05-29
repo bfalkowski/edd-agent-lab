@@ -1,0 +1,402 @@
+/* Eval Driven Design Platform — Streamlit Dashboard Theme */
+
+/* ---------- App shell ---------- */
+.stApp {
+  background:
+    radial-gradient(circle at top left, rgba(64, 99, 255, 0.16), transparent 32rem),
+    radial-gradient(circle at top right, rgba(16, 185, 129, 0.10), transparent 28rem),
+    #0b1020;
+  color: #e5e7eb;
+}
+
+.block-container {
+  padding-top: 2rem;
+  padding-bottom: 4rem;
+  max-width: 1320px;
+}
+
+/* ---------- Sidebar ---------- */
+[data-testid="stSidebar"] {
+  background: linear-gradient(180deg, #080d1a 0%, #0f172a 100%);
+  border-right: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+[data-testid="stSidebar"] * {
+  color: #e5e7eb;
+}
+
+[data-testid="stSidebar"] h1,
+[data-testid="stSidebar"] h2,
+[data-testid="stSidebar"] h3 {
+  color: #f8fafc;
+}
+
+.edd-sidebar-brand {
+  margin-bottom: 0.35rem;
+}
+
+.edd-sidebar-title {
+  color: #f8fafc;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.edd-sidebar-caption {
+  color: #94a3b8;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+/* ---------- Typography ---------- */
+h1,
+h2,
+h3 {
+  color: #f8fafc;
+  letter-spacing: -0.03em;
+}
+
+h1 {
+  font-size: 2.1rem !important;
+  font-weight: 750 !important;
+}
+
+h2 {
+  font-size: 1.35rem !important;
+  font-weight: 700 !important;
+}
+
+h3 {
+  font-size: 1.05rem !important;
+  font-weight: 650 !important;
+}
+
+p,
+li,
+label {
+  color: #cbd5e1;
+}
+
+/* ---------- Cards ---------- */
+.edd-card {
+  background: rgba(15, 23, 42, 0.82);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 22px;
+  padding: 1.1rem 1.2rem;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(12px);
+  margin-bottom: 0.75rem;
+}
+
+.edd-card-soft {
+  background: rgba(30, 41, 59, 0.58);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 18px;
+  padding: 1rem;
+}
+
+.edd-card-title {
+  color: #f8fafc;
+  font-size: 0.98rem;
+  font-weight: 700;
+  margin-bottom: 0.35rem;
+}
+
+.edd-card-subtitle {
+  color: #94a3b8;
+  font-size: 0.84rem;
+  line-height: 1.35;
+}
+
+/* ---------- Hero ---------- */
+.edd-hero {
+  background:
+    linear-gradient(135deg, rgba(59, 130, 246, 0.20), rgba(16, 185, 129, 0.10)),
+    rgba(15, 23, 42, 0.86);
+  border: 1px solid rgba(148, 163, 184, 0.20);
+  border-radius: 28px;
+  padding: 1.5rem 1.6rem;
+  margin-bottom: 1.3rem;
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.26);
+}
+
+.edd-hero-title {
+  color: #f8fafc;
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  margin-bottom: 0.35rem;
+}
+
+.edd-hero-subtitle {
+  color: #cbd5e1;
+  font-size: 1rem;
+  max-width: 820px;
+}
+
+.edd-page-header {
+  background: rgba(15, 23, 42, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 18px;
+  padding: 1rem 1.15rem;
+  margin-bottom: 1.1rem;
+}
+
+.edd-page-title {
+  color: #f8fafc;
+  font-size: 1.45rem;
+  font-weight: 750;
+  letter-spacing: -0.03em;
+  margin-bottom: 0.2rem;
+}
+
+.edd-page-meta {
+  color: #94a3b8;
+  font-size: 0.82rem;
+}
+
+/* ---------- Workflow strip ---------- */
+.edd-loop {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 1rem 0 1.4rem 0;
+}
+
+.edd-loop-step {
+  background: rgba(15, 23, 42, 0.78);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 18px;
+  padding: 0.95rem;
+  min-height: 116px;
+}
+
+.edd-loop-number {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(59, 130, 246, 0.22);
+  color: #bfdbfe;
+  font-weight: 800;
+  font-size: 0.82rem;
+  margin-bottom: 0.65rem;
+}
+
+.edd-loop-title {
+  color: #f8fafc;
+  font-weight: 750;
+  margin-bottom: 0.25rem;
+}
+
+.edd-loop-text {
+  color: #94a3b8;
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+/* ---------- Metrics ---------- */
+.edd-metric {
+  background: rgba(15, 23, 42, 0.82);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 20px;
+  padding: 1rem;
+}
+
+.edd-metric-label {
+  color: #94a3b8;
+  font-size: 0.78rem;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.055em;
+}
+
+.edd-metric-value {
+  color: #f8fafc;
+  font-size: 1.85rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  margin-top: 0.25rem;
+}
+
+.edd-metric-help {
+  color: #64748b;
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+}
+
+/* ---------- Status pills ---------- */
+.edd-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.22rem 0.58rem;
+  font-size: 0.76rem;
+  font-weight: 700;
+  border: 1px solid transparent;
+}
+
+.edd-pill-green {
+  color: #bbf7d0;
+  background: rgba(34, 197, 94, 0.14);
+  border-color: rgba(34, 197, 94, 0.30);
+}
+
+.edd-pill-yellow {
+  color: #fde68a;
+  background: rgba(245, 158, 11, 0.14);
+  border-color: rgba(245, 158, 11, 0.30);
+}
+
+.edd-pill-red {
+  color: #fecaca;
+  background: rgba(239, 68, 68, 0.14);
+  border-color: rgba(239, 68, 68, 0.30);
+}
+
+.edd-pill-blue {
+  color: #bfdbfe;
+  background: rgba(59, 130, 246, 0.14);
+  border-color: rgba(59, 130, 246, 0.30);
+}
+
+/* ---------- Streamlit widgets ---------- */
+.stButton > button {
+  background: linear-gradient(135deg, #2563eb, #14b8a6);
+  color: #ffffff;
+  border: 0;
+  border-radius: 14px;
+  padding: 0.58rem 1rem;
+  font-weight: 750;
+  box-shadow: 0 12px 28px rgba(37, 99, 235, 0.24);
+}
+
+.stButton > button:hover {
+  border: 0;
+  color: #ffffff;
+  filter: brightness(1.08);
+}
+
+[data-testid="stMetric"] {
+  background: rgba(15, 23, 42, 0.78);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 18px;
+  padding: 1rem;
+}
+
+[data-testid="stMetricLabel"] {
+  color: #94a3b8;
+}
+
+[data-testid="stMetricValue"] {
+  color: #f8fafc;
+}
+
+.stTextInput input,
+.stTextArea textarea,
+.stSelectbox div[data-baseweb="select"] {
+  background-color: rgba(15, 23, 42, 0.88);
+  color: #f8fafc;
+  border-radius: 12px;
+}
+
+[data-testid="stDataFrame"] {
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.stTabs [data-baseweb="tab-list"] {
+  gap: 0.4rem;
+}
+
+.stTabs [data-baseweb="tab"] {
+  background: rgba(15, 23, 42, 0.72);
+  border-radius: 12px;
+  color: #cbd5e1;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.stTabs [aria-selected="true"] {
+  background: rgba(59, 130, 246, 0.22);
+  color: #f8fafc;
+}
+
+div[data-testid="stAlert"] {
+  border-radius: 16px;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1050px) {
+  .edd-loop {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .edd-loop {
+    grid-template-columns: 1fr;
+  }
+
+  .edd-hero-title {
+    font-size: 1.55rem;
+  }
+}
+
+/* ---------- Agent lab console: side-by-side chat ---------- */
+.edd-chat-column-title {
+  color: #f8fafc;
+  font-size: 0.95rem;
+  font-weight: 750;
+  margin-bottom: 0.5rem;
+  letter-spacing: -0.02em;
+}
+
+.edd-chat-empty {
+  color: #64748b;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  text-align: center;
+  padding: 2rem 1rem;
+}
+
+/* Fixed chat input bar at bottom of viewport */
+[data-testid="stBottomBlockContainer"] {
+  background: linear-gradient(180deg, transparent, rgba(11, 16, 32, 0.95) 24%);
+  padding-top: 0.5rem;
+}
+
+[data-testid="stChatInput"] {
+  background: rgba(15, 23, 42, 0.98) !important;
+  border: 2px solid rgba(59, 130, 246, 0.55) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 8px 32px rgba(37, 99, 235, 0.25);
+  max-width: 920px;
+  margin: 0 auto;
+}
+
+[data-testid="stChatInput"] textarea {
+  background: transparent !important;
+  color: #f8fafc !important;
+  font-size: 1rem !important;
+  min-height: 2.5rem !important;
+}
+
+[data-testid="stChatInput"] textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+div[data-testid="stChatMessage"] {
+  background: rgba(30, 41, 59, 0.45);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  border-radius: 14px;
+  margin-bottom: 0.35rem;
+}
+
+[data-testid="stVerticalBlockBorderWrapper"] {
+  background: rgba(15, 23, 42, 0.72);
+  border-color: rgba(148, 163, 184, 0.18) !important;
+  border-radius: 18px;
+}

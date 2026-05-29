@@ -99,6 +99,11 @@ def run_agent(
         "--agent-version",
         help="Agent version (v0|v1) or explicit directory name.",
     ),
+    generation_mode: str | None = typer.Option(
+        None,
+        "--generation-mode",
+        help="Agent generation mode: mock, live, or auto (default: env or auto).",
+    ),
 ) -> None:
     """Run an agent against a scenario and write a run artifact."""
     agent_key = _resolve_agent(agent)
@@ -112,9 +117,11 @@ def run_agent(
         scenario_id=scenario,
         agent_key=agent_key,
         agent_version=version_dir,
+        generation_mode=generation_mode,
     )
     console.print(f"[green]Run complete:[/green] {result.run_id}")
     console.print(f"[bold]Agent version:[/bold] {version_dir}")
+    console.print(f"[bold]Generation mode:[/bold] {result.generation_mode}")
     console.print(f"[green]Artifact:[/green] {result.output_path}")
     console.print()
     console.print(result.final_response)
@@ -355,19 +362,48 @@ def compare_turn(
 @app.command("console")
 def launch_console() -> None:
     """Launch the Streamlit side-by-side comparison console."""
-    import shutil
+    import os
     import subprocess
+    import sys
     from pathlib import Path
 
+    from edd_agent_lab.ui.app import LAB_CONSOLE_PORT
+
+    repo_root = Path(__file__).resolve().parents[3]
+    src_root = repo_root / "src"
     app_path = Path(__file__).resolve().parents[1] / "ui" / "app.py"
-    streamlit_exe = shutil.which("streamlit")
-    if streamlit_exe:
-        subprocess.run([streamlit_exe, "run", str(app_path)], check=False)
-        return
-    console.print("Streamlit not found. Install UI dependencies and run:")
-    console.print("  pip install -e '.[ui]'")
-    console.print(f"  streamlit run {app_path}")
-    raise typer.Exit(code=2)
+    lab_url = f"http://localhost:{LAB_CONSOLE_PORT}"
+    env = os.environ.copy()
+    env["PYTHONPATH"] = os.pathsep.join(
+        [str(src_root), env.get("PYTHONPATH", "")]
+    ).strip(os.pathsep)
+
+    console.print(f"[green]Agent lab console:[/green] {lab_url}")
+    console.print(
+        "[dim]Platform UI is usually :8501; this lab chat uses :8502.[/dim]"
+    )
+    try:
+        subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "streamlit",
+                "run",
+                str(app_path),
+                "--server.port",
+                str(LAB_CONSOLE_PORT),
+                "--server.headless",
+                "true",
+            ],
+            check=False,
+            cwd=str(repo_root),
+            env=env,
+        )
+    except ModuleNotFoundError:
+        console.print("Streamlit not found. Install UI dependencies and run:")
+        console.print("  pip install -e '.[ui]'")
+        console.print("  edd-lab console")
+        raise typer.Exit(code=2) from None
 
 
 @app.command("invoke-mcp")

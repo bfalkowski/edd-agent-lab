@@ -154,7 +154,20 @@ pip install -e ".[ui]" && edd-lab console
 pytest
 ```
 
-Copy `.env.example` to `.env` when you add LLM-backed evals (Milestone 3+).
+**Frontends (different ports):**
+
+| UI | Repo | URL |
+|---|---|---|
+| EDD platform operator console | `eval-driven-design-platform` | http://localhost:8501 |
+| Agent lab side-by-side chat | `edd-agent-lab` (`edd-lab console`) | http://localhost:8502 |
+
+Copy `.env.example` to `.env` and set `OPENAI_API_KEY` for live agent generation.
+
+```bash
+cp .env.example .env
+# AGENT_GENERATION_MODE=auto uses live generation when OPENAI_API_KEY is set
+edd-lab run-agent --agent customer-solution --version v1 --scenario healthcare_documentation --generation-mode live
+```
 
 ## Agent Evolution
 
@@ -192,6 +205,9 @@ The platform must not depend on this repo. See `docs/05-platform-integration.md`
 | 7 — EDD platform client | Complete |
 | 8 — MCP integration | Complete |
 | 9 — Side-by-side console | Complete |
+| 10 — Live agent generation (mock/live/auto) | Complete |
+
+See `docs/08-live-agent-generation.md` for live vs mock mode details.
 
 ## Design Principles
 
