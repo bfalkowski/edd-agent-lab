@@ -51,8 +51,10 @@ edd-lab run-evals --agent customer-solution --version v3 --suite overfitting --p
 HTTP publish target (platform ingest seam):
 
 ```text
-POST /v1/integrations/lab/publish
+POST /v1/integrations/runs/publish
 ```
+
+Legacy alias (deprecated): `POST /v1/integrations/lab/publish`
 
 If the platform endpoint is unavailable, envelopes are queued under `lab-runs/_platform_publish_queue/`.
 

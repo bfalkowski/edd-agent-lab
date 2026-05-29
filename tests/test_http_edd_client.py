@@ -1,7 +1,12 @@
 import httpx
 
-from edd_agent_lab.integrations.edd_client import LAB_PUBLISH_PATH, HttpEDDClient
+from edd_agent_lab.integrations.edd_client import LAB_PUBLISH_PATH, RUN_INGEST_PATH, HttpEDDClient
 from edd_agent_lab.integrations.publish import PUBLISH_SCHEMA_VERSION
+
+
+def test_run_ingest_path_is_generic_endpoint() -> None:
+    assert RUN_INGEST_PATH == "/v1/integrations/runs/publish"
+    assert LAB_PUBLISH_PATH == "/v1/integrations/lab/publish"
 
 
 def test_http_client_publishes_envelope() -> None:
@@ -20,7 +25,7 @@ def test_http_client_publishes_envelope() -> None:
 
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.method == "POST"
-        assert request.url.path == LAB_PUBLISH_PATH
+        assert request.url.path == RUN_INGEST_PATH
         return httpx.Response(
             201,
             json={

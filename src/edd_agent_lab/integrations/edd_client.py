@@ -13,7 +13,8 @@ from edd_agent_lab.integrations.publish import PUBLISH_SCHEMA_VERSION, build_pub
 from edd_agent_lab.paths import LAB_RUNS_DIR
 
 PUBLISH_QUEUE_DIR = LAB_RUNS_DIR / "_platform_publish_queue"
-LAB_PUBLISH_PATH = "/v1/integrations/lab/publish"
+RUN_INGEST_PATH = "/v1/integrations/runs/publish"
+LAB_PUBLISH_PATH = "/v1/integrations/lab/publish"  # deprecated alias
 
 
 class EDDClient:
@@ -158,7 +159,7 @@ class QueuedEDDClient(LocalEDDClient):
 
 
 class HttpEDDClient(EDDClient):
-    """HTTP publisher for the EDD platform lab ingest endpoint."""
+    """HTTP publisher for the EDD platform run ingest endpoint."""
 
     def __init__(
         self,
@@ -230,7 +231,7 @@ class HttpEDDClient(EDDClient):
         if self.tenant_id:
             payload["tenant_id"] = self.tenant_id
         try:
-            response = self._request("POST", LAB_PUBLISH_PATH, json=payload)
+            response = self._request("POST", RUN_INGEST_PATH, json=payload)
         except Exception as exc:
             queued = self.fallback_client.publish_envelope(envelope)
             queued["status"] = "queued_after_http_error"

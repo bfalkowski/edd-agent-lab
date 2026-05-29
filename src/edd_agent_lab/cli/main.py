@@ -168,17 +168,25 @@ def _agent_lab_dir(agent_key: str, version_dir: str) -> Path:
     return LAB_RUNS_DIR / dirname / version_dir
 
 
+def _print_publish_result(publish_result: dict[str, object]) -> None:
+    console.print(f"[green]Publish status:[/green] {publish_result.get('status')}")
+    if publish_result.get("queue_path"):
+        console.print(f"[yellow]Queued at:[/yellow] {publish_result['queue_path']}")
+    if publish_result.get("platform_run_id"):
+        console.print(f"[bold]Platform run id:[/bold] {publish_result['platform_run_id']}")
+    if publish_result.get("gate_status"):
+        console.print(f"[bold]Gate status:[/bold] {publish_result['gate_status']}")
+    if publish_result.get("gate_explanation"):
+        console.print(f"[dim]{publish_result['gate_explanation']}[/dim]")
+
+
 def _publish_latest_run_record(agent_key: str, version_dir: str) -> None:
     run_record_path = _agent_lab_dir(agent_key, version_dir) / "run-record.json"
     if not run_record_path.is_file():
         console.print(f"[red]Run record not found:[/red] {run_record_path}")
         raise typer.Exit(code=1)
     publish_result = publish_run_record_file(run_record_path, client=get_edd_client())
-    console.print(f"[green]Publish status:[/green] {publish_result.get('status')}")
-    if publish_result.get("queue_path"):
-        console.print(f"[yellow]Queued at:[/yellow] {publish_result['queue_path']}")
-    if publish_result.get("platform_run_id"):
-        console.print(f"[bold]Platform run id:[/bold] {publish_result['platform_run_id']}")
+    _print_publish_result(publish_result)
 
 
 @app.command("publish-run")
@@ -203,11 +211,7 @@ def publish_run(
         console.print(f"[red]Run record not found:[/red] {run_record_path}")
         raise typer.Exit(code=1)
     publish_result = publish_run_record_file(run_record_path, client=get_edd_client())
-    console.print(f"[green]Publish status:[/green] {publish_result.get('status')}")
-    if publish_result.get("queue_path"):
-        console.print(f"[yellow]Queued at:[/yellow] {publish_result['queue_path']}")
-    if publish_result.get("platform_run_id"):
-        console.print(f"[bold]Platform run id:[/bold] {publish_result['platform_run_id']}")
+    _print_publish_result(publish_result)
 
 
 @app.command("compare-runs")
