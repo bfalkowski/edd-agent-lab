@@ -6,10 +6,8 @@ import json
 from datetime import UTC, datetime
 from pathlib import Path
 
-from edd_agent_lab.evals.turn_schemas import TurnComparison, TurnEvaluation
-from edd_agent_lab.paths import LAB_RUNS_DIR
-
-CONSOLE_SESSIONS_DIR = LAB_RUNS_DIR / "customer_solution_agent" / "console-sessions"
+from edd_agent_lab.evals.turn_schemas import TurnComparison, TurnEvaluation, TurnSummary
+from edd_agent_lab.ui.session_store import CONSOLE_SESSIONS_DIR, ConsoleSession, save_console_session
 
 
 def new_session_id() -> str:
@@ -25,6 +23,8 @@ def write_turn_artifacts(
     turn_id: str,
     evaluation: TurnEvaluation,
     comparison: TurnComparison,
+    *,
+    session: ConsoleSession | None = None,
 ) -> Path:
     turn_dir = CONSOLE_SESSIONS_DIR / session_id / "turns" / turn_id
     turn_dir.mkdir(parents=True, exist_ok=True)
@@ -43,28 +43,22 @@ def write_turn_artifacts(
     )
     comparison_md_path.write_text(_comparison_markdown(comparison, evaluation), encoding="utf-8")
 
-    session_path = CONSOLE_SESSIONS_DIR / session_id / "session.json"
-    session_data = _load_session(session_path)
-    session_data.setdefault("turns", []).append(
-        {
-            "turn_id": turn_id,
-            "user_input": evaluation.user_input,
-            "artifact_dir": str(turn_dir),
-            "before_score": comparison.before_score,
-            "after_score": comparison.after_score,
-            "score_delta": comparison.score_delta,
-            "decision": comparison.decision,
-        }
-    )
-    session_path.parent.mkdir(parents=True, exist_ok=True)
-    session_path.write_text(json.dumps(session_data, indent=2), encoding="utf-8")
+    if session is not None:
+        session.turn_summaries.append(
+            TurnSummary(
+                turn_id=turn_id,
+                user_input=evaluation.user_input,
+                artifact_dir=str(turn_dir),
+                before_score=comparison.before_score,
+                after_score=comparison.after_score,
+                score_delta=comparison.score_delta,
+                decision=comparison.decision,
+            )
+        )
+        session.latest_artifact_dir = str(turn_dir)
+        save_console_session(session)
+
     return turn_dir
-
-
-def _load_session(path: Path) -> dict[str, object]:
-    if path.is_file():
-        return json.loads(path.read_text(encoding="utf-8"))
-    return {"session_id": path.parent.name, "turns": []}
 
 
 def _comparison_markdown(comparison: TurnComparison, evaluation: TurnEvaluation) -> str:

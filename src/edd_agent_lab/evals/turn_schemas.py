@@ -42,3 +42,13 @@ class TurnComparison(BaseModel):
     regressed_checks: list[str] = Field(default_factory=list)
     unchanged_checks: list[str] = Field(default_factory=list)
     explanation: str
+
+
+class TurnSummary(BaseModel):
+    turn_id: str
+    user_input: str
+    artifact_dir: str
+    before_score: float
+    after_score: float
+    score_delta: float
+    decision: str

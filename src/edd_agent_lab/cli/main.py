@@ -367,6 +367,7 @@ def launch_console() -> None:
     import sys
     from pathlib import Path
 
+    from dotenv import dotenv_values
     from edd_agent_lab.ui.app import LAB_CONSOLE_PORT
 
     repo_root = Path(__file__).resolve().parents[3]
@@ -374,6 +375,9 @@ def launch_console() -> None:
     app_path = Path(__file__).resolve().parents[1] / "ui" / "app.py"
     lab_url = f"http://localhost:{LAB_CONSOLE_PORT}"
     env = os.environ.copy()
+    env.update(
+        {key: value for key, value in dotenv_values(repo_root / ".env").items() if value}
+    )
     env["PYTHONPATH"] = os.pathsep.join(
         [str(src_root), env.get("PYTHONPATH", "")]
     ).strip(os.pathsep)

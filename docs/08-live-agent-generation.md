@@ -90,6 +90,8 @@ edd-lab console
 ## Next Steps (Phase 11+)
 
 1. Per-node LLM calls inside LangGraph for trace granularity
-2. Session persistence outside Streamlit `session_state`
+2. ~~Session persistence outside Streamlit `session_state`~~ (see session resume in console)
 3. Hybrid turn eval (structure checks + LLM judge by default in live mode)
 4. Platform ingest verification end-to-end
+
+Console sessions persist under `lab-runs/customer_solution_agent/console-sessions/<session_id>/session.json` with full chat transcripts and turn summaries. Resume via sidebar or `?session_id=` query param.

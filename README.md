@@ -161,6 +161,12 @@ pytest
 | EDD platform operator console | `eval-driven-design-platform` | http://localhost:8501 |
 | Agent lab side-by-side chat | `edd-agent-lab` (`edd-lab console`) | http://localhost:8502 |
 
+### Side-by-side agent console
+
+Launch with `pip install -e ".[ui]" && edd-lab console`. Each turn sends the same prompt to both columns; turn-level and session-level EDD scores explain where one version improves or regresses.
+
+![Side-by-side agent comparison console — v0-baseline vs v3-competency-model on healthcare_documentation](docs/assets/side-by-side-console.png)
+
 Copy `.env.example` to `.env` and set `OPENAI_API_KEY` for live agent generation.
 
 ```bash
