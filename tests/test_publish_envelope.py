@@ -2,6 +2,8 @@ import json
 
 from edd_agent_lab.integrations.edd_client import LocalEDDClient, QueuedEDDClient
 from edd_agent_lab.integrations.publish import PUBLISH_SCHEMA_VERSION, build_publish_envelope
+
+
 def test_build_publish_envelope_from_run_record() -> None:
     record = {
         "run_id": "2026-05-29T00-00-00Z",

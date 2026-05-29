@@ -149,6 +149,8 @@ edd-lab run-evals --agent customer-solution --version v0 --suite discovery_quali
 edd-lab run-evals --agent customer-solution --version v1 --suite overfitting
 edd-lab run-evals --agent customer-solution --version v3 --suite overfitting
 edd-lab publish-run --agent customer-solution --version v3
+edd-lab compare-turn --scenario healthcare_documentation --before v0 --after v1
+pip install -e ".[ui]" && edd-lab console
 pytest
 ```
 
@@ -189,6 +191,7 @@ The platform must not depend on this repo. See `docs/05-platform-integration.md`
 | 6 — v3 competency model | Complete |
 | 7 — EDD platform client | Complete |
 | 8 — MCP integration | Complete |
+| 9 — Side-by-side console | Complete |
 
 ## Design Principles
 

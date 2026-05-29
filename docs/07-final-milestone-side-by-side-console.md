@@ -64,7 +64,7 @@ Important:
 | 6 — Competency model | Complete |
 | 7 — EDD platform client | Complete |
 | 8 — MCP integration | Complete |
-| 9 — Side-by-side agent comparison console | Final milestone |
+| 9 — Side-by-side agent comparison console | Complete |
 ```
 
 Add README section title:

@@ -25,6 +25,9 @@ dev = [
 platform = [
   "httpx>=0.27.0",
 ]
+ui = [
+  "streamlit>=1.40.0",
+]
 
 [project.scripts]
 edd-lab = "edd_agent_lab.cli.main:app"

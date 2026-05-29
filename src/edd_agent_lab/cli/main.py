@@ -295,6 +295,81 @@ def compare_runs(
     console.print(f"[green]Comparison report:[/green] {output_path}")
 
 
+@app.command("compare-turn")
+def compare_turn(
+    agent: str = typer.Option("customer-solution", "--agent", "-a"),
+    scenario: str = typer.Option(..., "--scenario", "-s"),
+    suite: str = typer.Option("discovery_quality", "--suite"),
+    before: str = typer.Option("v0-baseline", "--before"),
+    after: str = typer.Option("v1-discovery-graph", "--after"),
+    message: str | None = typer.Option(None, "--message", "-m"),
+) -> None:
+    """Run one turn on two versions and print turn-level EDD comparison."""
+    from edd_agent_lab.agents.customer_solution_agent.runner import run_customer_solution_turn
+    from edd_agent_lab.evals.turn_artifacts import new_session_id, new_turn_id, write_turn_artifacts
+    from edd_agent_lab.evals.turn_comparison import compare_turn_evaluation
+    from edd_agent_lab.evals.turn_evaluator import evaluate_turn
+
+    scenario_obj = load_scenario(_resolve_agent(agent), scenario)
+    user_message = message or scenario_obj.problem
+    before_version = _agent_version_to_dirname(before)
+    after_version = _agent_version_to_dirname(after)
+
+    before_result = run_customer_solution_turn(
+        scenario_id=scenario,
+        agent_version=before_version,
+        user_message=user_message,
+    )
+    after_result = run_customer_solution_turn(
+        scenario_id=scenario,
+        agent_version=after_version,
+        user_message=user_message,
+    )
+    evaluation = evaluate_turn(
+        agent="customer_solution_agent",
+        scenario_id=scenario,
+        suite_id=suite,
+        user_input=user_message,
+        responses_by_version={
+            before_version: before_result["final_response"],
+            after_version: after_result["final_response"],
+        },
+    )
+    comparison = compare_turn_evaluation(
+        evaluation,
+        before_version=before_version,
+        after_version=after_version,
+    )
+    artifact_dir = write_turn_artifacts(
+        session_id=new_session_id(),
+        turn_id=new_turn_id(),
+        evaluation=evaluation,
+        comparison=comparison,
+    )
+    console.print(f"[bold]Decision:[/bold] {comparison.decision}")
+    console.print(f"[bold]Score delta:[/bold] {comparison.score_delta:+.3f}")
+    console.print(comparison.explanation)
+    console.print(f"[green]Artifacts:[/green] {artifact_dir}")
+
+
+@app.command("console")
+def launch_console() -> None:
+    """Launch the Streamlit side-by-side comparison console."""
+    import shutil
+    import subprocess
+    from pathlib import Path
+
+    app_path = Path(__file__).resolve().parents[1] / "ui" / "app.py"
+    streamlit_exe = shutil.which("streamlit")
+    if streamlit_exe:
+        subprocess.run([streamlit_exe, "run", str(app_path)], check=False)
+        return
+    console.print("Streamlit not found. Install UI dependencies and run:")
+    console.print("  pip install -e '.[ui]'")
+    console.print(f"  streamlit run {app_path}")
+    raise typer.Exit(code=2)
+
+
 @app.command("invoke-mcp")
 def invoke_mcp(
     tool: str = typer.Option(..., "--tool", help="MCP tool name."),
