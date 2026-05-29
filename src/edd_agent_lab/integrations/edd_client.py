@@ -246,6 +246,8 @@ class HttpEDDClient(EDDClient):
         return {
             "status": "published_http",
             "platform_run_id": platform_run_id,
+            "gate_status": response.get("gate_status"),
+            "gate_explanation": response.get("gate_explanation"),
             "schema_version": PUBLISH_SCHEMA_VERSION,
             "response": response,
         }

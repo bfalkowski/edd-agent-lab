@@ -22,6 +22,7 @@ from edd_agent_lab.ui.components import (
     start_new_console_session,
     sync_console_session,
 )
+from edd_agent_lab.ui.eval_publish import render_eval_publish_panel
 from edd_agent_lab.ui.layout import load_css, page_shell, sidebar_brand
 from edd_agent_lab.ui.session_store import ChatTurn, list_console_session_ids
 
@@ -256,6 +257,13 @@ def main() -> None:
     if evaluation and comparison:
         render_turn_analysis(comparison, evaluation)
     render_artifacts_panel(st.session_state.get("latest_artifact_dir"), evaluation)
+
+    render_eval_publish_panel(
+        agent_key="customer-solution",
+        suite_id=suite_id,
+        left_version=left_version,
+        right_version=right_version,
+    )
 
     pending = st.session_state.pop("pending_message", None)
     if pending:

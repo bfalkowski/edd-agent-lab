@@ -23,7 +23,11 @@ def test_http_client_publishes_envelope() -> None:
         assert request.url.path == LAB_PUBLISH_PATH
         return httpx.Response(
             201,
-            json={"platform_run_id": "11111111-1111-1111-1111-111111111111"},
+            json={
+                "platform_run_id": "11111111-1111-1111-1111-111111111111",
+                "gate_status": "pass",
+                "gate_explanation": "Lab overall score 100.0 meets pass threshold 70.0.",
+            },
         )
 
     transport = httpx.MockTransport(handler)
@@ -36,6 +40,8 @@ def test_http_client_publishes_envelope() -> None:
 
     assert result["status"] == "published_http"
     assert result["platform_run_id"] == "11111111-1111-1111-1111-111111111111"
+    assert result["gate_status"] == "pass"
+    assert "pass threshold" in str(result["gate_explanation"])
 
 
 def test_http_client_queues_on_http_error() -> None:
