@@ -62,8 +62,8 @@ Important:
 | 4 — v1 discovery graph | Complete |
 | 5 — Overfitting eval | Complete |
 | 6 — Competency model | Complete |
-| 7 — EDD platform client | Planned |
-| 8 — MCP integration | Planned |
+| 7 — EDD platform client | Complete |
+| 8 — MCP integration | Complete |
 | 9 — Side-by-side agent comparison console | Final milestone |
 ```
 

@@ -148,6 +148,7 @@ edd-lab run-agent --agent customer-solution --version v0 --scenario healthcare_d
 edd-lab run-evals --agent customer-solution --version v0 --suite discovery_quality
 edd-lab run-evals --agent customer-solution --version v1 --suite overfitting
 edd-lab run-evals --agent customer-solution --version v3 --suite overfitting
+edd-lab publish-run --agent customer-solution --version v3
 pytest
 ```
 
@@ -186,8 +187,8 @@ The platform must not depend on this repo. See `docs/05-platform-integration.md`
 | 4 — v1 discovery graph | Complete |
 | 5 — Overfitting eval | Complete |
 | 6 — v3 competency model | Complete |
-| 7 — EDD platform client | Planned |
-| 8 — MCP integration | Planned |
+| 7 — EDD platform client | Complete |
+| 8 — MCP integration | Complete |
 
 ## Design Principles
 

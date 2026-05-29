@@ -30,9 +30,31 @@ The platform must not depend on this repo.
 
 ## Integration Path (Phased)
 
-1. Local JSON/YAML artifacts (current default)
-2. Publish artifacts through `integrations/edd_client.py` (future HTTP/SDK)
-3. Consume platform capabilities via MCP (later milestone)
+1. Local JSON/YAML artifacts (default)
+2. Publish envelopes through `integrations/edd_client.py` (`LocalEDDClient`, `HttpEDDClient`, queue fallback)
+3. Invoke platform capabilities through `integrations/mcp_client.py` (local shims today; remote MCP optional)
+
+## Publish Envelope
+
+Lab runs publish a versioned envelope (`schema_version: "1"`) built by `integrations/publish.py`:
+
+- `run_id`, `agent`, `agent_version`, `suite`, `scenario_ids`
+- `eval_summary`, `failure_packet`, `outputs`, `artifact_paths`
+
+CLI:
+
+```bash
+edd-lab publish-run --agent customer-solution --version v3
+edd-lab run-evals --agent customer-solution --version v3 --suite overfitting --publish
+```
+
+HTTP publish target (platform ingest seam):
+
+```text
+POST /v1/integrations/lab/publish
+```
+
+If the platform endpoint is unavailable, envelopes are queued under `lab-runs/_platform_publish_queue/`.
 
 ## Langfuse Rule
 

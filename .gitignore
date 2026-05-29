@@ -12,3 +12,5 @@ build/
 .DS_Store
 .idea/
 .vscode/
+lab-runs/_platform_publish_queue/
+**/_test_publish_queue/

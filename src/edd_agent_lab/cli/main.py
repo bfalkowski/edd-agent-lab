@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import typer
 from rich.console import Console
 from rich.table import Table
@@ -6,6 +8,8 @@ from edd_agent_lab import __version__
 from edd_agent_lab.agents.customer_solution_agent import run_customer_solution_agent
 from edd_agent_lab.evals.loading import list_eval_suite_ids, load_eval_suite
 from edd_agent_lab.evals.runner import run_eval_suite
+from edd_agent_lab.integrations.edd_client import get_edd_client, publish_run_record_file
+from edd_agent_lab.paths import LAB_RUNS_DIR
 from edd_agent_lab.scenarios.loading import list_scenario_ids, load_scenario
 
 app = typer.Typer(
@@ -126,6 +130,11 @@ def run_evals(
         "--agent-version",
         help="Agent version (v0|v1) or explicit directory name.",
     ),
+    publish: bool = typer.Option(
+        False,
+        "--publish",
+        help="Publish run-record to EDD platform (or local publish queue).",
+    ),
 ) -> None:
     """Run an eval suite and write summary artifacts."""
     agent_key = _resolve_agent(agent)
@@ -138,6 +147,60 @@ def run_evals(
     if result.failure_packet_path:
         console.print(f"[yellow]Failure packet:[/yellow] {result.failure_packet_path}")
     console.print(f"[bold]Overall score:[/bold] {result.summary['overall_score']}")
+    if publish:
+        _publish_latest_run_record(agent_key=agent_key, version_dir=version_dir)
+
+
+def _agent_lab_dir(agent_key: str, version_dir: str) -> Path:
+    mapping = {
+        "customer-solution": "customer_solution_agent",
+        "customer_solution": "customer_solution_agent",
+        "customer_solution_agent": "customer_solution_agent",
+    }
+    dirname = mapping.get(agent_key, agent_key.replace("-", "_"))
+    return LAB_RUNS_DIR / dirname / version_dir
+
+
+def _publish_latest_run_record(agent_key: str, version_dir: str) -> None:
+    run_record_path = _agent_lab_dir(agent_key, version_dir) / "run-record.json"
+    if not run_record_path.is_file():
+        console.print(f"[red]Run record not found:[/red] {run_record_path}")
+        raise typer.Exit(code=1)
+    publish_result = publish_run_record_file(run_record_path, client=get_edd_client())
+    console.print(f"[green]Publish status:[/green] {publish_result.get('status')}")
+    if publish_result.get("queue_path"):
+        console.print(f"[yellow]Queued at:[/yellow] {publish_result['queue_path']}")
+    if publish_result.get("platform_run_id"):
+        console.print(f"[bold]Platform run id:[/bold] {publish_result['platform_run_id']}")
+
+
+@app.command("publish-run")
+def publish_run(
+    agent: str = typer.Option(..., "--agent", "-a", help="Agent key."),
+    version: str = typer.Option(..., "--version", help="Agent version alias or directory."),
+    run_record: str | None = typer.Option(
+        None,
+        "--run-record",
+        help="Optional path to run-record.json (defaults to latest lab run).",
+    ),
+) -> None:
+    """Publish a local lab run record to the EDD platform ingest seam."""
+    agent_key = _resolve_agent(agent)
+    version_dir = _agent_version_to_dirname(version)
+    run_record_path = (
+        Path(run_record)
+        if run_record
+        else _agent_lab_dir(agent_key, version_dir) / "run-record.json"
+    )
+    if not run_record_path.is_file():
+        console.print(f"[red]Run record not found:[/red] {run_record_path}")
+        raise typer.Exit(code=1)
+    publish_result = publish_run_record_file(run_record_path, client=get_edd_client())
+    console.print(f"[green]Publish status:[/green] {publish_result.get('status')}")
+    if publish_result.get("queue_path"):
+        console.print(f"[yellow]Queued at:[/yellow] {publish_result['queue_path']}")
+    if publish_result.get("platform_run_id"):
+        console.print(f"[bold]Platform run id:[/bold] {publish_result['platform_run_id']}")
 
 
 @app.command("compare-runs")
@@ -230,6 +293,18 @@ def compare_runs(
     )
     output_path.write_text("\n".join(md_lines) + "\n", encoding="utf-8")
     console.print(f"[green]Comparison report:[/green] {output_path}")
+
+
+@app.command("invoke-mcp")
+def invoke_mcp(
+    tool: str = typer.Option(..., "--tool", help="MCP tool name."),
+    arguments: str = typer.Option("{}", "--arguments", help="JSON object of tool arguments."),
+) -> None:
+    """Invoke an EDD MCP tool via local shims (or remote server when configured)."""
+    from edd_agent_lab.integrations.mcp_client import invoke_mcp_tool
+
+    result = invoke_mcp_tool(tool, arguments)
+    console.print_json(data=result)
 
 
 @app.command("generate-variants")
