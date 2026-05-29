@@ -137,9 +137,9 @@ edd-agent-lab/
 
 ```bash
 cd edd-agent-lab
-python -m venv .venv
+uv venv --python 3.12
+uv sync --extra dev --extra agent --extra platform --no-editable
 source .venv/bin/activate   # Windows: .venv\Scripts\activate
-pip install -e ".[dev,agent]"
 
 edd-lab --help
 edd-lab list-scenarios --agent customer-solution
