@@ -5,7 +5,7 @@ from __future__ import annotations
 from dotenv import load_dotenv
 
 from edd_agent_lab.agents.customer_solution_agent.runner import run_customer_solution_turn
-from edd_agent_lab.agents.generation import resolve_generation_mode
+from edd_agent_lab.agents.generation import live_generation_available, resolve_generation_mode
 from edd_agent_lab.evals.loading import list_eval_suite_ids
 from edd_agent_lab.evals.session_scoring import summarize_session_scores
 from edd_agent_lab.evals.turn_artifacts import new_turn_id, write_turn_artifacts
@@ -34,25 +34,34 @@ def _process_turn(
     suite_id: str,
     left_version: str,
     right_version: str,
+    generation_mode: str,
 ) -> None:
     import streamlit as st
+
+    try:
+        resolved_mode = resolve_generation_mode(generation_mode)  # type: ignore[arg-type]
+    except RuntimeError as exc:
+        st.error(str(exc))
+        return
 
     turns: list[dict[str, str]] = list(st.session_state.turns)
     left_history = build_side_history(turns, "left")
     right_history = build_side_history(turns, "right")
 
-    with st.spinner("Running both agent versions..."):
+    with st.spinner(f"Running both agent versions ({resolved_mode})..."):
         left = run_customer_solution_turn(
             scenario_id=scenario_id,
             agent_version=left_version,
             user_message=message,
             conversation_history=left_history,
+            generation_mode=generation_mode,  # type: ignore[arg-type]
         )
         right = run_customer_solution_turn(
             scenario_id=scenario_id,
             agent_version=right_version,
             user_message=message,
             conversation_history=right_history,
+            generation_mode=generation_mode,  # type: ignore[arg-type]
         )
 
     turn_id = new_turn_id()
@@ -139,6 +148,25 @@ def main() -> None:
         st.selectbox("Eval suite", suites, key="suite_id")
         st.selectbox("Left version", version_options, key="left_version")
         st.selectbox("Right version", version_options, key="right_version")
+        st.radio(
+            "Generation mode",
+            options=["mock", "live"],
+            format_func=lambda mode: "Mock (deterministic)" if mode == "mock" else "Live (OpenAI)",
+            key="generation_mode",
+            horizontal=True,
+        )
+        if st.session_state.generation_mode == "live" and not live_generation_available():
+            st.warning("Live mode requires OPENAI_API_KEY in `.env`.")
+        elif st.session_state.generation_mode == "live":
+            st.caption("Using OpenAI-backed agent generation.")
+        else:
+            st.caption("Using deterministic template responses (CI-safe).")
+        console_session = st.session_state.get("console_session")
+        if (
+            console_session
+            and console_session.generation_mode != st.session_state.generation_mode
+        ):
+            sync_console_session()
         st.divider()
         st.markdown("### Session")
         st.caption(st.session_state.session_id)
@@ -156,10 +184,6 @@ def main() -> None:
                     f"{session_summary.right_avg_score:.2f} "
                     f"({session_summary.avg_delta:+.2f})"
                 )
-        gen_mode = resolve_generation_mode()
-        st.caption(f"Generation: {gen_mode}")
-        if gen_mode == "mock":
-            st.caption("Set OPENAI_API_KEY in .env for live replies.")
         recent = list_console_session_ids()
         if recent:
             resume_options = recent
@@ -196,7 +220,10 @@ def main() -> None:
 
     page_shell(
         "Side-by-Side Agent Chat",
-        f"{left_version} vs {right_version} · multi-turn · same prompt to both columns",
+        (
+            f"{left_version} vs {right_version} · "
+            f"{st.session_state.generation_mode} generation · same prompt to both columns"
+        ),
     )
 
     evaluation = st.session_state.get("latest_evaluation")
@@ -238,6 +265,7 @@ def main() -> None:
             suite_id=suite_id,
             left_version=left_version,
             right_version=right_version,
+            generation_mode=st.session_state.generation_mode,
         )
         st.rerun()
 
@@ -249,6 +277,7 @@ def main() -> None:
             suite_id=suite_id,
             left_version=left_version,
             right_version=right_version,
+            generation_mode=st.session_state.generation_mode,
         )
         st.rerun()
 

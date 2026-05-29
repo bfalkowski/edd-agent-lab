@@ -170,6 +170,7 @@ def init_session_defaults() -> None:
     import streamlit as st
     from datetime import UTC, datetime
 
+    from edd_agent_lab.agents.generation import default_console_generation_mode
     from edd_agent_lab.evals.turn_artifacts import new_session_id
     from edd_agent_lab.ui.session_store import (
         ConsoleSession,
@@ -182,6 +183,8 @@ def init_session_defaults() -> None:
     st.session_state.pop("right_messages", None)
 
     if st.session_state.get("_console_initialized"):
+        if "generation_mode" not in st.session_state:
+            st.session_state.generation_mode = default_console_generation_mode()
         return
 
     requested = st.query_params.get("session_id")
@@ -208,6 +211,7 @@ def init_session_defaults() -> None:
         "latest_comparison": None,
         "latest_artifact_dir": None,
         "turn_count": 0,
+        "generation_mode": default_console_generation_mode(),
     }
     for key, value in defaults.items():
         st.session_state[key] = value
@@ -220,6 +224,7 @@ def init_session_defaults() -> None:
         suite_id=defaults["suite_id"],
         left_version=defaults["left_version"],
         right_version=defaults["right_version"],
+        generation_mode=defaults["generation_mode"],
     )
     st.session_state.console_session = console_session
     save_console_session(console_session)
@@ -250,6 +255,7 @@ def start_new_console_session() -> None:
         suite_id=st.session_state.suite_id,
         left_version=st.session_state.left_version,
         right_version=st.session_state.right_version,
+        generation_mode=st.session_state.generation_mode,
     )
     st.session_state.console_session = console_session
     save_console_session(console_session)
@@ -266,6 +272,7 @@ def sync_console_session() -> "ConsoleSession":
     session.suite_id = st.session_state.suite_id
     session.left_version = st.session_state.left_version
     session.right_version = st.session_state.right_version
+    session.generation_mode = st.session_state.generation_mode
     session.chat_turns = [ChatTurn.model_validate(turn) for turn in st.session_state.turns]
     session.latest_artifact_dir = st.session_state.get("latest_artifact_dir")
     st.session_state.console_session = session
@@ -282,6 +289,7 @@ def _apply_loaded_session(st: Any, session: "ConsoleSession") -> None:
     st.session_state.suite_id = session.suite_id
     st.session_state.left_version = session.left_version
     st.session_state.right_version = session.right_version
+    st.session_state.generation_mode = session.generation_mode
     st.session_state.turns = [turn.model_dump() for turn in session.chat_turns]
     st.session_state.turn_count = len(session.chat_turns)
     st.session_state.latest_artifact_dir = session.latest_artifact_dir

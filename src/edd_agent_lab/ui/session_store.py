@@ -7,10 +7,14 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 from edd_agent_lab.evals.turn_schemas import TurnComparison, TurnEvaluation, TurnSummary
 from edd_agent_lab.paths import LAB_RUNS_DIR
+
+ConsoleGenerationMode = Literal["mock", "live"]
 
 CONSOLE_SESSIONS_DIR = LAB_RUNS_DIR / "customer_solution_agent" / "console-sessions"
 
@@ -30,6 +34,7 @@ class ConsoleSession(BaseModel):
     suite_id: str
     left_version: str
     right_version: str
+    generation_mode: ConsoleGenerationMode = "mock"
     chat_turns: list[ChatTurn] = Field(default_factory=list)
     turn_summaries: list[TurnSummary] = Field(default_factory=list)
     latest_artifact_dir: str | None = None
@@ -100,6 +105,8 @@ def _normalize_session(data: dict[str, Any]) -> ConsoleSession:
             data[key] = _default_session_field(key)
     if "turn_summaries" not in data and "turns" in data:
         data["turn_summaries"] = data.pop("turns")
+    if "generation_mode" not in data:
+        data["generation_mode"] = "mock"
     return ConsoleSession.model_validate(data)
 
 

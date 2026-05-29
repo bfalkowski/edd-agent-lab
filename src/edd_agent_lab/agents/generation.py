@@ -14,12 +14,6 @@ DEFAULT_AGENT_MODEL = "gpt-4o-mini"
 def resolve_generation_mode(
     explicit: GenerationModeSetting | None = None,
 ) -> ResolvedGenerationMode:
-    """Resolve mock vs live generation.
-
-    - mock: deterministic template graph (CI default)
-    - live: OpenAI-backed generation (requires OPENAI_API_KEY)
-    - auto: live when OPENAI_API_KEY is set, otherwise mock
-    """
     raw = (explicit or os.environ.get("AGENT_GENERATION_MODE", "auto")).strip().lower()
     if raw not in {"mock", "live", "auto"}:
         raise ValueError(
@@ -35,6 +29,15 @@ def resolve_generation_mode(
             )
         return "live"
     return "live" if os.environ.get("OPENAI_API_KEY") else "mock"
+
+
+def live_generation_available() -> bool:
+    return bool(os.environ.get("OPENAI_API_KEY"))
+
+
+def default_console_generation_mode() -> ResolvedGenerationMode:
+    """Initial console toggle: auto picks live when an API key is configured."""
+    return resolve_generation_mode("auto")
 
 
 def agent_model_name() -> str:

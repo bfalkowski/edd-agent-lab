@@ -215,6 +215,11 @@ The platform must not depend on this repo. See `docs/05-platform-integration.md`
 
 See `docs/08-live-agent-generation.md` for live vs mock mode details.
 
+**Developer experience:**
+
+- [Current DX](docs/09-developer-experience-today.md) — how the lab + platform work today
+- [Ideal DX](docs/10-ideal-developer-experience.md) — target console-first workflow and platform ingest
+
 ## Design Principles
 
 1. Evals define what good behavior means.
