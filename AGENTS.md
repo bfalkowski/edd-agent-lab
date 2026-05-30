@@ -46,6 +46,7 @@ Cursor also loads `.cursor/rules/karpathy-guidelines.mdc` (`alwaysApply: true`) 
 - Do not send traces directly to Langfuse for EDD workflow evidence; publish run/eval artifacts to the platform. See `docs/05-platform-integration.md` and platform [HLD-008](https://github.com/bfalkowski/eval-driven-design-platform/blob/main/docs/hld/HLD-008-langfuse-integration.md).
 - Use `POST /v1/integrations/runs/publish` via `integrations/edd_client.py` and `integrations/publish.py`; target the platform API (`EDD_API_BASE_URL`, default `http://127.0.0.1:8000`), not the Streamlit console.
 - Keep tests deterministic; use mock/local tools by default unless explicitly requested.
+- **CI has no AI provider keys by design.** All pytest suites, CLI smoke, publish smoke (`scripts/test_platform_publish.sh`), and export/validation scripts must pass without model-provider credentials. Live LLM generation (`AGENT_GENERATION_MODE=live`) is opt-in only and must skip or fall back to mock when `OPENAI_API_KEY` (or other provider keys) are absent — see `tests/conftest.py` (`AGENT_GENERATION_MODE=mock` by default). Do not add required CI jobs that call model providers.
 - Do not treat mock-tool runs as production-ready; make tool mode visible in artifacts and publish payloads.
 - Do not remove existing working agents or demos unless necessary.
 - Do not mention employers, interviews, or proprietary systems in public docs.
