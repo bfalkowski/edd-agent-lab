@@ -1,0 +1,230 @@
+graph_design:
+  id: customer-escalation-triage-graph-v1
+  agent_target_id: customer-escalation-triage-target-v1
+  eval_contract_id: customer-escalation-triage-eval-contract-v1
+  version: v1
+  name: Evidence-first escalation triage graph
+  description: >
+    Evidence-first graph that collects customer reports, traces, eval history,
+    recent changes, tool health, and customer context before producing a
+    grounded diagnosis and customer-safe update.
+  source_version: v0-baseline
+  fix_plan_id: fix-v1-evidence-first-triage
+  status: active
+  flow_order:
+    - parse_escalation_report
+    - collect_evidence
+    - collect_customer_report
+    - collect_trace_evidence
+    - collect_eval_history
+    - collect_recent_changes
+    - collect_tool_health
+    - collect_customer_context
+    - normalize_evidence
+    - identify_correlations
+    - separate_facts_hypotheses_unknowns
+    - assess_customer_impact
+    - recommend_mitigation_plan
+    - draft_customer_update
+    - customer_safe_update_review
+    - final_response
+
+graph_nodes:
+  - id: parse_escalation_report
+    purpose: Extract customer-reported issue, timeframe, urgency, and requested output.
+    supports_rules:
+      - evidence_first_diagnosis
+      - assess_customer_impact
+    reads_state:
+      - user_request
+    writes_state:
+      - customer_report
+
+  - id: collect_evidence
+    purpose: Gather required evidence from local/mock tool bindings.
+    supports_rules:
+      - evidence_first_diagnosis
+    information_requirements:
+      - customer_report
+      - trace_evidence
+      - eval_history
+      - recent_changes
+      - tool_health
+      - customer_context
+
+  - id: collect_customer_report
+    purpose: Load the customer escalation report from the scenario fixture.
+    supports_rules:
+      - evidence_first_diagnosis
+      - assess_customer_impact
+    information_requirements:
+      - customer_report
+    tool_requirements:
+      - customer_report_source
+    active_tool_binding: fetch_customer_report_from_scenario
+    tool_mode: local
+    production_blocker: true
+
+  - id: collect_trace_evidence
+    purpose: Retrieve trace evidence for the affected workflow and time window.
+    supports_rules:
+      - evidence_first_diagnosis
+      - separate_facts_from_hypotheses
+    information_requirements:
+      - trace_evidence
+    tool_requirements:
+      - trace_evidence_source
+    active_tool_binding: fetch_trace_summary_mock
+    tool_mode: mock
+    production_blocker: true
+    operational_safety_notes:
+      - Trace data may contain sensitive information.
+      - Do not expose raw trace contents in customer-facing output.
+
+  - id: collect_eval_history
+    purpose: Load recent eval scores and regressions for the affected workflow.
+    supports_rules:
+      - evidence_first_diagnosis
+    information_requirements:
+      - eval_history
+    tool_requirements:
+      - eval_history_source
+    active_tool_binding: fetch_eval_results_local
+    tool_mode: local
+    production_blocker: true
+
+  - id: collect_recent_changes
+    purpose: Check recent prompts, configs, deployments, and tool changes.
+    supports_rules:
+      - identify_recent_changes
+      - evidence_first_diagnosis
+    information_requirements:
+      - recent_changes
+    tool_requirements:
+      - recent_changes_source
+    active_tool_binding: fetch_recent_changes_mock
+    tool_mode: mock
+    production_blocker: true
+
+  - id: collect_tool_health
+    purpose: Inspect tool timeouts, failures, and degraded dependencies.
+    supports_rules:
+      - evidence_first_diagnosis
+    information_requirements:
+      - tool_health
+    tool_requirements:
+      - tool_health_source
+    active_tool_binding: fetch_tool_health_mock
+    tool_mode: mock
+    production_blocker: true
+
+  - id: collect_customer_context
+    purpose: Load customer environment and communication constraints.
+    supports_rules:
+      - assess_customer_impact
+      - draft_customer_safe_update
+    information_requirements:
+      - customer_context
+    tool_requirements:
+      - customer_context_source
+    active_tool_binding: fetch_customer_context_from_scenario
+    tool_mode: local
+    production_blocker: true
+
+  - id: normalize_evidence
+    purpose: Convert heterogeneous evidence into a consistent structure.
+    supports_rules:
+      - evidence_first_diagnosis
+      - separate_facts_from_hypotheses
+    failure_packets_addressed:
+      - fp-v0-unsupported-root-cause
+    reads_state:
+      - customer_report
+      - trace_summary
+      - eval_history
+      - recent_changes
+      - tool_health
+      - customer_context
+    writes_state:
+      - normalized_evidence
+
+  - id: identify_correlations
+    purpose: Identify timing and pattern correlations without claiming causality.
+    supports_rules:
+      - identify_recent_changes
+      - evidence_first_diagnosis
+    reads_state:
+      - normalized_evidence
+      - recent_changes
+    writes_state:
+      - correlation_notes
+
+  - id: separate_facts_hypotheses_unknowns
+    purpose: Separate confirmed facts, plausible hypotheses, and unknowns.
+    supports_rules:
+      - separate_facts_from_hypotheses
+      - evidence_first_diagnosis
+    failure_packets_addressed:
+      - fp-v0-unsupported-root-cause
+    reads_state:
+      - normalized_evidence
+      - correlation_notes
+    writes_state:
+      - confirmed_facts
+      - hypotheses
+      - unknowns
+
+  - id: assess_customer_impact
+    purpose: Summarize affected workflows, severity, urgency, and customer impact.
+    supports_rules:
+      - assess_customer_impact
+    reads_state:
+      - confirmed_facts
+      - customer_context
+    writes_state:
+      - customer_impact
+
+  - id: recommend_mitigation_plan
+    purpose: Recommend safe, sequenced immediate actions and investigation steps.
+    supports_rules:
+      - recommend_safe_next_actions
+    reads_state:
+      - confirmed_facts
+      - hypotheses
+      - unknowns
+      - customer_impact
+    writes_state:
+      - recommended_actions
+
+  - id: draft_customer_update
+    purpose: Draft a customer-facing update.
+    supports_rules:
+      - draft_customer_safe_update
+    reads_state:
+      - confirmed_facts
+      - recommended_actions
+      - customer_impact
+    writes_state:
+      - customer_update_draft
+
+  - id: customer_safe_update_review
+    purpose: Review the customer update for speculation and sensitive internal details.
+    supports_rules:
+      - draft_customer_safe_update
+      - separate_facts_from_hypotheses
+    reads_state:
+      - customer_update_draft
+      - confirmed_facts
+      - unknowns
+    writes_state:
+      - customer_update_review
+
+  - id: final_response
+    purpose: Return the grounded triage response to the operator.
+    supports_rules:
+      - recommend_safe_next_actions
+    reads_state:
+      - recommended_actions
+      - customer_update_review
+    writes_state:
+      - final_response

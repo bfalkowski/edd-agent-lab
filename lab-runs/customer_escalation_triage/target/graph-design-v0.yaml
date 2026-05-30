@@ -1,0 +1,31 @@
+graph_design:
+  id: customer-escalation-triage-graph-v0
+  agent_target_id: customer-escalation-triage-target-v1
+  eval_contract_id: customer-escalation-triage-eval-contract-v1
+  version: v0
+  name: Single-pass escalation triage baseline
+  description: >
+    Single-pass prompt baseline. No evidence collection, tool bindings,
+    evidence normalization, facts/hypotheses separation, or customer-safe update review.
+  status: draft
+  flow_order:
+    - single_pass_response
+    - final_response
+
+graph_nodes:
+  - id: single_pass_response
+    purpose: >
+      Generate a one-shot triage response from the escalation report without
+      structured evidence collection or grounding checks.
+    supports_rules:
+      - evidence_first_diagnosis
+      - separate_facts_from_hypotheses
+      - identify_recent_changes
+      - assess_customer_impact
+      - recommend_safe_next_actions
+      - draft_customer_safe_update
+
+  - id: final_response
+    purpose: Return the agent response to the operator.
+    supports_rules:
+      - recommend_safe_next_actions
