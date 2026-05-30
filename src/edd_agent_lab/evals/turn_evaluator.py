@@ -158,6 +158,7 @@ def evaluate_turn(
         check_results: list[TurnCheckResult] = []
         for check in checks:
             scored = score_turn_check(check, response_text, hybrid=hybrid)
+            patterns = check.patterns or _PATTERN_BY_ID.get(check.id, [])
             check_results.append(
                 TurnCheckResult(
                     id=check.id,
@@ -165,7 +166,7 @@ def evaluate_turn(
                     passed=scored.passed,
                     comment=scored.comment,
                     evidence=_evidence_for_check(
-                        check.model_copy(update={"patterns": check.patterns or _PATTERN_BY_ID.get(check.id, [])}),
+                        check.model_copy(update={"patterns": patterns}),
                         response_text,
                     ),
                     fix_hint=None if scored.passed else _fix_hint_for_check(check.id),

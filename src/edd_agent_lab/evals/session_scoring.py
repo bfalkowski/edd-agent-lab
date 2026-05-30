@@ -155,6 +155,7 @@ def _session_decision(
         "mixed session result",
         (
             f"Average delta {avg_delta:+.3f} with split turn wins "
-            f"(left={left_turns_won}, right={right_turns_won}, ties={turn_count - left_turns_won - right_turns_won})."
+            f"(left={left_turns_won}, right={right_turns_won}, "
+            f"ties={turn_count - left_turns_won - right_turns_won})."
         ),
     )

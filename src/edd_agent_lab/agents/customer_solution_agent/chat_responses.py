@@ -133,7 +133,8 @@ def _followup_v0(
     if "pilot" in topics:
         parts.append(f"**Pilot plan**\n{state.pilot_plan or '4–6 week pilot on one unit.'}\n")
     if "evaluation" in topics:
-        parts.append(f"**How we'll verify**\n{state.eval_plan or 'Compare pilot vs. baseline cohort.'}\n")
+        eval_plan = state.eval_plan or "Compare pilot vs. baseline cohort."
+        parts.append(f"**How we'll verify**\n{eval_plan}\n")
     solution = state.proposed_solution or "Copilot on highest-burden workflow step."
     parts.append(f"**Solution angle:** {solution}")
     return "\n".join(parts)
@@ -183,7 +184,10 @@ def _followup_v3(
     quote: str,
     topics: list[str],
 ) -> str:
-    competencies = ", ".join(state.discovery_competencies[:4]) if state.discovery_competencies else "scope, metrics, risks"
+    if state.discovery_competencies:
+        competencies = ", ".join(state.discovery_competencies[:4])
+    else:
+        competencies = "scope, metrics, risks"
     parts = [
         f"On **{quote}** — mapping this to our discovery competencies "
         f"({competencies}):\n"
@@ -201,7 +205,8 @@ def _followup_v3(
     if "risks" in topics:
         parts.append(f"**Risk competency**\n{_risks_block(state)}\n")
     if "pilot" in topics:
-        parts.append(f"**Pilot competency**\n{state.pilot_plan or 'Pilot scope not finalized yet.'}\n")
+        pilot_plan = state.pilot_plan or "Pilot scope not finalized yet."
+        parts.append(f"**Pilot competency**\n{pilot_plan}\n")
     if "evaluation" in topics:
         parts.append(f"**Evaluation competency**\n{state.eval_plan or 'Eval plan pending.'}\n")
     if state.discovery_questions:

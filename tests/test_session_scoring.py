@@ -1,5 +1,5 @@
-from edd_agent_lab.evals.turn_schemas import TurnSummary
 from edd_agent_lab.evals.session_scoring import summarize_session_scores
+from edd_agent_lab.evals.turn_schemas import TurnSummary
 
 
 def test_summarize_session_scores_returns_none_for_empty() -> None:

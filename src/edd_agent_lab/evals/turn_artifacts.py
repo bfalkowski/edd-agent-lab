@@ -7,7 +7,11 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from edd_agent_lab.evals.turn_schemas import TurnComparison, TurnEvaluation, TurnSummary
-from edd_agent_lab.ui.session_store import CONSOLE_SESSIONS_DIR, ConsoleSession, save_console_session
+from edd_agent_lab.ui.session_store import (
+    CONSOLE_SESSIONS_DIR,
+    ConsoleSession,
+    save_console_session,
+)
 
 
 def new_session_id() -> str:

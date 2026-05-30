@@ -7,7 +7,7 @@ from typing import Any
 
 from edd_agent_lab.evals.runner import run_eval_suite
 from edd_agent_lab.evals.scorecard import SuiteRunSnapshot, snapshot_from_eval_result
-from edd_agent_lab.integrations.edd_client import publish_run_record_file, get_edd_client
+from edd_agent_lab.integrations.edd_client import get_edd_client, publish_run_record_file
 from edd_agent_lab.integrations.lab_runs import run_record_path
 
 

@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import html
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from edd_agent_lab.evals.session_scoring import SessionScoreSummary
 from edd_agent_lab.evals.turn_schemas import TurnComparison, TurnEvaluation, TurnVersionResult
 from edd_agent_lab.ui.layout import page_header, status_pill
+
+if TYPE_CHECKING:
+    from edd_agent_lab.ui.session_store import ConsoleSession
 
 Side = Literal["left", "right"]
 
@@ -168,8 +171,9 @@ def render_artifacts_panel(artifact_dir: str | None, evaluation: TurnEvaluation 
 
 
 def init_session_defaults() -> None:
-    import streamlit as st
     from datetime import UTC, datetime
+
+    import streamlit as st
 
     from edd_agent_lab.agents.generation import default_console_generation_mode
     from edd_agent_lab.evals.turn_artifacts import new_session_id
@@ -234,8 +238,9 @@ def init_session_defaults() -> None:
 
 
 def start_new_console_session() -> None:
-    import streamlit as st
     from datetime import UTC, datetime
+
+    import streamlit as st
 
     from edd_agent_lab.evals.turn_artifacts import new_session_id
     from edd_agent_lab.ui.session_store import ConsoleSession, save_console_session
@@ -263,10 +268,10 @@ def start_new_console_session() -> None:
     st.query_params["session_id"] = session_id
 
 
-def sync_console_session() -> "ConsoleSession":
+def sync_console_session() -> ConsoleSession:
     import streamlit as st
 
-    from edd_agent_lab.ui.session_store import ChatTurn, ConsoleSession, save_console_session
+    from edd_agent_lab.ui.session_store import ChatTurn, save_console_session
 
     session: ConsoleSession = st.session_state.console_session
     session.scenario_id = st.session_state.scenario_id
@@ -281,7 +286,7 @@ def sync_console_session() -> "ConsoleSession":
     return session
 
 
-def _apply_loaded_session(st: Any, session: "ConsoleSession") -> None:
+def _apply_loaded_session(st: Any, session: ConsoleSession) -> None:
     from edd_agent_lab.ui.session_store import ConsoleSession
 
     assert isinstance(session, ConsoleSession)

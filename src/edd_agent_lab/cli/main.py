@@ -372,6 +372,7 @@ def launch_console() -> None:
     from pathlib import Path
 
     from dotenv import dotenv_values
+
     from edd_agent_lab.ui.app import LAB_CONSOLE_PORT
 
     repo_root = Path(__file__).resolve().parents[3]

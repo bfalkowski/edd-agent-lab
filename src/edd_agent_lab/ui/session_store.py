@@ -5,9 +5,7 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
-
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -103,7 +101,8 @@ def _normalize_session(data: dict[str, Any]) -> ConsoleSession:
     if "chat_turns" not in data:
         data["chat_turns"] = []
     if "created_at" not in data:
-        data["created_at"] = data.get("updated_at") or datetime.now(UTC).strftime("%Y-%m-%dT%H-%M-%SZ")
+        fallback_ts = datetime.now(UTC).strftime("%Y-%m-%dT%H-%M-%SZ")
+        data["created_at"] = data.get("updated_at") or fallback_ts
     if "updated_at" not in data:
         data["updated_at"] = data["created_at"]
     for key in ("scenario_id", "suite_id", "left_version", "right_version"):

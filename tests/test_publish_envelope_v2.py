@@ -67,7 +67,8 @@ def test_build_publish_envelope_v2_matches_contract_fixture(fixture_name: str) -
     assert envelope["schema_version"] == PUBLISH_SCHEMA_VERSION_V2
     assert envelope["producer"]["name"] == "edd-agent-lab"
     if "tool_context" in fixture:
-        assert envelope["tool_context"]["tool_mode_summary"] == fixture["tool_context"]["tool_mode_summary"]
+        expected_mode = fixture["tool_context"]["tool_mode_summary"]
+        assert envelope["tool_context"]["tool_mode_summary"] == expected_mode
     if "run" in fixture:
         assert envelope["run"]["id"] == fixture["run_id"]
     assert envelope["eval_spec_id"] == "00000000-0000-0000-0000-000000000001"
