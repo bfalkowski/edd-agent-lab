@@ -247,6 +247,7 @@ See `docs/08-live-agent-generation.md` for live vs mock mode details.
 - [HLD-005: Reference scenario](../eval-driven-design-platform/docs/hld/HLD-005-reference-scenario-customer-escalation-triage.md) — Customer Escalation Triage (platform repo)
 - [HLD-006: MVP plan](../eval-driven-design-platform/docs/hld/HLD-006-mvp-implementation-plan.md) — build sequence M1–M6 (platform repo)
 - [HLD-007: Platform API](../eval-driven-design-platform/docs/hld/HLD-007-platform-api-and-integration.md) — publish contract and integration (platform repo)
+- [HLD-008: Langfuse integration](../eval-driven-design-platform/docs/hld/HLD-008-langfuse-integration.md) — trace evidence layer (platform repo)
 
 ## Design Principles
 

@@ -88,6 +88,6 @@ Publish returns `platform_run_id`, `gate_status`, and `gate_explanation`. The pl
 
 ## Langfuse Rule
 
-`edd-agent-lab` should not send traces directly to Langfuse.
+`edd-agent-lab` should not send traces directly to Langfuse for EDD workflow evidence.
 It publishes run/eval artifacts to the EDD platform; the platform handles
-Langfuse trace and score integration.
+Langfuse trace and score integration. See [HLD-008](../eval-driven-design-platform/docs/hld/HLD-008-langfuse-integration.md) in the platform repo.
