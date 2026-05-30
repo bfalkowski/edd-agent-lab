@@ -2,6 +2,8 @@
 
 This document describes the ideal console experience for **eval-driven-design-platform**.
 
+**Canonical platform spec:** [HLD-011: Console information architecture](../eval-driven-design-platform/docs/hld/HLD-011-console-information-architecture.md) in the platform repo. This doc expands narrative and UX detail; implement against HLD-011 for screen structure and MVP scope.
+
 The EDD stack is a workspace for evaluation-driven agent design. The platform console should help developers move from a rough agent idea to a validated, traceable, versioned, and eventually operational agent.
 
 The console is not just an eval dashboard.
