@@ -49,3 +49,20 @@ def test_escalation_eval_suite_runs_for_v1() -> None:
     )
     assert result.summary["overall_score"] == 1.0
     assert result.failure_packet_path is None
+
+
+def test_escalation_eval_suite_v0_enriches_run_record() -> None:
+    result = run_eval_suite(
+        agent_key="customer-escalation-triage",
+        suite_id="escalation_triage",
+        agent_version="v0-baseline",
+    )
+    assert result.failure_packet_path is not None
+    import json
+
+    run_record = json.loads(
+        result.failure_packet_path.parent.joinpath("run-record.json").read_text(encoding="utf-8")
+    )
+    assert run_record["failure_packet"]["id"] == "fp-v0-unsupported-root-cause"
+    assert run_record["trace_links"][0]["external_trace_id"] == "trace_v0_abc123"
+    assert run_record.get("publish_schema_version") is None

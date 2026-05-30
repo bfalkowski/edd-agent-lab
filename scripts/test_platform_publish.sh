@@ -161,6 +161,7 @@ fi
 step "Verify ingest metadata, filters, legacy alias, pass gate, tenant isolation"
 SMOKE_PLATFORM_RUN_ID="${platform_run_id}" \
 SMOKE_RUN_RECORD="${RUN_RECORD}" \
+SMOKE_LAB_ROOT="${LAB_ROOT}" \
 SMOKE_SKIP_LEGACY="${SMOKE_SKIP_LEGACY:-}" \
 SMOKE_BEARER_TOKEN="${BEARER_TOKEN}" \
 SMOKE_TENANT_B_TOKEN="${TENANT_B_TOKEN}" \
@@ -363,6 +364,60 @@ if failure_yaml.is_file():
     print(f"structured failure evidence ok run={evidence_run_id_platform}")
 else:
     print(f"structured failure evidence skipped (missing {failure_yaml})")
+
+# --- v2 escalation reference publish (fix plan + comparison + gate) ---
+from edd_agent_lab.integrations.publish import PUBLISH_SCHEMA_VERSION_V2
+
+v2_fixture = Path(os.environ["SMOKE_LAB_ROOT"]) / "tests" / "fixtures" / "publish" / "evidence-run-record-v1-pass.json"
+if v2_fixture.is_file():
+    v2_record = json.loads(v2_fixture.read_text(encoding="utf-8"))
+    try:
+        from edd_agent_lab.integrations.reference_publish import load_reference_publish_artifacts
+
+        v2_record["trace_links"] = load_reference_publish_artifacts()["trace_links_v1"]
+    except FileNotFoundError:
+        pass
+    v2_record["run_id"] = f"smoke-evidence-v2-{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}"
+    v2_envelope = build_publish_envelope(v2_record)
+    v2_envelope["tenant_id"] = tenant_id
+    v2_envelope["eval_spec_id"] = spec_id
+    assert v2_envelope["schema_version"] == PUBLISH_SCHEMA_VERSION_V2
+    v2_publish = httpx.post(
+        f"{api}/v1/integrations/runs/publish",
+        json=v2_envelope,
+        headers=auth_headers(),
+        timeout=10.0,
+    )
+    if v2_publish.status_code != 201:
+        fail(f"v2 escalation publish failed: {v2_publish.status_code} {v2_publish.text}")
+    v2_body = v2_publish.json()
+    if v2_body.get("gate_status") != "pass":
+        fail(f"expected pass gate for v2 escalation bundle, got {v2_body.get('gate_status')!r}")
+    v2_run_id = str(v2_body["platform_run_id"])
+    v2_evidence = httpx.get(
+        f"{api}/v1/experiment-runs/{v2_run_id}/evidence",
+        params=tenant_params(),
+        headers=auth_headers(),
+        timeout=10.0,
+    )
+    if v2_evidence.status_code != 200:
+        fail(f"GET v2 evidence failed: {v2_evidence.status_code} {v2_evidence.text}")
+    v2_payload = v2_evidence.json()
+    if (v2_payload.get("fix_plan") or {}).get("id") != "fix-v1-evidence-first-triage":
+        fail(f"unexpected fix_plan.id: {(v2_payload.get('fix_plan') or {}).get('id')!r}")
+    if (v2_payload.get("comparison") or {}).get("id") != "compare-v0-v1-escalation-triage":
+        fail(f"unexpected comparison.id: {(v2_payload.get('comparison') or {}).get('id')!r}")
+    if (v2_payload.get("gate_result") or {}).get("overall_status") != "pass_for_demo_not_production":
+        fail(
+            "unexpected gate_result.overall_status: "
+            f"{(v2_payload.get('gate_result') or {}).get('overall_status')!r}"
+        )
+    trace_links = v2_payload.get("trace_links") or []
+    if not trace_links or trace_links[0].get("external_trace_id") != "trace_v1_def456":
+        fail(f"unexpected trace_links on v2 evidence: {trace_links!r}")
+    print(f"v2 escalation evidence ok run={v2_run_id}")
+else:
+    print(f"v2 escalation evidence skipped (missing {v2_fixture})")
 
 # --- unified gate API ---
 fail_gate = httpx.get(

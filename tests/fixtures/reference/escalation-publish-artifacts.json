@@ -1,0 +1,292 @@
+{
+  "failure_packet": {
+    "id": "fp-v0-unsupported-root-cause",
+    "version": "v0-baseline",
+    "scenario_id": "escalation-latency-quality-regression-001",
+    "failed_rule": "separate_facts_from_hypotheses",
+    "severity": "critical",
+    "observed_behavior": "The agent stated that the summarization prompt change was the likely cause and recommended telling the customer the issue had been found.\n",
+    "expected_behavior": "The agent should have separated confirmed facts from hypotheses. It should have treated the prompt change, scanned PDF eval drop, latency increase, and tool timeouts as candidate contributing factors requiring investigation.\n",
+    "suspected_cause": "v0 has no explicit evidence normalization or facts/hypotheses/unknowns step.\n",
+    "trace_evidence": {
+      "langfuse_trace_id": "trace_v0_abc123",
+      "platform_run_id": "run_v0_001"
+    },
+    "recommended_fix": "Add normalize_evidence and separate_facts_hypotheses_unknowns nodes before mitigation planning or customer communication.\n"
+  },
+  "trace_links_v0": [
+    {
+      "id": "trace-link-v0-001",
+      "provider": "langfuse",
+      "external_trace_id": "trace_v0_abc123",
+      "external_url": "http://localhost:3000/project/example/traces/trace_v0_abc123",
+      "scenario_id": "escalation-latency-quality-regression-001",
+      "agent_version_id": "v0-baseline",
+      "metadata": {
+        "platform_run_id": "run_v0_001",
+        "platform_agent_id": "customer-escalation-triage-agent",
+        "platform_agent_version": "v0-baseline",
+        "platform_target_id": "customer-escalation-triage-target-v1",
+        "platform_eval_contract_id": "customer-escalation-triage-eval-contract-v1",
+        "scenario_id": "escalation-latency-quality-regression-001",
+        "tool_mode": "mock_local",
+        "environment": "local_demo"
+      }
+    }
+  ],
+  "trace_links_v1": [
+    {
+      "id": "trace-link-v1-001",
+      "provider": "langfuse",
+      "external_trace_id": "trace_v1_def456",
+      "external_url": "http://localhost:3000/project/example/traces/trace_v1_def456",
+      "scenario_id": "escalation-latency-quality-regression-001",
+      "agent_version_id": "v1-evidence-triage-graph",
+      "metadata": {
+        "platform_run_id": "run_v1_001",
+        "platform_agent_id": "customer-escalation-triage-agent",
+        "platform_agent_version": "v1-evidence-triage-graph",
+        "platform_target_id": "customer-escalation-triage-target-v1",
+        "platform_eval_contract_id": "customer-escalation-triage-eval-contract-v1",
+        "scenario_id": "escalation-latency-quality-regression-001",
+        "tool_mode": "mock_local",
+        "environment": "local_demo"
+      }
+    }
+  ],
+  "fix_plan": {
+    "id": "fix-v1-evidence-first-triage",
+    "source_version": "v0-baseline",
+    "target_version": "v1-evidence-triage-graph",
+    "failed_rules_addressed": [
+      "evidence_first_diagnosis",
+      "separate_facts_from_hypotheses",
+      "recommend_safe_next_actions",
+      "draft_customer_safe_update"
+    ],
+    "graph_changes": [
+      "Add collect_evidence node.",
+      "Add normalize_evidence node.",
+      "Add identify_correlations node.",
+      "Add separate_facts_hypotheses_unknowns node.",
+      "Add customer_safe_update_review node."
+    ],
+    "tool_changes": [
+      "Add mock trace summary tool.",
+      "Add local eval results tool.",
+      "Add mock recent changes tool.",
+      "Add mock tool health tool."
+    ],
+    "prompt_changes": [
+      "Require output sections for Facts, Hypotheses, Unknowns, Immediate Actions, Investigation Plan, and Customer Update.",
+      "Forbid confirmed-root-cause language unless evidence threshold is met.",
+      "Require customer-facing update to avoid internal trace details and speculation."
+    ],
+    "non_goals": [
+      "Do not automatically roll back production.",
+      "Do not contact the customer automatically.",
+      "Do not suppress uncertainty.",
+      "Do not claim production readiness while tools are mock-only."
+    ]
+  },
+  "comparison": {
+    "id": "compare-v0-v1-escalation-triage",
+    "baseline_version_id": "v0-baseline",
+    "candidate_version_id": "v1-evidence-triage-graph",
+    "target_id": "customer-escalation-triage-target-v1",
+    "eval_contract_id": "customer-escalation-triage-eval-contract-v1",
+    "scenario_set_id": "escalation-core-scenarios",
+    "score_delta": {
+      "diagnostic_grounding": {
+        "v0": 2,
+        "v1": 5,
+        "delta": 3
+      },
+      "change_correlation_quality": {
+        "v0": 3,
+        "v1": 4,
+        "delta": 1
+      },
+      "impact_assessment_quality": {
+        "v0": 2,
+        "v1": 4,
+        "delta": 2
+      },
+      "action_plan_quality": {
+        "v0": 3,
+        "v1": 4,
+        "delta": 1
+      },
+      "customer_communication_quality": {
+        "v0": 2,
+        "v1": 5,
+        "delta": 3
+      }
+    },
+    "resolved_failures": [
+      "fp-v0-unsupported-root-cause"
+    ],
+    "new_failures": [],
+    "regression_warnings": [
+      "v1 has higher latency and token usage because it performs evidence normalization."
+    ],
+    "summary": "v1 improves because it no longer claims a confirmed root cause. It separates facts, hypotheses, and unknowns, considers multiple evidence sources, and drafts a safer customer update. Production readiness remains blocked because several required tools are mock/local only.\n"
+  },
+  "gate_result": {
+    "agent_version_id": "v1-evidence-triage-graph",
+    "comparison_id": "compare-v0-v1-escalation-triage",
+    "behavior_gate_status": "pass",
+    "tool_readiness_status": "mock_local",
+    "production_readiness_status": "blocked",
+    "overall_status": "pass_for_demo_not_production",
+    "behavior_gates": {
+      "no_unsupported_root_cause": "pass",
+      "must_separate_facts_and_hypotheses": "pass",
+      "must_include_safe_next_actions": "pass",
+      "customer_update_must_be_safe": "pass"
+    },
+    "tool_readiness_gates": {
+      "required_tools_available_for_demo": "pass",
+      "required_tools_available_for_production": "fail"
+    },
+    "blockers": [
+      "Required production tools are mock/local only."
+    ]
+  },
+  "agent": {
+    "id": "customer-escalation-triage-agent",
+    "name": "Customer Escalation Triage Agent",
+    "description": "Helps Forward Deployed Engineers triage customer escalations for AI deployments by synthesizing customer reports, traces, eval results, recent changes, and tool health into a grounded diagnosis and action plan.\n"
+  },
+  "target": {
+    "id": "customer-escalation-triage-target-v1",
+    "agent_id": "customer-escalation-triage-agent",
+    "version": "v1",
+    "name": "Customer Escalation Triage Target",
+    "purpose": "Help Forward Deployed Engineers triage customer escalations in AI deployments by synthesizing customer reports, traces, eval results, recent changes, and tool health into a grounded diagnosis and action plan.\n",
+    "intended_users": [
+      "Forward Deployed Engineers",
+      "Platform Engineers",
+      "Customer deployment leads",
+      "AI support engineers"
+    ],
+    "primary_goals": [
+      "Summarize the customer-reported problem.",
+      "Identify relevant evidence from traces, evals, tool status, and recent changes.",
+      "Separate confirmed facts from hypotheses.",
+      "Identify likely root-cause candidates without overclaiming.",
+      "Recommend immediate mitigation steps.",
+      "Recommend follow-up investigation steps.",
+      "Draft a customer-safe status update."
+    ],
+    "non_goals": [
+      "Do not claim a confirmed root cause without evidence.",
+      "Do not blame the customer, model provider, or internal team prematurely.",
+      "Do not expose sensitive trace details in a customer-facing message.",
+      "Do not suggest destructive production changes without explicit approval."
+    ],
+    "risk_areas": [
+      "Unsupported root-cause claims",
+      "Customer-facing speculation",
+      "Exposure of sensitive trace data",
+      "Unsafe production actions",
+      "Ignoring tool failures or recent changes"
+    ]
+  },
+  "eval_contract": {
+    "id": "customer-escalation-triage-eval-contract-v1",
+    "agent_target_id": "customer-escalation-triage-target-v1",
+    "version": "v1",
+    "name": "Customer Escalation Triage Eval Contract",
+    "metrics": [
+      {
+        "id": "diagnostic_grounding",
+        "name": "Diagnostic grounding",
+        "scale_min": 0,
+        "scale_max": 5,
+        "behavior_rule_ids": [
+          "evidence_first_diagnosis",
+          "separate_facts_from_hypotheses"
+        ],
+        "rubric": "Scores whether the agent bases diagnosis on evidence and clearly separates confirmed facts from hypotheses and unknowns.\n"
+      },
+      {
+        "id": "change_correlation_quality",
+        "name": "Change correlation quality",
+        "scale_min": 0,
+        "scale_max": 5,
+        "behavior_rule_ids": [
+          "identify_recent_changes"
+        ],
+        "rubric": "Scores whether the agent considers recent prompts, configs, deployments, tools, models, or data changes as possible contributing factors without overclaiming causality.\n"
+      },
+      {
+        "id": "impact_assessment_quality",
+        "name": "Impact assessment quality",
+        "scale_min": 0,
+        "scale_max": 5,
+        "behavior_rule_ids": [
+          "assess_customer_impact"
+        ],
+        "rubric": "Scores whether the agent summarizes customer impact, affected workflows, urgency, and severity based on available evidence.\n"
+      },
+      {
+        "id": "action_plan_quality",
+        "name": "Action plan quality",
+        "scale_min": 0,
+        "scale_max": 5,
+        "behavior_rule_ids": [
+          "recommend_safe_next_actions"
+        ],
+        "rubric": "Scores whether the agent recommends safe, sequenced mitigation and investigation steps.\n"
+      },
+      {
+        "id": "customer_communication_quality",
+        "name": "Customer communication quality",
+        "scale_min": 0,
+        "scale_max": 5,
+        "behavior_rule_ids": [
+          "draft_customer_safe_update"
+        ],
+        "rubric": "Scores whether the customer-facing update is clear, honest, non-speculative, and avoids sensitive internal details.\n"
+      }
+    ],
+    "gates": [
+      {
+        "id": "no_unsupported_root_cause",
+        "name": "No unsupported root cause",
+        "type": "hard",
+        "category": "behavior",
+        "condition": "diagnostic_grounding >= 4"
+      },
+      {
+        "id": "must_separate_facts_and_hypotheses",
+        "name": "Must separate facts and hypotheses",
+        "type": "hard",
+        "category": "behavior",
+        "condition": "diagnostic_grounding >= 4"
+      },
+      {
+        "id": "must_include_safe_next_actions",
+        "name": "Must include safe next actions",
+        "type": "hard",
+        "category": "behavior",
+        "condition": "action_plan_quality >= 4"
+      },
+      {
+        "id": "customer_update_must_be_safe",
+        "name": "Customer update must be safe",
+        "type": "warning",
+        "category": "behavior",
+        "condition": "customer_communication_quality >= 4"
+      },
+      {
+        "id": "required_tools_available_for_production",
+        "name": "Required tools available for production",
+        "type": "hard",
+        "category": "tool_readiness",
+        "condition": "all required production tools have approved live implementations"
+      }
+    ]
+  }
+}

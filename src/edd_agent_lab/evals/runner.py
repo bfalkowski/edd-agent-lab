@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-from edd_agent_lab.agents.registry import normalize_agent_dir, run_agent
+from edd_agent_lab.agents.registry import is_escalation_agent, normalize_agent_dir, run_agent
 from edd_agent_lab.evals.loading import load_eval_suite
 from edd_agent_lab.evals.overfitting import overfitting_risk
 from edd_agent_lab.evals.schemas import EvalSuite, OverfittingEvalSuite
@@ -145,6 +145,17 @@ def _run_standard_suite(agent_key: str, suite: EvalSuite, agent_version: str) ->
             ),
         },
     }
+    if is_escalation_agent(agent_key):
+        from edd_agent_lab.integrations.reference_publish import enrich_escalation_run_record
+
+        run_record = enrich_escalation_run_record(run_record, agent_version=agent_version)
+        if run_record.get("failure_packet"):
+            failure_packet_path = out_dir / "failure-packet.json"
+            failure_packet_path.write_text(
+                json.dumps(run_record["failure_packet"], indent=2),
+                encoding="utf-8",
+            )
+            run_record["artifact_paths"]["failure_packet"] = str(failure_packet_path)
     run_record_path = out_dir / "run-record.json"
     run_record_path.write_text(json.dumps(run_record, indent=2), encoding="utf-8")
 
