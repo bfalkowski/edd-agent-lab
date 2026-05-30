@@ -2,18 +2,13 @@ from pathlib import Path
 
 import yaml
 
+from edd_agent_lab.agents.registry import normalize_agent_dir
 from edd_agent_lab.evals.schemas import Scenario
 from edd_agent_lab.paths import SCENARIOS_DIR
 
 
 def _agent_scenario_dir(agent_key: str) -> Path:
-    mapping = {
-        "customer-solution": "customer_solution_agent",
-        "customer_solution": "customer_solution_agent",
-        "customer_solution_agent": "customer_solution_agent",
-    }
-    dirname = mapping.get(agent_key, agent_key.replace("-", "_"))
-    return SCENARIOS_DIR / dirname
+    return SCENARIOS_DIR / normalize_agent_dir(agent_key)
 
 
 def list_scenario_paths(agent_key: str) -> list[Path]:

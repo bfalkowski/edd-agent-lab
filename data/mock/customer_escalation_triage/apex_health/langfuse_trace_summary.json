@@ -1,0 +1,13 @@
+{
+  "time_window": "last_7_days",
+  "latency_trend": "up",
+  "notable_patterns": [
+    "Higher latency on scanned PDF workflows",
+    "Longer tool wait time for eligibility-check calls",
+    "More retries on document extraction spans"
+  ],
+  "error_patterns": [
+    "Intermittent timeout in eligibility-check tool"
+  ],
+  "evidence_strength": "partial"
+}

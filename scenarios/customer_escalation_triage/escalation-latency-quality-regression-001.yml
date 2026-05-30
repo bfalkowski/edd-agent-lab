@@ -1,0 +1,14 @@
+id: escalation-latency-quality-regression-001
+title: Latency and Quality Regression After Prompt Change
+domain: customer_escalation
+problem: >
+  Customer Apex Health says their AI assistant started giving inconsistent answers
+  this week. They say latency is worse and their reviewers are losing confidence.
+  We changed the summarization prompt two days ago. Langfuse shows latency is up,
+  eval scores dropped for scanned PDF cases, and the eligibility-check tool has
+  intermittent timeouts. Help me triage and draft an update.
+expected_themes:
+  - separate facts from hypotheses
+  - consider prompt change and tool timeouts
+  - recommend safe immediate actions
+  - draft a customer-safe update

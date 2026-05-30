@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-from edd_agent_lab.agents.customer_solution_agent.runner import run_customer_solution_agent
+from edd_agent_lab.agents.registry import normalize_agent_dir, run_agent
 from edd_agent_lab.evals.loading import load_eval_suite
 from edd_agent_lab.evals.overfitting import overfitting_risk
 from edd_agent_lab.evals.schemas import EvalSuite, OverfittingEvalSuite
@@ -51,7 +51,7 @@ def _run_standard_suite(agent_key: str, suite: EvalSuite, agent_version: str) ->
     case_summaries: list[dict[str, object]] = []
 
     for case in suite.cases:
-        agent_result = run_customer_solution_agent(
+        agent_result = run_agent(
             scenario_id=case.scenario,
             agent_key=agent_key,
             agent_version=agent_version,
@@ -84,7 +84,7 @@ def _run_standard_suite(agent_key: str, suite: EvalSuite, agent_version: str) ->
         "cases": case_summaries,
     }
 
-    out_dir = LAB_RUNS_DIR / "customer_solution_agent" / agent_version
+    out_dir = LAB_RUNS_DIR / normalize_agent_dir(agent_key) / agent_version
     out_dir.mkdir(parents=True, exist_ok=True)
     summary_by_suite_path = out_dir / f"eval-summary-{suite.id}.json"
     summary_by_suite_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
@@ -161,10 +161,10 @@ def _run_overfitting_suite(
 ) -> EvalRunResult:
     started_at = datetime.now(UTC).strftime("%Y-%m-%dT%H-%M-%SZ")
     run_id = started_at
-    out_dir = LAB_RUNS_DIR / "customer_solution_agent" / agent_version
+    out_dir = LAB_RUNS_DIR / normalize_agent_dir(agent_key) / agent_version
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    base_result = run_customer_solution_agent(
+    base_result = run_agent(
         scenario_id=suite.base_case.scenario,
         agent_key=agent_key,
         agent_version=agent_version,
@@ -180,7 +180,7 @@ def _run_overfitting_suite(
     variant_scores: list[float] = []
     for variant in suite.variants:
         variant_scenario = load_scenario(agent_key, variant.scenario)
-        agent_result = run_customer_solution_agent(
+        agent_result = run_agent(
             scenario_id=variant.scenario,
             agent_key=agent_key,
             agent_version=agent_version,

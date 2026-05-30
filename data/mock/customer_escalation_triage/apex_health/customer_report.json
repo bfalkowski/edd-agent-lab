@@ -1,0 +1,8 @@
+{
+  "customer": "Apex Health",
+  "reported_issue": "AI assistant started giving inconsistent answers this week.",
+  "reported_latency": "Reviewer-facing latency is worse than usual.",
+  "reported_impact": "Reviewers are losing confidence and slowing down.",
+  "reported_timeframe": "This week",
+  "urgency": "Executive update requested by end of day"
+}

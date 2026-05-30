@@ -6,6 +6,13 @@ from rich.table import Table
 
 from edd_agent_lab import __version__
 from edd_agent_lab.agents.customer_solution_agent import run_customer_solution_agent
+from edd_agent_lab.agents.registry import (
+    is_escalation_agent,
+    normalize_agent_dir,
+)
+from edd_agent_lab.agents.registry import (
+    run_agent as dispatch_agent_run,
+)
 from edd_agent_lab.evals.loading import list_eval_suite_ids, load_eval_suite
 from edd_agent_lab.evals.runner import run_eval_suite
 from edd_agent_lab.integrations.edd_client import get_edd_client, publish_run_record_file
@@ -31,13 +38,14 @@ def _agent_version_to_dirname(agent_version: str) -> str:
         "v0-baseline": "v0-baseline",
         "v1": "v1-discovery-graph",
         "v1-discovery-graph": "v1-discovery-graph",
+        "v1-evidence-triage-graph": "v1-evidence-triage-graph",
         "v3": "v3-competency-model",
         "v3-competency-model": "v3-competency-model",
     }
     if version not in mapping:
         raise typer.BadParameter(
-            "Unsupported version. Use v0, v1, v3, or explicit directory names "
-            "(v0-baseline, v1-discovery-graph, v3-competency-model)."
+            "Unsupported version. Use v0, v1, v1-evidence-triage-graph, v3, or explicit "
+            "directory names (v0-baseline, v1-discovery-graph, v3-competency-model)."
         )
     return mapping[version]
 
@@ -108,17 +116,28 @@ def run_agent(
     """Run an agent against a scenario and write a run artifact."""
     agent_key = _resolve_agent(agent)
     _ = load_scenario(agent_key, scenario)
-    if agent_key not in {"customer-solution", "customer_solution", "customer_solution_agent"}:
+    if not is_escalation_agent(agent_key) and agent_key not in {
+        "customer-solution",
+        "customer_solution",
+        "customer_solution_agent",
+    }:
         console.print(f"[red]Unsupported agent for now:[/red] {agent_key}")
         raise typer.Exit(code=1)
 
     version_dir = _agent_version_to_dirname(agent_version)
-    result = run_customer_solution_agent(
-        scenario_id=scenario,
-        agent_key=agent_key,
-        agent_version=version_dir,
-        generation_mode=generation_mode,
-    )
+    if is_escalation_agent(agent_key):
+        result = dispatch_agent_run(
+            scenario_id=scenario,
+            agent_key=agent_key,
+            agent_version=version_dir,
+        )
+    else:
+        result = run_customer_solution_agent(
+            scenario_id=scenario,
+            agent_key=agent_key,
+            agent_version=version_dir,
+            generation_mode=generation_mode,
+        )
     console.print(f"[green]Run complete:[/green] {result.run_id}")
     console.print(f"[bold]Agent version:[/bold] {version_dir}")
     console.print(f"[bold]Generation mode:[/bold] {result.generation_mode}")
@@ -159,13 +178,7 @@ def run_evals(
 
 
 def _agent_lab_dir(agent_key: str, version_dir: str) -> Path:
-    mapping = {
-        "customer-solution": "customer_solution_agent",
-        "customer_solution": "customer_solution_agent",
-        "customer_solution_agent": "customer_solution_agent",
-    }
-    dirname = mapping.get(agent_key, agent_key.replace("-", "_"))
-    return LAB_RUNS_DIR / dirname / version_dir
+    return LAB_RUNS_DIR / normalize_agent_dir(agent_key) / version_dir
 
 
 def _print_publish_result(publish_result: dict[str, object]) -> None:

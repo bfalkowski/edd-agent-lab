@@ -2,19 +2,13 @@ from pathlib import Path
 
 import yaml
 
+from edd_agent_lab.agents.registry import normalize_agent_dir
 from edd_agent_lab.evals.schemas import EvalSuite, OverfittingEvalSuite
 from edd_agent_lab.paths import EVALS_DIR
 
 
 def _agent_eval_dir(agent_key: str) -> Path:
-    """Map CLI agent key to on-disk eval directory name."""
-    mapping = {
-        "customer-solution": "customer_solution_agent",
-        "customer_solution": "customer_solution_agent",
-        "customer_solution_agent": "customer_solution_agent",
-    }
-    dirname = mapping.get(agent_key, agent_key.replace("-", "_"))
-    return EVALS_DIR / dirname
+    return EVALS_DIR / normalize_agent_dir(agent_key)
 
 
 def list_eval_suite_paths(agent_key: str) -> list[Path]:

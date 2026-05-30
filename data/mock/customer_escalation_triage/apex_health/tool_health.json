@@ -1,0 +1,16 @@
+{
+  "tools": [
+    {
+      "name": "eligibility-check",
+      "status": "degraded",
+      "issue": "intermittent timeouts",
+      "observed_frequency": "moderate"
+    },
+    {
+      "name": "document-extraction",
+      "status": "warning",
+      "issue": "higher retry rate for scanned PDFs",
+      "observed_frequency": "moderate"
+    }
+  ]
+}

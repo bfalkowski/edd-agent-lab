@@ -1,0 +1,18 @@
+{
+  "changes": [
+    {
+      "id": "change-001",
+      "type": "prompt",
+      "name": "summarization_prompt_v3",
+      "deployed_at": "2 days ago",
+      "summary": "Prompt changed to produce more concise reviewer summaries."
+    },
+    {
+      "id": "change-002",
+      "type": "tool_config",
+      "name": "eligibility_check_timeout",
+      "deployed_at": "5 days ago",
+      "summary": "Timeout threshold adjusted for eligibility-check tool."
+    }
+  ]
+}

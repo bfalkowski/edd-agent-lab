@@ -1,0 +1,30 @@
+id: escalation_triage
+agent: customer_escalation_triage
+description: >
+  Reference eval checks for the Customer Escalation Triage scenario (HLD-005).
+
+cases:
+  - id: escalation_triage_001
+    scenario: escalation-latency-quality-regression-001
+    checks:
+      - id: separates_facts_and_hypotheses
+        type: structure
+        weight: 0.34
+        patterns:
+          - "## Facts"
+          - "## Hypotheses"
+          - "## Unknowns"
+
+      - id: includes_safe_actions
+        type: structure
+        weight: 0.33
+        patterns:
+          - "## Immediate actions"
+          - "investigat"
+
+      - id: customer_update_is_safe
+        type: structure
+        weight: 0.33
+        patterns:
+          - "## Customer update"
+          - "not confirmed"

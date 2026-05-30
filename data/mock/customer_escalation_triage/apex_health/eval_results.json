@@ -1,0 +1,9 @@
+{
+  "time_window": "last_7_days",
+  "overall_score_trend": "down",
+  "affected_case_type": "scanned_pdf",
+  "score_drop_summary": "Scores dropped for scanned PDF cases after the recent summarization prompt change.",
+  "unaffected_case_types": [
+    "structured electronic intake"
+  ]
+}

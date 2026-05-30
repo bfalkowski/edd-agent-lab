@@ -1,0 +1,11 @@
+{
+  "customer": "Apex Health",
+  "environment": "production pilot",
+  "workflow": "prior authorization assistant",
+  "sensitive_data": "PHI possible",
+  "communication_constraints": [
+    "Avoid internal trace details in customer-facing updates",
+    "Avoid claiming root cause before investigation is complete",
+    "Provide executive-safe summary"
+  ]
+}
