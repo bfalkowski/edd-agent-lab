@@ -242,6 +242,9 @@ See `docs/08-live-agent-generation.md` for live vs mock mode details.
 - [Ideal console](docs/11-ideal-console-design.md) — target platform console workspaces and UX
 - [HLD-001: Product intent](../eval-driven-design-platform/docs/hld/HLD-001-product-intent-and-system-boundaries.md) — system boundaries (platform repo)
 - [HLD-002: Domain model](../eval-driven-design-platform/docs/hld/HLD-002-domain-object-model.md) — core domain objects (platform repo)
+- [HLD-003: EDD workflow](../eval-driven-design-platform/docs/hld/HLD-003-evaluation-driven-design-workflow.md) — seven-phase lifecycle (platform repo)
+- [HLD-004: Tool feasibility](../eval-driven-design-platform/docs/hld/HLD-004-tool-requirements-and-feasibility.md) — tool modeling and readiness (platform repo)
+- [HLD-005: Reference scenario](../eval-driven-design-platform/docs/hld/HLD-005-reference-scenario-customer-escalation-triage.md) — Customer Escalation Triage (platform repo)
 
 ## Design Principles
 
