@@ -42,10 +42,11 @@ edd-agent-lab should not talk directly to Langfuse. It should publish agent outp
 
 ## What This Repo Shows
 
-- A LangGraph-based **Customer Solution Discovery** agent
-- Evaluation suites for discovery quality, measurable value, risk review, tool use, and overfitting
-- Versioned **lab runs** under `lab-runs/` with diagnoses, fix plans, and eval summaries
-- Optional integration with [eval-driven-design-platform](https://github.com/bfalkowski/eval-driven-design-platform) via HTTP publish (see below)
+- **Customer Escalation Triage** reference agent (HLD-005) — v0 overclaims root cause → v1 evidence-first graph
+- LangGraph-based **Customer Solution Discovery** agent (original demo workload)
+- Evaluation suites, versioned **lab runs** under `lab-runs/`, failure packets, and fix narratives
+- Side-by-side **workbench** on `:8502` (doc 12) and CLI for run/eval/publish
+- Optional integration with [eval-driven-design-platform](https://github.com/bfalkowski/eval-driven-design-platform) via HTTP publish
 
 ## Core Principle
 
@@ -138,36 +139,47 @@ edd-agent-lab/
 ```bash
 cd edd-agent-lab
 uv venv --python 3.12
-uv sync --extra dev --extra agent --extra platform --no-editable
+uv sync --extra dev --extra agent --extra platform --extra ui
 source .venv/bin/activate   # Windows: .venv\Scripts\activate
 
 edd-lab --help
+
+# Reference scenario (HLD-005)
+edd-lab demo-escalation          # triage + eval (+ optional publish if platform up)
+./scripts/demo_customer_escalation_triage.sh
+
+# Customer Solution Discovery (original agent)
 edd-lab list-scenarios --agent customer-solution
-edd-lab list-evals --agent customer-solution
 edd-lab run-agent --agent customer-solution --version v0 --scenario healthcare_documentation
 edd-lab run-evals --agent customer-solution --version v0 --suite discovery_quality
-edd-lab run-evals --agent customer-solution --version v1 --suite overfitting
-edd-lab run-evals --agent customer-solution --version v3 --suite overfitting
 edd-lab publish-run --agent customer-solution --version v3
-edd-lab compare-turn --scenario healthcare_documentation --before v0 --after v1
-pip install -e ".[ui]" && edd-lab console
+
+# Workbench UI
+edd-lab console                  # http://localhost:8502
 pytest
 ```
 
 **Frontends (different ports):**
 
-| UI | Repo | URL |
-|---|---|---|
-| EDD platform operator console | `eval-driven-design-platform` | http://localhost:8501 |
-| Agent lab side-by-side workbench | `edd-agent-lab` (`edd-lab console`) | http://localhost:8502 |
+| UI | Repo | URL | Role |
+|---|---|---|---|
+| EDD platform operator console | `eval-driven-design-platform` | http://localhost:8501 | Design intent, gates, promotion (control plane) |
+| Agent lab workbench | `edd-agent-lab` (`edd-lab console`) | http://localhost:8502 | Run/compare v0 vs v1, publish evidence |
 
-Spec: [Lab console design](docs/12-lab-console-design.md) (reference workbench). Legacy chat console: [07-final-milestone-side-by-side-console.md](docs/07-final-milestone-side-by-side-console.md).
+**Platform console:** [HLD-011](https://github.com/bfalkowski/eval-driven-design-platform/blob/main/docs/hld/HLD-011-console-information-architecture.md) · **Lab workbench:** [12-lab-console-design.md](docs/12-lab-console-design.md) (canonical `:8502` UX). Legacy turn-by-turn chat: [07-final-milestone-side-by-side-console.md](docs/07-final-milestone-side-by-side-console.md).
 
-### Side-by-side agent workbench
+### Reference workbench (`:8502`)
 
-Launch with `pip install -e ".[ui]" && edd-lab console`. Compare **v0-baseline** vs **v1-evidence-triage-graph** on the Customer Escalation Triage reference scenario. See [12-lab-console-design.md](docs/12-lab-console-design.md).
+Launch with `uv sync --extra ui` then `edd-lab console`. Default view is the **Customer Escalation Triage** reference scenario — context bar, scenario summary, side-by-side **v0-baseline** vs **v1-evidence-triage-graph**, EDD verdict, and details tabs (Graph, Tools, Scores, Traces, Artifacts, Publish). Click **Compare** to run mock triage + eval without live LLM keys.
 
-![Side-by-side agent comparison console — v0-baseline vs v3-competency-model on healthcare_documentation](docs/assets/side-by-side-console.png)
+```bash
+edd-lab console
+# optional: EDD_API_BASE_URL=http://127.0.0.1:8000 EDD_EVAL_SPEC_ID=... for Publish tab
+```
+
+**Not in scope yet:** creating a new agent or scenario from the UI (planned as [Phase 15](https://github.com/bfalkowski/eval-driven-design-platform/blob/main/docs/HLD_TEST_FIRST_IMPLEMENTATION.md#phase-15--greenfield-agent-entry-platform--lab) in the platform plan). New scenarios today: add YAML under `scenarios/` and agent code under `src/edd_agent_lab/agents/`.
+
+![Legacy side-by-side chat console — customer-solution on healthcare_documentation](docs/assets/side-by-side-console.png)
 
 Copy `.env.example` to `.env` and set `OPENAI_API_KEY` for live agent generation.
 
@@ -178,6 +190,17 @@ edd-lab run-agent --agent customer-solution --version v1 --scenario healthcare_d
 ```
 
 ## Agent Evolution
+
+### Customer Escalation Triage (reference — HLD-005)
+
+| Version | Graph | Outcome |
+|---|---|---|
+| v0-baseline | Single-pass response | Fails `separate_facts_from_hypotheses`; overclaims root cause |
+| v1-evidence-triage-graph | Evidence collection + facts/hypotheses/unknowns | Pass for demo; production blocked (mock/local tools) |
+
+Artifacts: `lab-runs/customer_escalation_triage/` · platform examples: `eval-driven-design-platform/examples/customer_escalation_triage/`
+
+### Customer Solution Discovery (original demo)
 
 | Version | Change | Main failure addressed | Evidence |
 |---|---|---|---|
@@ -224,18 +247,15 @@ End-to-end smoke test (auto-mints JWT when platform repo is sibling):
 
 | Milestone | Status |
 |---|---|
-| 1 — Repo skeleton, CLI, loaders, tests | Complete |
-| 2 — v0 LangGraph agent + `run-agent` | Complete |
-| 3 — Eval runner + `run-evals` | Complete |
-| 4 — v1 discovery graph | Complete |
-| 5 — Overfitting eval | Complete |
-| 6 — v3 competency model | Complete |
-| 7 — EDD platform client | Complete |
-| 8 — MCP integration | Complete |
-| 9 — Side-by-side console | Complete |
-| 10 — Live agent generation (mock/live/auto) | Complete |
+| 1–8 | Repo skeleton through MCP integration | Complete |
+| 9 | Side-by-side chat console (`customer-solution`) | Complete (superseded by doc 12 workbench) |
+| 10 | Live agent generation (mock/live/auto) | Complete |
+| 11 | Customer Escalation Triage reference agent (HLD-005) | Complete |
+| 12 | Doc 12 workbench on `:8502` | Complete |
+| 13c | Platform Gates/Promotion + validation script (platform repo) | Next |
+| 15 | Greenfield agent/scenario entry (platform + lab selector) | Planned |
 
-See `docs/08-live-agent-generation.md` for live vs mock mode details.
+See [HLD Test-First Implementation](https://github.com/bfalkowski/eval-driven-design-platform/blob/main/docs/HLD_TEST_FIRST_IMPLEMENTATION.md) for cross-repo phases. Live vs mock mode: `docs/08-live-agent-generation.md`.
 
 **Developer experience:**
 
