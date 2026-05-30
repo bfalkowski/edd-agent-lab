@@ -1,5 +1,7 @@
 # EDD Agent Lab
 
+**Repo:** [github.com/bfalkowski/edd-agent-lab](https://github.com/bfalkowski/edd-agent-lab) · **Platform:** [github.com/bfalkowski/eval-driven-design-platform](https://github.com/bfalkowski/eval-driven-design-platform)
+
 EDD Agent Lab demonstrates how LangGraph agents evolve through **evaluation-driven design**.
 
 Most agent demos show the final polished behavior. This lab shows the engineering loop: baseline behavior, eval failures, trace evidence, diagnosis, bounded fixes, and verification runs.
@@ -21,32 +23,30 @@ eval-driven-design-platform
         |
         v
 Langfuse
-  owns the observability and evaluation data plane:
-  traces, scores, datasets, experiments, prompt versions,
-  token usage, cost, and run observability
+  traces, scores, datasets, experiments, observability
 ```
 
 In other words:
 
-- edd-agent-lab is where agents are built and evolved.
-- eval-driven-design-platform is where the evaluation-driven design process is managed.
-- Langfuse is where traces, scores, datasets, and experiment observability live.
+- **[edd-agent-lab](https://github.com/bfalkowski/edd-agent-lab)** is where agents are built and evolved.
+- **[eval-driven-design-platform](https://github.com/bfalkowski/eval-driven-design-platform)** is where the evaluation-driven design process is managed.
+- Langfuse is the observability and evaluation data plane.
 
 The dependency direction should stay one-way:
 
 ```text
-edd-agent-lab -> eval-driven-design-platform -> Langfuse
+edd-agent-lab → eval-driven-design-platform → Langfuse
 ```
 
-edd-agent-lab should not talk directly to Langfuse. It should publish agent outputs, eval summaries, failure packets, and comparison artifacts to the EDD platform. The EDD platform is responsible for integrating with Langfuse.
+The lab should not talk directly to Langfuse. It publishes to the platform; the platform integrates with Langfuse.
 
 ## What This Repo Shows
 
-- **Customer Escalation Triage** reference agent (HLD-005) — v0 overclaims root cause → v1 evidence-first graph
-- LangGraph-based **Customer Solution Discovery** agent (original demo workload)
+- **Customer Solution Discovery** — initial LangGraph agent implementation (v0→v4 eval-driven iteration)
+- **Customer Escalation Triage** — canonical reference agent ([HLD-005](https://github.com/bfalkowski/eval-driven-design-platform/blob/main/docs/hld/HLD-005-reference-scenario-customer-escalation-triage.md)): v0 overclaims root cause → v1 evidence-first graph
 - Evaluation suites, versioned **lab runs** under `lab-runs/`, failure packets, and fix narratives
-- Side-by-side **workbench** on `:8502` (doc 12) and CLI for run/eval/publish
-- Optional integration with [eval-driven-design-platform](https://github.com/bfalkowski/eval-driven-design-platform) via HTTP publish
+- Side-by-side **workbench** on `:8502` ([doc 12](docs/12-lab-console-design.md)) and CLI for run/eval/publish
+- HTTP publish to **[eval-driven-design-platform](https://github.com/bfalkowski/eval-driven-design-platform)** (optional)
 
 ## Core Principle
 
@@ -144,11 +144,11 @@ source .venv/bin/activate   # Windows: .venv\Scripts\activate
 
 edd-lab --help
 
-# Reference scenario (HLD-005)
-edd-lab demo-escalation          # triage + eval (+ optional publish if platform up)
+# Reference scenario (HLD-005) — primary workbench path
+edd-lab demo-escalation
 ./scripts/demo_customer_escalation_triage.sh
 
-# Customer Solution Discovery (original agent)
+# Customer Solution Discovery — initial agent implementation
 edd-lab list-scenarios --agent customer-solution
 edd-lab run-agent --agent customer-solution --version v0 --scenario healthcare_documentation
 edd-lab run-evals --agent customer-solution --version v0 --suite discovery_quality
@@ -163,10 +163,10 @@ pytest
 
 | UI | Repo | URL | Role |
 |---|---|---|---|
-| EDD platform operator console | `eval-driven-design-platform` | http://localhost:8501 | Design intent, gates, promotion (control plane) |
-| Agent lab workbench | `edd-agent-lab` (`edd-lab console`) | http://localhost:8502 | Run/compare v0 vs v1, publish evidence |
+| EDD platform console | [eval-driven-design-platform](https://github.com/bfalkowski/eval-driven-design-platform) | http://localhost:8501 | Design intent, gates, promotion |
+| Agent lab workbench | [edd-agent-lab](https://github.com/bfalkowski/edd-agent-lab) | http://localhost:8502 | Run/compare v0 vs v1, publish evidence |
 
-**Platform console:** [HLD-011](https://github.com/bfalkowski/eval-driven-design-platform/blob/main/docs/hld/HLD-011-console-information-architecture.md) · **Lab workbench:** [12-lab-console-design.md](docs/12-lab-console-design.md) (canonical `:8502` UX). Legacy turn-by-turn chat: [07-final-milestone-side-by-side-console.md](docs/07-final-milestone-side-by-side-console.md).
+**Platform:** [HLD-011](https://github.com/bfalkowski/eval-driven-design-platform/blob/main/docs/hld/HLD-011-console-information-architecture.md) · **Lab workbench:** [12-lab-console-design.md](docs/12-lab-console-design.md)
 
 ### Reference workbench (`:8502`)
 
@@ -177,9 +177,9 @@ edd-lab console
 # optional: EDD_API_BASE_URL=http://127.0.0.1:8000 EDD_EVAL_SPEC_ID=... for Publish tab
 ```
 
-**Not in scope yet:** creating a new agent or scenario from the UI (planned as [Phase 15](https://github.com/bfalkowski/eval-driven-design-platform/blob/main/docs/HLD_TEST_FIRST_IMPLEMENTATION.md#phase-15--greenfield-agent-entry-platform--lab) in the platform plan). New scenarios today: add YAML under `scenarios/` and agent code under `src/edd_agent_lab/agents/`.
+**Not in scope yet:** creating a new agent or scenario from the UI ([Phase 15](https://github.com/bfalkowski/eval-driven-design-platform/blob/main/docs/HLD_TEST_FIRST_IMPLEMENTATION.md#phase-15--greenfield-agent-entry-platform--lab)). New scenarios today: add YAML under `scenarios/` and agent code under `src/edd_agent_lab/agents/`.
 
-![Legacy side-by-side chat console — customer-solution on healthcare_documentation](docs/assets/side-by-side-console.png)
+![Customer Solution Discovery — side-by-side eval iteration (initial implementation)](docs/assets/side-by-side-console.png)
 
 Copy `.env.example` to `.env` and set `OPENAI_API_KEY` for live agent generation.
 
@@ -191,16 +191,7 @@ edd-lab run-agent --agent customer-solution --version v1 --scenario healthcare_d
 
 ## Agent Evolution
 
-### Customer Escalation Triage (reference — HLD-005)
-
-| Version | Graph | Outcome |
-|---|---|---|
-| v0-baseline | Single-pass response | Fails `separate_facts_from_hypotheses`; overclaims root cause |
-| v1-evidence-triage-graph | Evidence collection + facts/hypotheses/unknowns | Pass for demo; production blocked (mock/local tools) |
-
-Artifacts: `lab-runs/customer_escalation_triage/` · platform examples: `eval-driven-design-platform/examples/customer_escalation_triage/`
-
-### Customer Solution Discovery (original demo)
+### Customer Solution Discovery (initial implementation)
 
 | Version | Change | Main failure addressed | Evidence |
 |---|---|---|---|
@@ -210,18 +201,26 @@ Artifacts: `lab-runs/customer_escalation_triage/` · platform examples: `eval-dr
 | v3 | Competency model | Weak generalization | Variant pass rate improves |
 | v4 | Tool-enhanced graph | Reusable workflows | Better eval and planning consistency |
 
-Lab artifacts: `lab-runs/customer_solution_agent/v0-baseline/` … `v4-tool-enhanced/`.
+Artifacts: `lab-runs/customer_solution_agent/v0-baseline/` … `v4-tool-enhanced/`
+
+### Customer Escalation Triage (reference — HLD-005)
+
+| Version | Graph | Outcome |
+|---|---|---|
+| v0-baseline | Single-pass response | Fails `separate_facts_from_hypotheses`; overclaims root cause |
+| v1-evidence-triage-graph | Evidence collection + facts/hypotheses/unknowns | Pass for demo; production blocked (mock/local tools) |
+
+Lab artifacts: `lab-runs/customer_escalation_triage/` · platform design bundle: [examples/customer_escalation_triage](https://github.com/bfalkowski/eval-driven-design-platform/tree/main/examples/customer_escalation_triage)
 
 ## EDD Platform Integration
 
-```text
-eval-driven-design-platform  = reusable evaluation infrastructure
-edd-agent-lab                  = LangGraph agents improved with that infrastructure
+[eval-driven-design-platform](https://github.com/bfalkowski/eval-driven-design-platform) owns reusable evaluation infrastructure; this repo owns runnable agents and local evidence.
 
-edd-agent-lab  --->  eval-driven-design-platform
+```text
+edd-agent-lab  →  eval-driven-design-platform  →  Langfuse
 ```
 
-The platform must not depend on this repo. See `docs/05-platform-integration.md`.
+The platform must not depend on this repo. See [docs/05-platform-integration.md](docs/05-platform-integration.md).
 
 **Talk to the platform (optional):** lab works standalone by default. To publish runs over HTTP:
 
@@ -248,12 +247,12 @@ End-to-end smoke test (auto-mints JWT when platform repo is sibling):
 | Milestone | Status |
 |---|---|
 | 1–8 | Repo skeleton through MCP integration | Complete |
-| 9 | Side-by-side chat console (`customer-solution`) | Complete (superseded by doc 12 workbench) |
+| 9 | Side-by-side console (`customer-solution`) | Complete |
 | 10 | Live agent generation (mock/live/auto) | Complete |
 | 11 | Customer Escalation Triage reference agent (HLD-005) | Complete |
 | 12 | Doc 12 workbench on `:8502` | Complete |
-| 13c | Platform Gates/Promotion + validation script (platform repo) | Next |
-| 15 | Greenfield agent/scenario entry (platform + lab selector) | Planned |
+| 13c | Gates/Promotion + validation script ([platform repo](https://github.com/bfalkowski/eval-driven-design-platform)) | Next |
+| 15 | Greenfield agent/scenario entry | Planned |
 
 See [HLD Test-First Implementation](https://github.com/bfalkowski/eval-driven-design-platform/blob/main/docs/HLD_TEST_FIRST_IMPLEMENTATION.md) for cross-repo phases. Live vs mock mode: `docs/08-live-agent-generation.md`.
 
@@ -263,18 +262,18 @@ See [HLD Test-First Implementation](https://github.com/bfalkowski/eval-driven-de
 - [Ideal DX](docs/10-ideal-developer-experience.md) — target EDD lifecycle and artifact model
 - [Lab console design](docs/12-lab-console-design.md) — **canonical `:8502` workbench UX** (reference scenario)
 - [Ideal console](docs/11-ideal-console-design.md) — target platform console workspaces and UX
-- [HLD-001: Product intent](../eval-driven-design-platform/docs/hld/HLD-001-product-intent-and-system-boundaries.md) — system boundaries (platform repo)
-- [HLD-002: Domain model](../eval-driven-design-platform/docs/hld/HLD-002-domain-object-model.md) — core domain objects (platform repo)
-- [HLD-003: EDD workflow](../eval-driven-design-platform/docs/hld/HLD-003-evaluation-driven-design-workflow.md) — seven-phase lifecycle (platform repo)
-- [HLD-004: Tool feasibility](../eval-driven-design-platform/docs/hld/HLD-004-tool-requirements-and-feasibility.md) — tool modeling and readiness (platform repo)
-- [HLD-005: Reference scenario](../eval-driven-design-platform/docs/hld/HLD-005-reference-scenario-customer-escalation-triage.md) — Customer Escalation Triage (platform repo)
-- [HLD-006: MVP plan](../eval-driven-design-platform/docs/hld/HLD-006-mvp-implementation-plan.md) — build sequence M1–M6 (platform repo)
-- [HLD-007: Platform API](../eval-driven-design-platform/docs/hld/HLD-007-platform-api-and-integration.md) — publish contract and integration (platform repo)
-- [HLD-008: Langfuse integration](../eval-driven-design-platform/docs/hld/HLD-008-langfuse-integration.md) — trace evidence layer (platform repo)
-- [HLD-009: Architecture diagrams](../eval-driven-design-platform/docs/hld/HLD-009-architecture-and-flow-diagrams.md) — system and flow diagrams (platform repo)
-- [HLD-010: Graph design](../eval-driven-design-platform/docs/hld/HLD-010-graph-design-and-rule-mapping.md) — rule-to-node mapping (platform repo)
-- [HLD-011: Console IA](../eval-driven-design-platform/docs/hld/HLD-011-console-information-architecture.md) — platform console spec (platform repo)
-- [HLD-012: Versioning and promotion](../eval-driven-design-platform/docs/hld/HLD-012-versioning-gates-and-promotion.md) — gates and promotion (platform repo)
+- [HLD-001: Product intent](https://github.com/bfalkowski/eval-driven-design-platform/blob/main/docs/hld/HLD-001-product-intent-and-system-boundaries.md)
+- [HLD-002: Domain model](https://github.com/bfalkowski/eval-driven-design-platform/blob/main/docs/hld/HLD-002-domain-object-model.md)
+- [HLD-003: EDD workflow](https://github.com/bfalkowski/eval-driven-design-platform/blob/main/docs/hld/HLD-003-evaluation-driven-design-workflow.md)
+- [HLD-004: Tool feasibility](https://github.com/bfalkowski/eval-driven-design-platform/blob/main/docs/hld/HLD-004-tool-requirements-and-feasibility.md)
+- [HLD-005: Reference scenario](https://github.com/bfalkowski/eval-driven-design-platform/blob/main/docs/hld/HLD-005-reference-scenario-customer-escalation-triage.md)
+- [HLD-006: MVP plan](https://github.com/bfalkowski/eval-driven-design-platform/blob/main/docs/hld/HLD-006-mvp-implementation-plan.md)
+- [HLD-007: Platform API](https://github.com/bfalkowski/eval-driven-design-platform/blob/main/docs/hld/HLD-007-platform-api-and-integration.md)
+- [HLD-008: Langfuse integration](https://github.com/bfalkowski/eval-driven-design-platform/blob/main/docs/hld/HLD-008-langfuse-integration.md)
+- [HLD-009: Architecture diagrams](https://github.com/bfalkowski/eval-driven-design-platform/blob/main/docs/hld/HLD-009-architecture-and-flow-diagrams.md)
+- [HLD-010: Graph design](https://github.com/bfalkowski/eval-driven-design-platform/blob/main/docs/hld/HLD-010-graph-design-and-rule-mapping.md)
+- [HLD-011: Console IA](https://github.com/bfalkowski/eval-driven-design-platform/blob/main/docs/hld/HLD-011-console-information-architecture.md)
+- [HLD-012: Versioning and promotion](https://github.com/bfalkowski/eval-driven-design-platform/blob/main/docs/hld/HLD-012-versioning-gates-and-promotion.md)
 
 ## Design Principles
 
