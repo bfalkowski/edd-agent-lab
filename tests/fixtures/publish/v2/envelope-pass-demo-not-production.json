@@ -1,0 +1,68 @@
+{
+  "schema_version": "2",
+  "idempotency_key": "contract-fixture-v2-pass-demo",
+  "producer": {
+    "name": "edd-agent-lab",
+    "environment": "local_demo",
+    "run_mode": "mock_local"
+  },
+  "source": "edd-agent-lab",
+  "run_id": "contract-fixture-v2-pass-demo",
+  "agent": {
+    "id": "customer-escalation-triage-agent",
+    "name": "Customer Escalation Triage Agent"
+  },
+  "agent_version": {
+    "id": "v1-evidence-triage-graph",
+    "agent_id": "customer-escalation-triage-agent",
+    "version_label": "v1-evidence-triage-graph",
+    "target_id": "customer-escalation-triage-target-v1",
+    "eval_contract_id": "customer-escalation-triage-eval-contract-v1",
+    "graph_design_id": "customer-escalation-triage-graph-v1",
+    "tool_mode_summary": "mock_local"
+  },
+  "target": {
+    "id": "customer-escalation-triage-target-v1"
+  },
+  "eval_contract": {
+    "id": "customer-escalation-triage-eval-contract-v1"
+  },
+  "suite": "escalation_triage",
+  "tenant_id": "tenant-a",
+  "scenario_set": {
+    "id": "escalation-core-scenarios",
+    "scenario_ids": ["escalation-latency-quality-regression-001"]
+  },
+  "tool_context": {
+    "tool_mode_summary": "mock_local",
+    "production_ready": false,
+    "tool_bindings": [
+      {
+        "graph_node": "collect_trace_evidence",
+        "requirement_id": "trace_evidence_source",
+        "implementation_id": "fetch_trace_summary_mock",
+        "mode": "mock",
+        "environment": "local_demo"
+      },
+      {
+        "graph_node": "collect_customer_report",
+        "requirement_id": "customer_report_source",
+        "implementation_id": "fetch_customer_report_from_scenario",
+        "mode": "local",
+        "environment": "local_demo"
+      }
+    ]
+  },
+  "run": {
+    "id": "contract-fixture-v2-pass-demo",
+    "started_at": "2026-05-30T10:00:00Z",
+    "completed_at": "2026-05-30T10:01:00Z",
+    "environment": "local_demo"
+  },
+  "eval_summary": {
+    "overall_score": 0.91
+  },
+  "failure_packet": null,
+  "outputs": {},
+  "artifact_paths": {}
+}
