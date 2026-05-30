@@ -251,6 +251,7 @@ See `docs/08-live-agent-generation.md` for live vs mock mode details.
 - [HLD-009: Architecture diagrams](../eval-driven-design-platform/docs/hld/HLD-009-architecture-and-flow-diagrams.md) — system and flow diagrams (platform repo)
 - [HLD-010: Graph design](../eval-driven-design-platform/docs/hld/HLD-010-graph-design-and-rule-mapping.md) — rule-to-node mapping (platform repo)
 - [HLD-011: Console IA](../eval-driven-design-platform/docs/hld/HLD-011-console-information-architecture.md) — platform console spec (platform repo)
+- [HLD-012: Versioning and promotion](../eval-driven-design-platform/docs/hld/HLD-012-versioning-gates-and-promotion.md) — gates and promotion (platform repo)
 
 ## Design Principles
 
