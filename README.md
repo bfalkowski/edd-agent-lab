@@ -245,6 +245,7 @@ See `docs/08-live-agent-generation.md` for live vs mock mode details.
 - [HLD-003: EDD workflow](../eval-driven-design-platform/docs/hld/HLD-003-evaluation-driven-design-workflow.md) — seven-phase lifecycle (platform repo)
 - [HLD-004: Tool feasibility](../eval-driven-design-platform/docs/hld/HLD-004-tool-requirements-and-feasibility.md) — tool modeling and readiness (platform repo)
 - [HLD-005: Reference scenario](../eval-driven-design-platform/docs/hld/HLD-005-reference-scenario-customer-escalation-triage.md) — Customer Escalation Triage (platform repo)
+- [HLD-006: MVP plan](../eval-driven-design-platform/docs/hld/HLD-006-mvp-implementation-plan.md) — build sequence M1–M6 (platform repo)
 
 ## Design Principles
 
