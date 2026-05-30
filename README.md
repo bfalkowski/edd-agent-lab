@@ -249,6 +249,7 @@ See `docs/08-live-agent-generation.md` for live vs mock mode details.
 - [HLD-007: Platform API](../eval-driven-design-platform/docs/hld/HLD-007-platform-api-and-integration.md) — publish contract and integration (platform repo)
 - [HLD-008: Langfuse integration](../eval-driven-design-platform/docs/hld/HLD-008-langfuse-integration.md) — trace evidence layer (platform repo)
 - [HLD-009: Architecture diagrams](../eval-driven-design-platform/docs/hld/HLD-009-architecture-and-flow-diagrams.md) — system and flow diagrams (platform repo)
+- [HLD-010: Graph design](../eval-driven-design-platform/docs/hld/HLD-010-graph-design-and-rule-mapping.md) — rule-to-node mapping (platform repo)
 
 ## Design Principles
 
