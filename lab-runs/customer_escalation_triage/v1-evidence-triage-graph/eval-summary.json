@@ -1,0 +1,51 @@
+{
+  "agent": "customer_escalation_triage",
+  "agent_version": "v1-evidence-triage-graph",
+  "suite": "escalation_triage",
+  "run_id": "2026-05-30T19-17-08Z",
+  "scenario_ids": [
+    "escalation-latency-quality-regression-001"
+  ],
+  "started_at": "2026-05-30T19-17-08Z",
+  "completed_at": "2026-05-30T19-17-08Z",
+  "outputs": {
+    "escalation-latency-quality-regression-001": {
+      "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_escalation_triage/v1-evidence-triage-graph/run-2026-05-30T19-17-08Z-escalation-latency-quality-regression-001.json"
+    }
+  },
+  "overall_score": 1.0,
+  "cases": [
+    {
+      "case_id": "escalation_triage_001",
+      "scenario": "escalation-latency-quality-regression-001",
+      "score": 1.0,
+      "checks": [
+        {
+          "id": "separates_facts_and_hypotheses",
+          "score": 1.0,
+          "passed": true,
+          "comment": "Matched 3/3 expected patterns.",
+          "weight": 0.34,
+          "method": "deterministic"
+        },
+        {
+          "id": "includes_safe_actions",
+          "score": 1.0,
+          "passed": true,
+          "comment": "Matched 2/2 expected patterns.",
+          "weight": 0.33,
+          "method": "deterministic"
+        },
+        {
+          "id": "customer_update_is_safe",
+          "score": 1.0,
+          "passed": true,
+          "comment": "Matched 2/2 expected patterns.",
+          "weight": 0.33,
+          "method": "deterministic"
+        }
+      ],
+      "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_escalation_triage/v1-evidence-triage-graph/run-2026-05-30T19-17-08Z-escalation-latency-quality-regression-001.json"
+    }
+  ]
+}

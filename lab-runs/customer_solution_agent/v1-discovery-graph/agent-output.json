@@ -1,13 +1,14 @@
 {
-  "run_id": "2026-05-29T00-39-38Z",
+  "run_id": "2026-05-30T19-17-08Z",
   "agent": "customer_solution_agent",
   "agent_version": "v1-discovery-graph",
+  "generation_mode": "mock",
   "suite": "agent_run",
   "scenario_ids": [
     "healthcare_documentation"
   ],
-  "started_at": "2026-05-29T00-39-38Z",
-  "completed_at": "2026-05-29T00-39-38Z",
+  "started_at": "2026-05-30T19-17-08Z",
+  "completed_at": "2026-05-30T19-17-08Z",
   "outputs": {
     "healthcare_documentation": {
       "problem_summary": "The customer needs to improve a healthcare process with AI while balancing operational impact, risk controls, and measurable outcomes.",
@@ -69,7 +70,7 @@
   "eval_summary": null,
   "failure_packet": null,
   "artifact_paths": {
-    "timestamped_output": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v1-discovery-graph/run-2026-05-29T00-39-38Z-healthcare_documentation.json",
+    "timestamped_output": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v1-discovery-graph/run-2026-05-30T19-17-08Z-healthcare_documentation.json",
     "latest_output": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v1-discovery-graph/agent-output.json"
   },
   "scenario": {

@@ -10,6 +10,8 @@ AGENT_DIR_NAMES = {
     "customer-solution": "customer_solution_agent",
     "customer_solution": "customer_solution_agent",
     "customer_solution_agent": "customer_solution_agent",
+    "customer-escalation-triage": "customer_escalation_triage",
+    "customer_escalation_triage": "customer_escalation_triage",
 }
 
 

@@ -49,7 +49,7 @@ def sidebar_brand() -> None:
         """
         <div class="edd-sidebar-brand">
           <div class="edd-sidebar-title">EDD Agent Lab</div>
-          <div class="edd-sidebar-caption">Side-by-side agent comparison · port 8502</div>
+          <div class="edd-sidebar-caption">Reference scenario workbench · port 8502</div>
         </div>
         """,
         unsafe_allow_html=True,

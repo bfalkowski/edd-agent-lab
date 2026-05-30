@@ -376,9 +376,24 @@ def compare_turn(
     console.print(f"[green]Artifacts:[/green] {artifact_dir}")
 
 
+@app.command("demo-escalation")
+def demo_escalation(
+    publish: bool = typer.Option(
+        False,
+        "--publish",
+        help="Publish v0/v1 run-records when platform is configured.",
+    ),
+) -> None:
+    """Run the Customer Escalation Triage reference demo path."""
+    from edd_agent_lab.ui.demo_path import format_demo_summary, run_reference_demo_path
+
+    result = run_reference_demo_path(publish=publish)
+    console.print(format_demo_summary(result))
+
+
 @app.command("console")
 def launch_console() -> None:
-    """Launch the Streamlit side-by-side comparison console."""
+    """Launch the Streamlit reference-scenario workbench."""
     import os
     import subprocess
     import sys
@@ -386,7 +401,7 @@ def launch_console() -> None:
 
     from dotenv import dotenv_values
 
-    from edd_agent_lab.ui.app import LAB_CONSOLE_PORT
+    from edd_agent_lab.ui.constants import LAB_CONSOLE_PORT
 
     repo_root = Path(__file__).resolve().parents[3]
     src_root = repo_root / "src"
@@ -402,7 +417,7 @@ def launch_console() -> None:
 
     console.print(f"[green]Agent lab console:[/green] {lab_url}")
     console.print(
-        "[dim]Platform UI is usually :8501; this lab chat uses :8502.[/dim]"
+        "[dim]Platform UI is usually :8501; this lab workbench uses :8502.[/dim]"
     )
     try:
         subprocess.run(

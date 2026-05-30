@@ -53,7 +53,7 @@ Cursor also loads `.cursor/rules/karpathy-guidelines.mdc` (`alwaysApply: true`) 
 
 ## Planning
 
-- Follow platform HLDs for the canonical vertical slice: [HLD-005 Customer Escalation Triage](https://github.com/bfalkowski/eval-driven-design-platform/blob/main/docs/hld/HLD-005-reference-scenario-customer-escalation-triage.md), [HLD-006 MVP plan](https://github.com/bfalkowski/eval-driven-design-platform/blob/main/docs/hld/HLD-006-mvp-implementation-plan.md).
+- Follow the platform execution plan: [HLD Test-First Implementation](https://github.com/bfalkowski/eval-driven-design-platform/blob/main/docs/HLD_TEST_FIRST_IMPLEMENTATION.md) (Phases 9–13). **Lab console UI:** implement `:8502` against [12-lab-console-design.md](docs/12-lab-console-design.md). Canonical vertical slice: [HLD-005](https://github.com/bfalkowski/eval-driven-design-platform/blob/main/docs/hld/HLD-005-reference-scenario-customer-escalation-triage.md).
 - Ideal-state docs (`docs/10-*.md`, `docs/11-*.md`) describe targets; do not rewrite the repo to match them in one pass.
 - `lab-runs/` artifacts are local by default; do not commit timestamped run outputs unless explicitly requested.
 

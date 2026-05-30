@@ -330,7 +330,8 @@ div[data-testid="stAlert"] {
 
 /* ---------- Responsive ---------- */
 @media (max-width: 1050px) {
-  .edd-loop {
+  .edd-loop,
+  .edd-loop-4 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -345,7 +346,19 @@ div[data-testid="stAlert"] {
   }
 }
 
-/* ---------- Agent lab console: side-by-side chat ---------- */
+.edd-loop-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.edd-version-title {
+  color: #f8fafc;
+  font-size: 0.98rem;
+  font-weight: 750;
+  margin-bottom: 0.65rem;
+  letter-spacing: -0.02em;
+}
+
+/* ---------- Agent lab: version comparison panels ---------- */
 .edd-chat-column-title {
   color: #f8fafc;
   font-size: 0.95rem;

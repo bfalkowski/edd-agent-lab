@@ -1,5 +1,5 @@
 {
-  "run_id": "2026-05-29T00-39-38Z",
+  "run_id": "2026-05-30T19-17-08Z",
   "agent": "customer_solution_agent",
   "agent_version": "v1-discovery-graph",
   "suite": "overfitting",
@@ -11,33 +11,33 @@
     "hr_policy",
     "customer_support"
   ],
-  "started_at": "2026-05-29T00-39-38Z",
-  "completed_at": "2026-05-29T00-39-38Z",
+  "started_at": "2026-05-30T19-17-08Z",
+  "completed_at": "2026-05-30T19-17-08Z",
   "outputs": {
     "healthcare_documentation": {
-      "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v1-discovery-graph/run-2026-05-29T00-39-38Z-healthcare_documentation.json"
+      "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v1-discovery-graph/run-2026-05-30T19-17-08Z-healthcare_documentation.json"
     },
     "legal_review": {
-      "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v1-discovery-graph/run-2026-05-29T00-39-38Z-legal_review.json"
+      "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v1-discovery-graph/run-2026-05-30T19-17-08Z-legal_review.json"
     },
     "banking_fraud": {
-      "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v1-discovery-graph/run-2026-05-29T00-39-38Z-banking_fraud.json"
+      "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v1-discovery-graph/run-2026-05-30T19-17-08Z-banking_fraud.json"
     },
     "manufacturing_support": {
-      "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v1-discovery-graph/run-2026-05-29T00-39-38Z-manufacturing_support.json"
+      "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v1-discovery-graph/run-2026-05-30T19-17-08Z-manufacturing_support.json"
     },
     "hr_policy": {
-      "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v1-discovery-graph/run-2026-05-29T00-39-38Z-hr_policy.json"
+      "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v1-discovery-graph/run-2026-05-30T19-17-08Z-hr_policy.json"
     },
     "customer_support": {
-      "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v1-discovery-graph/run-2026-05-29T00-39-38Z-customer_support.json"
+      "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v1-discovery-graph/run-2026-05-30T19-17-08Z-customer_support.json"
     }
   },
   "eval_summary": {
     "agent": "customer_solution_agent",
     "agent_version": "v1-discovery-graph",
     "suite": "overfitting",
-    "run_id": "2026-05-29T00-39-38Z",
+    "run_id": "2026-05-30T19-17-08Z",
     "scenario_ids": [
       "healthcare_documentation",
       "legal_review",
@@ -46,26 +46,26 @@
       "hr_policy",
       "customer_support"
     ],
-    "started_at": "2026-05-29T00-39-38Z",
-    "completed_at": "2026-05-29T00-39-38Z",
+    "started_at": "2026-05-30T19-17-08Z",
+    "completed_at": "2026-05-30T19-17-08Z",
     "outputs": {
       "healthcare_documentation": {
-        "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v1-discovery-graph/run-2026-05-29T00-39-38Z-healthcare_documentation.json"
+        "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v1-discovery-graph/run-2026-05-30T19-17-08Z-healthcare_documentation.json"
       },
       "legal_review": {
-        "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v1-discovery-graph/run-2026-05-29T00-39-38Z-legal_review.json"
+        "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v1-discovery-graph/run-2026-05-30T19-17-08Z-legal_review.json"
       },
       "banking_fraud": {
-        "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v1-discovery-graph/run-2026-05-29T00-39-38Z-banking_fraud.json"
+        "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v1-discovery-graph/run-2026-05-30T19-17-08Z-banking_fraud.json"
       },
       "manufacturing_support": {
-        "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v1-discovery-graph/run-2026-05-29T00-39-38Z-manufacturing_support.json"
+        "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v1-discovery-graph/run-2026-05-30T19-17-08Z-manufacturing_support.json"
       },
       "hr_policy": {
-        "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v1-discovery-graph/run-2026-05-29T00-39-38Z-hr_policy.json"
+        "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v1-discovery-graph/run-2026-05-30T19-17-08Z-hr_policy.json"
       },
       "customer_support": {
-        "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v1-discovery-graph/run-2026-05-29T00-39-38Z-customer_support.json"
+        "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v1-discovery-graph/run-2026-05-30T19-17-08Z-customer_support.json"
       }
     },
     "base_case_passed": true,
@@ -93,7 +93,7 @@
           "method": "heuristic"
         }
       ],
-      "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v1-discovery-graph/run-2026-05-29T00-39-38Z-healthcare_documentation.json"
+      "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v1-discovery-graph/run-2026-05-30T19-17-08Z-healthcare_documentation.json"
     },
     "variants": [
       {
@@ -105,7 +105,7 @@
         "passed": true,
         "comment": "Theme coverage 12/19; core discovery coverage 6/6.",
         "method": "theme_invariant",
-        "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v1-discovery-graph/run-2026-05-29T00-39-38Z-legal_review.json"
+        "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v1-discovery-graph/run-2026-05-30T19-17-08Z-legal_review.json"
       },
       {
         "id": "banking_fraud_variant",
@@ -116,7 +116,7 @@
         "passed": false,
         "comment": "Theme coverage 6/15; core discovery coverage 6/6.",
         "method": "theme_invariant",
-        "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v1-discovery-graph/run-2026-05-29T00-39-38Z-banking_fraud.json"
+        "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v1-discovery-graph/run-2026-05-30T19-17-08Z-banking_fraud.json"
       },
       {
         "id": "manufacturing_support_variant",
@@ -127,7 +127,7 @@
         "passed": false,
         "comment": "Theme coverage 9/24; core discovery coverage 6/6.",
         "method": "theme_invariant",
-        "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v1-discovery-graph/run-2026-05-29T00-39-38Z-manufacturing_support.json"
+        "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v1-discovery-graph/run-2026-05-30T19-17-08Z-manufacturing_support.json"
       },
       {
         "id": "hr_policy_variant",
@@ -138,7 +138,7 @@
         "passed": false,
         "comment": "Theme coverage 11/21; core discovery coverage 6/6.",
         "method": "theme_invariant",
-        "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v1-discovery-graph/run-2026-05-29T00-39-38Z-hr_policy.json"
+        "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v1-discovery-graph/run-2026-05-30T19-17-08Z-hr_policy.json"
       },
       {
         "id": "customer_support_variant",
@@ -149,14 +149,14 @@
         "passed": true,
         "comment": "Theme coverage 11/20; core discovery coverage 6/6.",
         "method": "theme_invariant",
-        "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v1-discovery-graph/run-2026-05-29T00-39-38Z-customer_support.json"
+        "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v1-discovery-graph/run-2026-05-30T19-17-08Z-customer_support.json"
       }
     ]
   },
   "failure_packet": {
     "agent": "customer_solution_agent",
     "suite": "overfitting",
-    "run_id": "2026-05-29T00-39-38Z",
+    "run_id": "2026-05-30T19-17-08Z",
     "failure_type": "overfitting",
     "summary": "Base case and variant behavior indicate overfitting risk.",
     "evidence": {

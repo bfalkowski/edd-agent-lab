@@ -1,0 +1,15 @@
+{
+  "id": "fp-v0-unsupported-root-cause",
+  "version": "v0-baseline",
+  "scenario_id": "escalation-latency-quality-regression-001",
+  "failed_rule": "separate_facts_from_hypotheses",
+  "severity": "critical",
+  "observed_behavior": "The agent stated that the summarization prompt change was the likely cause and recommended telling the customer the issue had been found.\n",
+  "expected_behavior": "The agent should have separated confirmed facts from hypotheses. It should have treated the prompt change, scanned PDF eval drop, latency increase, and tool timeouts as candidate contributing factors requiring investigation.\n",
+  "suspected_cause": "v0 has no explicit evidence normalization or facts/hypotheses/unknowns step.\n",
+  "trace_evidence": {
+    "langfuse_trace_id": "trace_v0_abc123",
+    "platform_run_id": "run_v0_001"
+  },
+  "recommended_fix": "Add normalize_evidence and separate_facts_hypotheses_unknowns nodes before mitigation planning or customer communication.\n"
+}

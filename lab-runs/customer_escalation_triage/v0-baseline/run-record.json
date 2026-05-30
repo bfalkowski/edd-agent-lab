@@ -1,0 +1,108 @@
+{
+  "run_id": "2026-05-30T19-17-08Z",
+  "agent": "customer_escalation_triage",
+  "agent_version": "v0-baseline",
+  "suite": "escalation_triage",
+  "scenario_ids": [
+    "escalation-latency-quality-regression-001"
+  ],
+  "started_at": "2026-05-30T19-17-08Z",
+  "completed_at": "2026-05-30T19-17-08Z",
+  "outputs": {
+    "escalation-latency-quality-regression-001": {
+      "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_escalation_triage/v0-baseline/run-2026-05-30T19-17-08Z-escalation-latency-quality-regression-001.json"
+    }
+  },
+  "eval_summary": {
+    "agent": "customer_escalation_triage",
+    "agent_version": "v0-baseline",
+    "suite": "escalation_triage",
+    "run_id": "2026-05-30T19-17-08Z",
+    "scenario_ids": [
+      "escalation-latency-quality-regression-001"
+    ],
+    "started_at": "2026-05-30T19-17-08Z",
+    "completed_at": "2026-05-30T19-17-08Z",
+    "outputs": {
+      "escalation-latency-quality-regression-001": {
+        "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_escalation_triage/v0-baseline/run-2026-05-30T19-17-08Z-escalation-latency-quality-regression-001.json"
+      }
+    },
+    "overall_score": 0.0,
+    "cases": [
+      {
+        "case_id": "escalation_triage_001",
+        "scenario": "escalation-latency-quality-regression-001",
+        "score": 0.0,
+        "checks": [
+          {
+            "id": "separates_facts_and_hypotheses",
+            "score": 0.0,
+            "passed": false,
+            "comment": "Matched 0/3 expected patterns.",
+            "weight": 0.34,
+            "method": "deterministic"
+          },
+          {
+            "id": "includes_safe_actions",
+            "score": 0.0,
+            "passed": false,
+            "comment": "Matched 0/2 expected patterns.",
+            "weight": 0.33,
+            "method": "deterministic"
+          },
+          {
+            "id": "customer_update_is_safe",
+            "score": 0.0,
+            "passed": false,
+            "comment": "Matched 0/2 expected patterns.",
+            "weight": 0.33,
+            "method": "deterministic"
+          }
+        ],
+        "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_escalation_triage/v0-baseline/run-2026-05-30T19-17-08Z-escalation-latency-quality-regression-001.json"
+      }
+    ]
+  },
+  "failure_packet": {
+    "id": "fp-v0-unsupported-root-cause",
+    "version": "v0-baseline",
+    "scenario_id": "escalation-latency-quality-regression-001",
+    "failed_rule": "separate_facts_from_hypotheses",
+    "severity": "critical",
+    "observed_behavior": "The agent stated that the summarization prompt change was the likely cause and recommended telling the customer the issue had been found.\n",
+    "expected_behavior": "The agent should have separated confirmed facts from hypotheses. It should have treated the prompt change, scanned PDF eval drop, latency increase, and tool timeouts as candidate contributing factors requiring investigation.\n",
+    "suspected_cause": "v0 has no explicit evidence normalization or facts/hypotheses/unknowns step.\n",
+    "trace_evidence": {
+      "langfuse_trace_id": "trace_v0_abc123",
+      "platform_run_id": "run_v0_001"
+    },
+    "recommended_fix": "Add normalize_evidence and separate_facts_hypotheses_unknowns nodes before mitigation planning or customer communication.\n"
+  },
+  "artifact_paths": {
+    "summary": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_escalation_triage/v0-baseline/eval-summary.json",
+    "summary_by_suite": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_escalation_triage/v0-baseline/eval-summary-escalation_triage.json",
+    "failure_packet": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_escalation_triage/v0-baseline/failure-packet.json",
+    "failure_packet_by_suite": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_escalation_triage/v0-baseline/failure-packet-escalation_triage.json"
+  },
+  "trace_links": [
+    {
+      "id": "trace-link-v0-001",
+      "provider": "langfuse",
+      "external_trace_id": "trace_v0_abc123",
+      "external_url": "http://localhost:3000/project/example/traces/trace_v0_abc123",
+      "scenario_id": "escalation-latency-quality-regression-001",
+      "agent_version_id": "v0-baseline",
+      "metadata": {
+        "platform_run_id": "run_v0_001",
+        "platform_agent_id": "customer-escalation-triage-agent",
+        "platform_agent_version": "v0-baseline",
+        "platform_target_id": "customer-escalation-triage-target-v1",
+        "platform_eval_contract_id": "customer-escalation-triage-eval-contract-v1",
+        "scenario_id": "escalation-latency-quality-regression-001",
+        "tool_mode": "mock_local",
+        "environment": "local_demo"
+      }
+    }
+  ]
+}

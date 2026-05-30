@@ -1,0 +1,38 @@
+{
+  "agent": "customer_escalation_triage",
+  "suite": "escalation_triage",
+  "run_id": "2026-05-30T19-17-08Z",
+  "failure_type": "check_failures",
+  "summary": "3 checks failed in suite escalation_triage.",
+  "evidence": {
+    "overall_score": 0.0,
+    "failed_checks": [
+      {
+        "id": "separates_facts_and_hypotheses",
+        "score": 0.0,
+        "passed": false,
+        "comment": "Matched 0/3 expected patterns.",
+        "weight": 0.34,
+        "method": "deterministic"
+      },
+      {
+        "id": "includes_safe_actions",
+        "score": 0.0,
+        "passed": false,
+        "comment": "Matched 0/2 expected patterns.",
+        "weight": 0.33,
+        "method": "deterministic"
+      },
+      {
+        "id": "customer_update_is_safe",
+        "score": 0.0,
+        "passed": false,
+        "comment": "Matched 0/2 expected patterns.",
+        "weight": 0.33,
+        "method": "deterministic"
+      }
+    ]
+  },
+  "hypothesis": "Prompt and graph structure do not consistently satisfy eval criteria.",
+  "recommended_fix": "Implement one bounded behavior change and verify with the same eval suite."
+}

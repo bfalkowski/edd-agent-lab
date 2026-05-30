@@ -1,357 +1,163 @@
-"""Streamlit side-by-side agent comparison console."""
+"""Streamlit reference-scenario workbench for Customer Escalation Triage (doc 12)."""
 
 from __future__ import annotations
 
 from dotenv import load_dotenv
 
-from edd_agent_lab.agents.customer_solution_agent.runner import run_customer_solution_turn
-from edd_agent_lab.agents.generation import live_generation_available, resolve_generation_mode
-from edd_agent_lab.evals.loading import list_eval_suite_ids
-from edd_agent_lab.evals.session_scoring import summarize_session_scores
-from edd_agent_lab.evals.turn_artifacts import new_turn_id, write_turn_artifacts
-from edd_agent_lab.evals.turn_comparison import compare_turn_evaluation
-from edd_agent_lab.evals.turn_evaluator import evaluate_turn
-from edd_agent_lab.scenarios.loading import list_scenario_ids, load_scenario
-from edd_agent_lab.ui.components import (
-    build_side_history,
-    init_session_defaults,
-    render_artifacts_panel,
-    render_session_summary,
-    render_side_by_side_chat,
-    render_turn_analysis,
-    start_new_console_session,
-    sync_console_session,
+from edd_agent_lab.ui.layout import load_css, page_shell, sidebar_brand, status_pill
+from edd_agent_lab.ui.reference_core import (
+    AGENT_KEY,
+    SCENARIO_ID,
+    V0,
+    V1,
+    check_platform_health,
+    platform_console_url,
 )
-from edd_agent_lab.ui.conversation_scripts import DISCOVERY_PLAYBOOK
-from edd_agent_lab.ui.eval_publish import render_eval_publish_panel
-from edd_agent_lab.ui.layout import load_css, page_shell, sidebar_brand
-from edd_agent_lab.ui.session_store import ChatTurn, list_console_session_ids, load_turn_eval
+from edd_agent_lab.ui.workbench import snapshot_from_state
+from edd_agent_lab.ui.workbench_views import (
+    render_context_bar,
+    render_details_tabs,
+    render_edd_verdict,
+    render_scenario_summary,
+    render_version_panel_doc12,
+    run_compare_workflow,
+    run_v0_workflow,
+    run_v1_workflow,
+)
 
-LAB_CONSOLE_PORT = 8502
+_SESSION_KEYS = (
+    "v0_response",
+    "v1_response",
+    "v0_snapshot",
+    "v1_snapshot",
+    "last_publish",
+    "last_publish_batch",
+)
 
 
-def _process_turn(
-    message: str,
-    scenario_id: str,
-    suite_id: str,
-    left_version: str,
-    right_version: str,
-    generation_mode: str,
-) -> None:
+def _reset_workbench() -> None:
     import streamlit as st
 
-    try:
-        resolved_mode = resolve_generation_mode(generation_mode)  # type: ignore[arg-type]
-    except RuntimeError as exc:
-        st.error(str(exc))
-        return
-
-    turns: list[dict[str, str]] = list(st.session_state.turns)
-    left_history = build_side_history(turns, "left")
-    right_history = build_side_history(turns, "right")
-
-    with st.spinner(f"Running both agent versions ({resolved_mode})..."):
-        left = run_customer_solution_turn(
-            scenario_id=scenario_id,
-            agent_version=left_version,
-            user_message=message,
-            conversation_history=left_history,
-            generation_mode=generation_mode,  # type: ignore[arg-type]
-        )
-        right = run_customer_solution_turn(
-            scenario_id=scenario_id,
-            agent_version=right_version,
-            user_message=message,
-            conversation_history=right_history,
-            generation_mode=generation_mode,  # type: ignore[arg-type]
-        )
-
-    turn_id = new_turn_id()
-    turns.append(
-        {
-            "user": message,
-            "left_response": left["final_response"],
-            "right_response": right["final_response"],
-            "turn_id": turn_id,
-        }
-    )
-    st.session_state.turns = turns
-    st.session_state.turn_count += 1
-
-    evaluation = evaluate_turn(
-        agent="customer_solution_agent",
-        scenario_id=scenario_id,
-        suite_id=suite_id,
-        user_input=message,
-        responses_by_version={
-            left_version: left["final_response"],
-            right_version: right["final_response"],
-        },
-        generation_mode=generation_mode,  # type: ignore[arg-type]
-    )
-    comparison = compare_turn_evaluation(
-        evaluation,
-        before_version=left_version,
-        after_version=right_version,
-    )
-
-    session = sync_console_session()
-    session.chat_turns = [ChatTurn.model_validate(turn) for turn in turns]
-    artifact_dir = write_turn_artifacts(
-        session_id=st.session_state.session_id,
-        turn_id=turn_id,
-        evaluation=evaluation,
-        comparison=comparison,
-        session=session,
-    )
-    st.session_state.console_session = session
-    st.session_state.latest_evaluation = evaluation
-    st.session_state.latest_comparison = comparison
-    st.session_state.latest_artifact_dir = str(artifact_dir)
-    st.session_state.selected_turn_id = turn_id
-
-
-def _switch_session(session_id: str) -> None:
-    import streamlit as st
-
-    st.query_params["session_id"] = session_id
-    st.session_state.pop("_console_initialized", None)
-    for key in (
-        "session_id",
-        "turns",
-        "turn_count",
-        "latest_evaluation",
-        "latest_comparison",
-        "latest_artifact_dir",
-        "console_session",
-    ):
+    for key in _SESSION_KEYS:
         st.session_state.pop(key, None)
-    st.rerun()
 
 
 def main() -> None:
     import streamlit as st
 
+    from edd_agent_lab.integrations.reference_publish import load_reference_publish_artifacts
+    from edd_agent_lab.scenarios.loading import load_scenario
+    from edd_agent_lab.ui.reference_data import load_graph_design_bundle
+
     load_dotenv()
     st.set_page_config(
-        page_title="EDD Agent Lab — Side-by-Side",
+        page_title="EDD Agent Lab — Workbench",
         layout="wide",
         initial_sidebar_state="expanded",
     )
     load_css()
-    init_session_defaults()
     sidebar_brand()
 
-    scenarios = list_scenario_ids("customer-solution")
-    suites = list_eval_suite_ids("customer-solution")
-    version_options = ["v0-baseline", "v1-discovery-graph", "v3-competency-model"]
+    platform_health = check_platform_health()
+    artifacts = load_reference_publish_artifacts()
+    scenario = load_scenario(AGENT_KEY, SCENARIO_ID)
+    failure = artifacts["failure_packet"]
+    v0_design, _ = load_graph_design_bundle("v0")
+    v1_design, _ = load_graph_design_bundle("v1")
 
     with st.sidebar:
-        st.markdown("### Run setup")
-        st.selectbox("Scenario", scenarios, key="scenario_id")
-        st.selectbox("Eval suite", suites, key="suite_id")
-        st.selectbox("Left version", version_options, key="left_version")
-        st.selectbox("Right version", version_options, key="right_version")
-        st.radio(
-            "Generation mode",
-            options=["mock", "live"],
-            format_func=lambda mode: "Mock (deterministic)" if mode == "mock" else "Live (OpenAI)",
-            key="generation_mode",
-            horizontal=True,
+        st.markdown("### Workbench")
+        st.button(
+            "Reset workbench",
+            use_container_width=True,
+            on_click=_reset_workbench,
+            help="Clear triage outputs and eval snapshots.",
         )
-        if st.session_state.generation_mode == "live" and not live_generation_available():
-            st.warning("Live mode requires OPENAI_API_KEY in `.env`.")
-        elif st.session_state.generation_mode == "live":
-            st.caption("Using OpenAI-backed agent generation.")
-            if live_generation_available():
-                st.caption("Turn eval: hybrid (structure + LLM judge).")
-        else:
-            st.caption("Using deterministic template responses (CI-safe).")
-            st.caption("Turn eval: structure checks only.")
-        console_session = st.session_state.get("console_session")
-        if (
-            console_session
-            and console_session.generation_mode != st.session_state.generation_mode
-        ):
-            sync_console_session()
-        st.divider()
-        st.markdown("### Session")
-        st.caption(st.session_state.session_id)
-        st.caption(f"Turns: {st.session_state.turn_count}")
-        console_session = st.session_state.get("console_session")
-        if console_session and console_session.turn_summaries:
-            session_summary = summarize_session_scores(
-                console_session.turn_summaries,
-                left_version=st.session_state.left_version,
-                right_version=st.session_state.right_version,
-            )
-            if session_summary:
-                st.caption(
-                    f"Session avg: {session_summary.left_avg_score:.2f} vs "
-                    f"{session_summary.right_avg_score:.2f} "
-                    f"({session_summary.avg_delta:+.2f})"
-                )
-        recent = list_console_session_ids()
-        if recent:
-            resume_options = recent
-            current_index = (
-                resume_options.index(st.session_state.session_id)
-                if st.session_state.session_id in resume_options
-                else 0
-            )
-            picked = st.selectbox("Resume session", resume_options, index=current_index)
-            if picked != st.session_state.session_id:
-                _switch_session(picked)
-        if st.button("New session", use_container_width=True):
-            start_new_console_session()
-            st.rerun()
-        if st.button("Clear chat", use_container_width=True):
-            st.session_state.turns = []
-            st.session_state.latest_evaluation = None
-            st.session_state.latest_comparison = None
-            st.session_state.latest_artifact_dir = None
-            st.session_state.turn_count = 0
-            sync_console_session()
-            st.rerun()
-        if st.button("Send scenario as first message", use_container_width=True):
-            scenario = load_scenario("customer-solution", st.session_state.scenario_id)
-            st.session_state.pending_message = scenario.problem
-            st.rerun()
-        if st.button("Run discovery playbook", use_container_width=True):
-            st.session_state.pending_script_queue = list(DISCOVERY_PLAYBOOK)
-            st.rerun()
-        st.divider()
-        st.caption("Platform UI: :8501 · Lab chat: :8502")
 
-    scenario_id = st.session_state.scenario_id
-    suite_id = st.session_state.suite_id
-    left_version = st.session_state.left_version
-    right_version = st.session_state.right_version
+        st.divider()
+        st.markdown("### Platform")
+        if platform_health.get("reachable"):
+            st.markdown(
+                f"{status_pill('API reachable', 'green')}",
+                unsafe_allow_html=True,
+            )
+            st.caption(str(platform_health.get("api_base")))
+        elif platform_health.get("configured"):
+            st.markdown(
+                f"{status_pill('API unreachable', 'yellow')}",
+                unsafe_allow_html=True,
+            )
+            st.caption(str(platform_health.get("message")))
+        else:
+            st.caption("Set `EDD_API_BASE_URL` to enable publish.")
+
+        st.markdown(
+            f"[Overview]({platform_console_url('overview')}) · "
+            f"[Failure]({platform_console_url('failure_packets')}) · "
+            f"[Compare]({platform_console_url('compare_versions')})"
+        )
+        st.caption("Platform console :8501 · Lab workbench :8502")
 
     page_shell(
-        "Side-by-Side Agent Chat",
-        (
-            f"{left_version} vs {right_version} · "
-            f"{st.session_state.generation_mode} generation · same prompt to both columns"
-        ),
+        "Customer Escalation Triage",
+        "Reference workbench — v0 guessed, v1 checked evidence.",
     )
 
-    evaluation = st.session_state.get("latest_evaluation")
-    comparison = st.session_state.get("latest_comparison")
-
-    console_session = st.session_state.get("console_session")
-    if console_session and console_session.turn_summaries:
-        turn_labels = {
-            summary.turn_id: (
-                f"{summary.user_input[:48]}…"
-                if len(summary.user_input) > 48
-                else summary.user_input
-            )
-            for summary in console_session.turn_summaries
-        }
-        turn_ids = list(turn_labels.keys())
-        default_turn = st.session_state.get("selected_turn_id") or turn_ids[-1]
-        selected_turn = st.selectbox(
-            "Turn analysis",
-            turn_ids,
-            index=turn_ids.index(default_turn) if default_turn in turn_ids else len(turn_ids) - 1,
-            format_func=lambda turn_id: turn_labels.get(turn_id, turn_id),
-        )
-        if selected_turn != st.session_state.get("selected_turn_id"):
-            loaded_eval, loaded_comparison = load_turn_eval(
-                st.session_state.session_id,
-                selected_turn,
-            )
-            st.session_state.selected_turn_id = selected_turn
-            if loaded_eval and loaded_comparison:
-                st.session_state.latest_evaluation = loaded_eval
-                st.session_state.latest_comparison = loaded_comparison
-                st.session_state.latest_artifact_dir = next(
-                    (
-                        summary.artifact_dir
-                        for summary in console_session.turn_summaries
-                        if summary.turn_id == selected_turn
-                    ),
-                    st.session_state.get("latest_artifact_dir"),
-                )
-                evaluation = loaded_eval
-                comparison = loaded_comparison
-            st.rerun()
-
-    left_result = None
-    right_result = None
-    if evaluation:
-        by_version = {item.agent_version: item for item in evaluation.versions}
-        left_result = by_version.get(left_version)
-        right_result = by_version.get(right_version)
-
-    render_side_by_side_chat(
-        st.session_state.turns,
-        left_version,
-        right_version,
-        left_result=left_result,
-        right_result=right_result,
+    render_context_bar(
+        artifacts=artifacts,
+        scenario_title=scenario.title,
+        platform_health=platform_health,
+        on_run_v0=lambda: run_v0_workflow(st),
+        on_run_v1=lambda: run_v1_workflow(st),
+        on_compare=lambda: run_compare_workflow(st),
+        on_refresh=lambda: st.rerun(),
     )
 
-    console_session = st.session_state.get("console_session")
-    if console_session and console_session.turn_summaries:
-        session_summary = summarize_session_scores(
-            console_session.turn_summaries,
-            left_version=left_version,
-            right_version=right_version,
-        )
-        if session_summary:
-            render_session_summary(session_summary)
-
-    comparison = st.session_state.get("latest_comparison")
-    if evaluation and comparison:
-        render_turn_analysis(comparison, evaluation)
-    render_artifacts_panel(st.session_state.get("latest_artifact_dir"), evaluation)
-
-    render_eval_publish_panel(
-        agent_key="customer-solution",
-        suite_id=suite_id,
-        left_version=left_version,
-        right_version=right_version,
+    render_scenario_summary(
+        title=scenario.title,
+        problem=scenario.problem,
+        expected_themes=list(scenario.expected_themes or []),
     )
 
-    pending = st.session_state.pop("pending_message", None)
-    if pending:
-        _process_turn(
-            message=pending.strip(),
-            scenario_id=scenario_id,
-            suite_id=suite_id,
-            left_version=left_version,
-            right_version=right_version,
-            generation_mode=st.session_state.generation_mode,
-        )
-        st.rerun()
+    v0_response = st.session_state.get("v0_response")
+    v1_response = st.session_state.get("v1_response")
+    v0_snapshot = snapshot_from_state(st, "v0_snapshot")
+    v1_snapshot = snapshot_from_state(st, "v1_snapshot")
 
-    script_queue = st.session_state.get("pending_script_queue") or []
-    if script_queue:
-        next_message = script_queue[0]
-        st.session_state.pending_script_queue = script_queue[1:]
-        _process_turn(
-            message=next_message.strip(),
-            scenario_id=scenario_id,
-            suite_id=suite_id,
-            left_version=left_version,
-            right_version=right_version,
-            generation_mode=st.session_state.generation_mode,
+    left_col, right_col = st.columns(2, gap="medium")
+    with left_col:
+        render_version_panel_doc12(
+            version=V0,
+            response=v0_response,
+            snapshot=v0_snapshot,
+            artifacts=artifacts,
+            graph_summary=v0_design.get("name") or "single_pass_response",
+            tool_mode="fixture",
+            callout=(
+                f"Failed `{failure['failed_rule']}`. "
+                "The agent overclaimed root cause without enough evidence."
+            ),
+            callout_pill="red",
         )
-        st.rerun()
+    with right_col:
+        gate = artifacts["gate_result"]
+        render_version_panel_doc12(
+            version=V1,
+            response=v1_response,
+            snapshot=v1_snapshot,
+            artifacts=artifacts,
+            graph_summary=v1_design.get("name") or "evidence_triage_v1",
+            tool_mode="mock_local",
+            production_status=str(gate.get("production_readiness_status", "blocked")).upper(),
+            callout=(
+                "Uses Facts / Hypotheses / Unknowns, evidence collection, "
+                "and a customer-safe update review."
+            ),
+            callout_pill="green",
+        )
 
-    prompt = st.chat_input("Message both agents…")
-    if prompt:
-        _process_turn(
-            message=prompt.strip(),
-            scenario_id=scenario_id,
-            suite_id=suite_id,
-            left_version=left_version,
-            right_version=right_version,
-            generation_mode=st.session_state.generation_mode,
-        )
-        st.rerun()
+    render_edd_verdict(artifacts=artifacts)
+    render_details_tabs(artifacts=artifacts, platform_health=platform_health)
 
 
 if __name__ == "__main__":

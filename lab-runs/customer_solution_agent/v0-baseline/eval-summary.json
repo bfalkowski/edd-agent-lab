@@ -1,59 +1,67 @@
 {
   "agent": "customer_solution_agent",
   "agent_version": "v0-baseline",
-  "suite": "discovery_quality",
-  "run_id": "2026-05-29T00-39-38Z",
+  "suite": "baseline",
+  "run_id": "2026-05-30T19-17-08Z",
   "scenario_ids": [
     "healthcare_documentation"
   ],
-  "started_at": "2026-05-29T00-39-38Z",
-  "completed_at": "2026-05-29T00-39-38Z",
+  "started_at": "2026-05-30T19-17-08Z",
+  "completed_at": "2026-05-30T19-17-08Z",
   "outputs": {
     "healthcare_documentation": {
-      "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v0-baseline/run-2026-05-29T00-39-38Z-healthcare_documentation.json"
+      "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v0-baseline/run-2026-05-30T19-17-08Z-healthcare_documentation.json"
     }
   },
-  "overall_score": 1.0,
+  "overall_score": 0.8,
   "cases": [
     {
-      "case_id": "healthcare_discovery_001",
+      "case_id": "healthcare_baseline_001",
       "scenario": "healthcare_documentation",
-      "score": 1.0,
+      "score": 0.8,
       "checks": [
         {
-          "id": "asks_clarifying_questions",
-          "score": 1.0,
-          "passed": true,
-          "comment": "Heuristic judge fallback used (no LLM key or call unavailable).",
-          "weight": 0.25,
-          "method": "heuristic"
+          "id": "has_discovery_questions",
+          "score": 0.5,
+          "passed": false,
+          "comment": "Matched 1/2 expected patterns.",
+          "weight": 0.2,
+          "method": "deterministic"
         },
         {
-          "id": "identifies_workflow",
-          "score": 1.0,
-          "passed": true,
-          "comment": "Heuristic judge fallback used (no LLM key or call unavailable).",
-          "weight": 0.25,
-          "method": "heuristic"
+          "id": "has_proposed_solution",
+          "score": 0.5,
+          "passed": false,
+          "comment": "Matched 1/2 expected patterns.",
+          "weight": 0.2,
+          "method": "deterministic"
         },
         {
-          "id": "defines_success_metrics",
+          "id": "has_success_metrics",
           "score": 1.0,
           "passed": true,
-          "comment": "Heuristic judge fallback used (no LLM key or call unavailable).",
-          "weight": 0.25,
-          "method": "heuristic"
+          "comment": "Matched 2/2 expected patterns.",
+          "weight": 0.2,
+          "method": "deterministic"
         },
         {
-          "id": "includes_risks",
+          "id": "has_risks",
           "score": 1.0,
           "passed": true,
-          "comment": "Heuristic judge fallback used (no LLM key or call unavailable).",
-          "weight": 0.25,
-          "method": "heuristic"
+          "comment": "Matched 2/2 expected patterns.",
+          "weight": 0.2,
+          "method": "deterministic"
+        },
+        {
+          "id": "has_pilot_plan",
+          "score": 1.0,
+          "passed": true,
+          "comment": "Matched 1/1 expected patterns.",
+          "weight": 0.2,
+          "method": "deterministic"
         }
       ],
-      "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v0-baseline/run-2026-05-29T00-39-38Z-healthcare_documentation.json"
+      "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v0-baseline/run-2026-05-30T19-17-08Z-healthcare_documentation.json"
     }
   ]
 }

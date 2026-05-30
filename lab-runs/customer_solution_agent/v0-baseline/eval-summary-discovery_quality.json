@@ -2,15 +2,15 @@
   "agent": "customer_solution_agent",
   "agent_version": "v0-baseline",
   "suite": "discovery_quality",
-  "run_id": "2026-05-29T00-39-38Z",
+  "run_id": "2026-05-30T19-17-08Z",
   "scenario_ids": [
     "healthcare_documentation"
   ],
-  "started_at": "2026-05-29T00-39-38Z",
-  "completed_at": "2026-05-29T00-39-38Z",
+  "started_at": "2026-05-30T19-17-08Z",
+  "completed_at": "2026-05-30T19-17-08Z",
   "outputs": {
     "healthcare_documentation": {
-      "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v0-baseline/run-2026-05-29T00-39-38Z-healthcare_documentation.json"
+      "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v0-baseline/run-2026-05-30T19-17-08Z-healthcare_documentation.json"
     }
   },
   "overall_score": 1.0,
@@ -53,7 +53,7 @@
           "method": "heuristic"
         }
       ],
-      "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v0-baseline/run-2026-05-29T00-39-38Z-healthcare_documentation.json"
+      "run_artifact": "/Users/bryanfalkowski/Documents/repo/edd-agent-lab/lab-runs/customer_solution_agent/v0-baseline/run-2026-05-30T19-17-08Z-healthcare_documentation.json"
     }
   ]
 }

@@ -1,5 +1,7 @@
 # Final Milestone: Side-by-Side Agent Comparison Console
 
+> **Note:** The `:8502` app now targets the **Customer Escalation Triage reference workbench** per [12-lab-console-design.md](12-lab-console-design.md). This document describes the earlier **turn-by-turn chat** console for `customer-solution` (healthcare documentation). Keep both docs: chat vs workbench are different UX models.
+
 ## Goal
 
 Build a full local UI in `edd-agent-lab` that lets a user interact with two agent versions side by side and see turn-level EDD analysis after each message.

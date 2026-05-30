@@ -159,11 +159,13 @@ pytest
 | UI | Repo | URL |
 |---|---|---|
 | EDD platform operator console | `eval-driven-design-platform` | http://localhost:8501 |
-| Agent lab side-by-side chat | `edd-agent-lab` (`edd-lab console`) | http://localhost:8502 |
+| Agent lab side-by-side workbench | `edd-agent-lab` (`edd-lab console`) | http://localhost:8502 |
 
-### Side-by-side agent console
+Spec: [Lab console design](docs/12-lab-console-design.md) (reference workbench). Legacy chat console: [07-final-milestone-side-by-side-console.md](docs/07-final-milestone-side-by-side-console.md).
 
-Launch with `pip install -e ".[ui]" && edd-lab console`. Each turn sends the same prompt to both columns; turn-level and session-level EDD scores explain where one version improves or regresses.
+### Side-by-side agent workbench
+
+Launch with `pip install -e ".[ui]" && edd-lab console`. Compare **v0-baseline** vs **v1-evidence-triage-graph** on the Customer Escalation Triage reference scenario. See [12-lab-console-design.md](docs/12-lab-console-design.md).
 
 ![Side-by-side agent comparison console — v0-baseline vs v3-competency-model on healthcare_documentation](docs/assets/side-by-side-console.png)
 
@@ -239,6 +241,7 @@ See `docs/08-live-agent-generation.md` for live vs mock mode details.
 
 - [Current DX](docs/09-developer-experience-today.md) — how the lab + platform work today
 - [Ideal DX](docs/10-ideal-developer-experience.md) — target EDD lifecycle and artifact model
+- [Lab console design](docs/12-lab-console-design.md) — **canonical `:8502` workbench UX** (reference scenario)
 - [Ideal console](docs/11-ideal-console-design.md) — target platform console workspaces and UX
 - [HLD-001: Product intent](../eval-driven-design-platform/docs/hld/HLD-001-product-intent-and-system-boundaries.md) — system boundaries (platform repo)
 - [HLD-002: Domain model](../eval-driven-design-platform/docs/hld/HLD-002-domain-object-model.md) — core domain objects (platform repo)
