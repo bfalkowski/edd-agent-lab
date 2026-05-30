@@ -54,6 +54,8 @@ HTTP publish target (platform ingest seam):
 POST /v1/integrations/runs/publish
 ```
 
+Full contract (envelope v2, readiness, idempotency): [HLD-007](../eval-driven-design-platform/docs/hld/HLD-007-platform-api-and-integration.md) in the platform repo.
+
 Legacy alias (deprecated): `POST /v1/integrations/lab/publish`
 
 If the platform endpoint is unavailable, envelopes are queued under `lab-runs/_platform_publish_queue/`.
