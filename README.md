@@ -45,7 +45,7 @@ edd-agent-lab should not talk directly to Langfuse. It should publish agent outp
 - A LangGraph-based **Customer Solution Discovery** agent
 - Evaluation suites for discovery quality, measurable value, risk review, tool use, and overfitting
 - Versioned **lab runs** under `lab-runs/` with diagnoses, fix plans, and eval summaries
-- Optional integration with the [eval-driven-design-platform](https://github.com/) (later milestones)
+- Optional integration with [eval-driven-design-platform](https://github.com/bfalkowski/eval-driven-design-platform) via HTTP publish (see below)
 
 ## Core Principle
 
@@ -198,6 +198,26 @@ edd-agent-lab  --->  eval-driven-design-platform
 
 The platform must not depend on this repo. See `docs/05-platform-integration.md`.
 
+**Talk to the platform (optional):** lab works standalone by default. To publish runs over HTTP:
+
+```bash
+cp .env.example .env
+# EDD_CLIENT_MODE=http
+# EDD_API_BASE_URL=http://127.0.0.1:8000
+# EDD_TENANT_ID=tenant-a
+# EDD_EVAL_SPEC_ID=<uuid-from-platform-eval-spec>
+# EDD_API_KEY=<jwt>   # required when platform APP_AUTH_ENABLED=true (default in local_e2e.sh)
+
+edd-lab publish-run --agent customer-solution --version v1-discovery-graph
+# success: Publish status: published_http
+```
+
+End-to-end smoke test (auto-mints JWT when platform repo is sibling):
+
+```bash
+./scripts/test_platform_publish.sh
+```
+
 ## Roadmap
 
 | Milestone | Status |
@@ -218,7 +238,10 @@ See `docs/08-live-agent-generation.md` for live vs mock mode details.
 **Developer experience:**
 
 - [Current DX](docs/09-developer-experience-today.md) — how the lab + platform work today
-- [Ideal DX](docs/10-ideal-developer-experience.md) — target console-first workflow and platform ingest
+- [Ideal DX](docs/10-ideal-developer-experience.md) — target EDD lifecycle and artifact model
+- [Ideal console](docs/11-ideal-console-design.md) — target platform console workspaces and UX
+- [HLD-001: Product intent](../eval-driven-design-platform/docs/hld/HLD-001-product-intent-and-system-boundaries.md) — system boundaries (platform repo)
+- [HLD-002: Domain model](../eval-driven-design-platform/docs/hld/HLD-002-domain-object-model.md) — core domain objects (platform repo)
 
 ## Design Principles
 

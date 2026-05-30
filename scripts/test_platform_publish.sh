@@ -7,6 +7,8 @@
 # Usage:
 #   ./scripts/test_platform_publish.sh
 #   EDD_API_BASE_URL=http://127.0.0.1:8001 ./scripts/test_platform_publish.sh
+#   EDD_API_KEY=<jwt> ./scripts/test_platform_publish.sh   # when platform auth is enabled
+#   EDD_TOKEN_FILE=/tmp/edd-api.token ./scripts/test_platform_publish.sh
 #   LAB_RUN_RECORD=/path/to/run-record.json ./scripts/test_platform_publish.sh
 #   SMOKE_SKIP_LEGACY=1 ./scripts/test_platform_publish.sh
 
@@ -31,6 +33,36 @@ json_field() {
   python3 -c "import json,sys; print(json.load(sys.stdin)['${field}'])" <<<"${json}"
 }
 
+resolve_bearer_token() {
+  if [[ -n "${EDD_API_KEY:-}" ]]; then
+    printf '%s' "${EDD_API_KEY}"
+    return 0
+  fi
+  local platform_root="${EDD_PLATFORM_ROOT:-${LAB_ROOT}/../eval-driven-design-platform}"
+  if [[ -f "${platform_root}/api/pyproject.toml" ]]; then
+    local minted
+    minted="$(
+      cd "${platform_root}/api"
+      uv run python ../scripts/create_demo_jwt.py --tenant-id "${TENANT_ID}" --subject lab-smoke 2>/dev/null
+    )"
+    if [[ -n "${minted}" ]]; then
+      printf '%s' "${minted}"
+      return 0
+    fi
+  fi
+  local token_file="${EDD_TOKEN_FILE:-${TMPDIR:-/tmp}/edd-api.token}"
+  if [[ -f "${token_file}" ]]; then
+    tr -d '[:space:]' <"${token_file}"
+    return 0
+  fi
+}
+
+BEARER_TOKEN="$(resolve_bearer_token || true)"
+AUTH_MODE="none"
+if [[ -n "${BEARER_TOKEN}" ]]; then
+  AUTH_MODE="bearer"
+fi
+
 step "Check platform health at ${API_BASE}"
 health_code="$(curl -s -o /dev/null -w '%{http_code}' "${API_BASE}/v1/health")"
 [[ "${health_code}" == "200" ]] || fail "Platform not reachable (HTTP ${health_code}). Start API first."
@@ -43,9 +75,30 @@ preflight_code="$(curl -s -o /dev/null -w '%{http_code}' -X POST "${API_BASE}/v1
 if [[ "${preflight_code}" == "404" ]]; then
   fail "POST /v1/integrations/runs/publish returned 404 — restart platform API with current code."
 fi
+if [[ "${preflight_code}" == "401" ]]; then
+  if [[ -z "${BEARER_TOKEN}" ]]; then
+    BEARER_TOKEN="$(resolve_bearer_token || true)"
+  fi
+  if [[ -z "${BEARER_TOKEN}" ]]; then
+    fail "Platform requires auth. Set EDD_API_KEY or EDD_TOKEN_FILE (e.g. from ./scripts/local_e2e.sh)."
+  fi
+  AUTH_MODE="bearer"
+  preflight_code="$(curl -s -o /dev/null -w '%{http_code}' -X POST "${API_BASE}/v1/integrations/runs/publish" \
+    -H 'Content-Type: application/json' \
+    -H "Authorization: Bearer ${BEARER_TOKEN}" \
+    -d '{}')"
+  if [[ "${preflight_code}" == "401" ]]; then
+    BEARER_TOKEN="$(resolve_bearer_token || true)"
+    [[ -n "${BEARER_TOKEN}" ]] || fail "Bearer token rejected (expired?). Regenerate with platform create_demo_jwt.py"
+    preflight_code="$(curl -s -o /dev/null -w '%{http_code}' -X POST "${API_BASE}/v1/integrations/runs/publish" \
+      -H 'Content-Type: application/json' \
+      -H "Authorization: Bearer ${BEARER_TOKEN}" \
+      -d '{}')"
+  fi
+fi
 [[ "${preflight_code}" == "400" || "${preflight_code}" == "422" ]] \
   || fail "Unexpected preflight status for empty publish body: ${preflight_code}"
-pass "Run ingest endpoint reachable (HTTP ${preflight_code})"
+pass "Run ingest endpoint reachable (HTTP ${preflight_code}, auth=${AUTH_MODE})"
 
 step "Ensure lab CLI is installed (Python 3.12, non-editable uv sync)"
 if ! .venv/bin/python -c "import edd_agent_lab" 2>/dev/null; then
@@ -58,9 +111,16 @@ pass "Lab package import OK"
 [[ -f "${RUN_RECORD}" ]] || fail "Missing run record: ${RUN_RECORD}"
 
 step "Create platform EvalSpec for tenant ${TENANT_ID}"
-spec_json="$(curl -s -X POST "${API_BASE}/v1/eval-specs" \
-  -H 'Content-Type: application/json' \
-  -d "{\"tenant_id\":\"${TENANT_ID}\",\"name\":\"Lab publish smoke\",\"rubric\":\"Discovery quality\",\"pass_threshold\":70}")"
+if [[ -n "${BEARER_TOKEN}" ]]; then
+  spec_json="$(curl -s -X POST "${API_BASE}/v1/eval-specs" \
+    -H 'Content-Type: application/json' \
+    -H "Authorization: Bearer ${BEARER_TOKEN}" \
+    -d "{\"name\":\"Lab publish smoke\",\"rubric\":\"Discovery quality\",\"pass_threshold\":70}")"
+else
+  spec_json="$(curl -s -X POST "${API_BASE}/v1/eval-specs" \
+    -H 'Content-Type: application/json' \
+    -d "{\"tenant_id\":\"${TENANT_ID}\",\"name\":\"Lab publish smoke\",\"rubric\":\"Discovery quality\",\"pass_threshold\":70}")"
+fi
 spec_id="$(json_field "${spec_json}" eval_spec_id)"
 pass "EvalSpec created: ${spec_id}"
 
@@ -70,6 +130,7 @@ publish_output="$(
   EDD_API_BASE_URL="${API_BASE}" \
   EDD_TENANT_ID="${TENANT_ID}" \
   EDD_EVAL_SPEC_ID="${spec_id}" \
+  EDD_API_KEY="${BEARER_TOKEN}" \
   .venv/bin/edd-lab publish-run --agent "${AGENT}" --version "${VERSION}" 2>&1
 )"
 echo "${publish_output}"
@@ -79,10 +140,21 @@ platform_run_id="$(echo "${publish_output}" | awk '/Platform run id:/ {print $NF
 [[ -n "${platform_run_id}" ]] || fail "Could not parse platform_run_id from publish output"
 pass "Published run: ${platform_run_id}"
 
+if [[ -n "${BEARER_TOKEN}" ]]; then
+  PLATFORM_ROOT="${EDD_PLATFORM_ROOT:-${LAB_ROOT}/../eval-driven-design-platform}"
+  TENANT_B_TOKEN="$(
+    cd "${PLATFORM_ROOT}/api" && uv run python ../scripts/create_demo_jwt.py --tenant-id tenant-b --subject lab-smoke-b 2>/dev/null
+  )"
+else
+  TENANT_B_TOKEN=""
+fi
+
 step "Verify ingest metadata, filters, legacy alias, pass gate, tenant isolation"
 SMOKE_PLATFORM_RUN_ID="${platform_run_id}" \
 SMOKE_RUN_RECORD="${RUN_RECORD}" \
 SMOKE_SKIP_LEGACY="${SMOKE_SKIP_LEGACY:-}" \
+SMOKE_BEARER_TOKEN="${BEARER_TOKEN}" \
+SMOKE_TENANT_B_TOKEN="${TENANT_B_TOKEN}" \
 EDD_API_BASE_URL="${API_BASE}" \
 EDD_TENANT_ID="${TENANT_ID}" \
 EDD_EVAL_SPEC_ID="${spec_id}" \
@@ -104,6 +176,8 @@ spec_id = os.environ["EDD_EVAL_SPEC_ID"]
 platform_run_id = os.environ["SMOKE_PLATFORM_RUN_ID"]
 run_record_path = Path(os.environ["SMOKE_RUN_RECORD"])
 skip_legacy = os.environ.get("SMOKE_SKIP_LEGACY", "").strip().lower() in {"1", "true", "yes"}
+bearer_token = os.environ.get("SMOKE_BEARER_TOKEN", "").strip()
+tenant_b_token = os.environ.get("SMOKE_TENANT_B_TOKEN", "").strip()
 
 
 def fail(message: str) -> None:
@@ -111,10 +185,23 @@ def fail(message: str) -> None:
     sys.exit(1)
 
 
+def auth_headers() -> dict[str, str]:
+    if bearer_token:
+        return {"Authorization": f"Bearer {bearer_token}"}
+    return {}
+
+
+def tenant_params(*, tenant: str | None = None) -> dict[str, str]:
+    if bearer_token:
+        return {}
+    return {"tenant_id": tenant or tenant_id}
+
+
 def get_run(run_id: str, *, tenant: str | None = None) -> dict:
     response = httpx.get(
         f"{api}/v1/experiment-runs/{run_id}",
-        params={"tenant_id": tenant or tenant_id},
+        params=tenant_params(tenant=tenant),
+        headers=auth_headers(),
         timeout=10.0,
     )
     if response.status_code != 200:
@@ -140,7 +227,8 @@ print(f"ingest.gate_status={ingest['gate_status']}")
 # --- ingest_source list filter ---
 listed = httpx.get(
     f"{api}/v1/experiment-runs",
-    params={"tenant_id": tenant_id, "ingest_source": "edd-agent-lab", "limit": 50},
+    params={"ingest_source": "edd-agent-lab", "limit": 50, **tenant_params()},
+    headers=auth_headers(),
     timeout=10.0,
 )
 if listed.status_code != 200:
@@ -158,7 +246,12 @@ envelope["eval_spec_id"] = spec_id
 if envelope.get("eval_spec_id") != spec_id:
     fail("eval_spec_id missing from built envelope")
 
-response = httpx.post(f"{api}/v1/integrations/runs/publish", json=envelope, timeout=10.0)
+response = httpx.post(
+    f"{api}/v1/integrations/runs/publish",
+    json=envelope,
+    headers=auth_headers(),
+    timeout=10.0,
+)
 if response.status_code != 201:
     fail(f"publish failed: {response.status_code} {response.text}")
 body = response.json()
@@ -186,7 +279,12 @@ pass_envelope = {
     "outputs": {},
     "artifact_paths": {},
 }
-pass_response = httpx.post(f"{api}/v1/integrations/runs/publish", json=pass_envelope, timeout=10.0)
+pass_response = httpx.post(
+    f"{api}/v1/integrations/runs/publish",
+    json=pass_envelope,
+    headers=auth_headers(),
+    timeout=10.0,
+)
 if pass_response.status_code != 201:
     fail(f"pass-gate publish failed: {pass_response.status_code} {pass_response.text}")
 pass_body = pass_response.json()
@@ -200,7 +298,8 @@ print(f"pass gate run={pass_body['platform_run_id']}")
 # --- unified gate API ---
 fail_gate = httpx.get(
     f"{api}/v1/experiment-runs/{platform_run_id}/gate",
-    params={"tenant_id": tenant_id},
+    params=tenant_params(),
+    headers=auth_headers(),
     timeout=10.0,
 )
 if fail_gate.status_code != 200:
@@ -213,7 +312,8 @@ if fail_gate_body.get("gate_status") != "fail":
 
 pass_gate = httpx.get(
     f"{api}/v1/experiment-runs/{pass_body['platform_run_id']}/gate",
-    params={"tenant_id": tenant_id},
+    params=tenant_params(),
+    headers=auth_headers(),
     timeout=10.0,
 )
 if pass_gate.status_code != 200:
@@ -232,6 +332,7 @@ if not skip_legacy:
     legacy_response = httpx.post(
         f"{api}/v1/integrations/lab/publish",
         json=legacy_envelope,
+        headers=auth_headers(),
         timeout=10.0,
     )
     if legacy_response.status_code != 201:
@@ -244,14 +345,26 @@ if not skip_legacy:
     print(f"legacy alias ok run_id={legacy_run_id}")
 
 # --- tenant isolation ---
-cross_tenant = httpx.get(
-    f"{api}/v1/experiment-runs/{platform_run_id}",
-    params={"tenant_id": "tenant-b"},
-    timeout=10.0,
-)
-if cross_tenant.status_code != 404:
-    fail(f"expected 404 for cross-tenant GET, got {cross_tenant.status_code}")
-print("tenant isolation ok")
+if bearer_token and tenant_b_token:
+    cross_tenant = httpx.get(
+        f"{api}/v1/experiment-runs/{platform_run_id}",
+        headers={"Authorization": f"Bearer {tenant_b_token}"},
+        timeout=10.0,
+    )
+elif bearer_token:
+    print("tenant isolation skipped (could not mint tenant-b token)")
+    cross_tenant = None
+else:
+    cross_tenant = httpx.get(
+        f"{api}/v1/experiment-runs/{platform_run_id}",
+        params={"tenant_id": "tenant-b"},
+        headers=auth_headers(),
+        timeout=10.0,
+    )
+if cross_tenant is not None:
+    if cross_tenant.status_code != 404:
+        fail(f"expected 404 for cross-tenant GET, got {cross_tenant.status_code}")
+    print("tenant isolation ok")
 PY
 pass "Ingest metadata, filters, pass gate, legacy alias, tenant isolation OK"
 

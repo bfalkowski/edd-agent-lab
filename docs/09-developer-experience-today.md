@@ -181,8 +181,8 @@ Local shims today; remote MCP server optional via `EDD_MCP_SERVER_URL`.
 ## Friction points (honest)
 
 1. **Two consoles, two mental models** — `:8502` chat comparison vs `:8501` experiment workflow.
-2. **Publish dead end** — lab queues envelopes; platform has no `/v1/integrations/lab/publish` yet.
-3. **CLI vs console split** — eval suites and promotion gates are CLI-only; console is chat + turn scoring only.
+2. **Auth wiring for publish** — `local_e2e.sh` enables platform auth; lab publish needs `EDD_API_KEY` unless the smoke script auto-mints a JWT.
+3. **Console vs CLI for promotion** — lab console has eval suite + publish panel, but durable registry and gates live on platform `:8501`.
 4. **Mock vs live confusion** — easy to demo in mock and think behavior is “real.”
 5. **Turn eval is heuristic** — pattern checks unless LLM judge is wired for that path.
 6. **No in-console agent editing** — code changes still happen in IDE + terminal rerun.
@@ -195,7 +195,7 @@ Local shims today; remote MCP server optional via `EDD_MCP_SERVER_URL`.
 - Clear **v0 / v1 / v3** graph story and local eval suites
 - **Deterministic CI** with mock generation
 - **Side-by-side chat** with session persistence and rollup scores
-- **Publish envelope contract** ready for platform ingest
+- **Publish envelope contract** and live HTTP ingest to platform (`POST /v1/integrations/runs/publish`)
 - **Overfitting suite** to catch brittle “fixes”
 
 ---
