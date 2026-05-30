@@ -62,6 +62,26 @@
   "eval_summary": {
     "overall_score": 0.91
   },
+  "trace_links": [
+    {
+      "id": "trace-link-v1-001",
+      "provider": "langfuse",
+      "external_trace_id": "trace_v1_def456",
+      "external_url": "http://localhost:3000/project/example/traces/trace_v1_def456",
+      "scenario_id": "escalation-latency-quality-regression-001",
+      "agent_version_id": "v1-evidence-triage-graph",
+      "metadata": {
+        "platform_run_id": "run_v1_001",
+        "platform_agent_id": "customer-escalation-triage-agent",
+        "platform_agent_version": "v1-evidence-triage-graph",
+        "platform_target_id": "customer-escalation-triage-target-v1",
+        "platform_eval_contract_id": "customer-escalation-triage-eval-contract-v1",
+        "scenario_id": "escalation-latency-quality-regression-001",
+        "tool_mode": "mock_local",
+        "environment": "local_demo"
+      }
+    }
+  ],
   "failure_packet": null,
   "outputs": {},
   "artifact_paths": {}

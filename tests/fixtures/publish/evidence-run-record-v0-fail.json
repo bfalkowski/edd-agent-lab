@@ -11,6 +11,16 @@
     "severity": "critical",
     "summary": "v0 did not separate facts from hypotheses."
   },
+  "trace_links": [
+    {
+      "id": "trace-link-v0-001",
+      "provider": "langfuse",
+      "external_trace_id": "trace_v0_abc123",
+      "external_url": "http://localhost:3000/project/example/traces/trace_v0_abc123",
+      "scenario_id": "escalation-latency-quality-regression-001",
+      "agent_version_id": "v0-baseline"
+    }
+  ],
   "artifact_paths": {},
   "outputs": {}
 }

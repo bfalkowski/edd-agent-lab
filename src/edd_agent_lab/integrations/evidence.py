@@ -54,6 +54,30 @@ def resolve_evidence_from_run_record(run_record: dict[str, Any]) -> dict[str, An
     return resolved
 
 
+def extract_trace_links(document: dict[str, Any]) -> list[dict[str, Any]] | None:
+    links = document.get("trace_links")
+    if isinstance(links, list):
+        return [dict(item) for item in links if isinstance(item, dict)]
+    single = document.get("trace_link")
+    if isinstance(single, dict):
+        return [dict(single)]
+    return None
+
+
+def resolve_trace_links_from_run_record(run_record: dict[str, Any]) -> list[dict[str, Any]]:
+    inline = run_record.get("trace_links")
+    if isinstance(inline, list):
+        return [dict(item) for item in inline if isinstance(item, dict)]
+
+    artifact_paths = run_record.get("artifact_paths") or {}
+    artifact_ref = artifact_paths.get("trace_links")
+    if not artifact_ref:
+        return []
+
+    document = load_evidence_document(artifact_ref)
+    return extract_trace_links(document) or []
+
+
 def attach_evidence_to_envelope(
     envelope: dict[str, Any],
     run_record: dict[str, Any],
@@ -61,4 +85,8 @@ def attach_evidence_to_envelope(
     """Attach structured evidence sections to a publish envelope."""
     for field, value in resolve_evidence_from_run_record(run_record).items():
         envelope[field] = value
+
+    trace_links = resolve_trace_links_from_run_record(run_record)
+    if trace_links:
+        envelope["trace_links"] = trace_links
     return envelope
