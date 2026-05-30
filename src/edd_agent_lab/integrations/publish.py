@@ -5,6 +5,8 @@ from __future__ import annotations
 import os
 from typing import Any
 
+from edd_agent_lab.integrations.evidence import attach_evidence_to_envelope
+
 PUBLISH_SCHEMA_VERSION = "1"
 PUBLISH_SCHEMA_VERSION_V2 = "2"
 
@@ -48,7 +50,7 @@ def _build_v1_envelope(run_record: dict[str, Any]) -> dict[str, Any]:
         envelope["tool_bindings"] = run_record["tool_bindings"]
     if run_record.get("idempotency_key"):
         envelope["idempotency_key"] = run_record["idempotency_key"]
-    return envelope
+    return attach_evidence_to_envelope(envelope, run_record)
 
 
 def _build_v2_envelope(run_record: dict[str, Any]) -> dict[str, Any]:
@@ -128,4 +130,4 @@ def _build_v2_envelope(run_record: dict[str, Any]) -> dict[str, Any]:
     eval_spec_id = run_record.get("eval_spec_id") or os.environ.get("EDD_EVAL_SPEC_ID")
     if eval_spec_id:
         envelope["eval_spec_id"] = eval_spec_id
-    return envelope
+    return attach_evidence_to_envelope(envelope, run_record)

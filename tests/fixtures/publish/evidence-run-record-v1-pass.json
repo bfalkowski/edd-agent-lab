@@ -1,0 +1,38 @@
+{
+  "run_id": "fixture-evidence-v1-pass",
+  "publish_schema_version": "2",
+  "agent": {
+    "id": "customer-escalation-triage-agent",
+    "name": "Customer Escalation Triage Agent"
+  },
+  "agent_version": {
+    "id": "v1-evidence-triage-graph",
+    "version_label": "v1-evidence-triage-graph"
+  },
+  "suite": "escalation_triage",
+  "scenario_ids": ["escalation-latency-quality-regression-001"],
+  "eval_summary": {"overall_score": 0.91},
+  "tool_context": {
+    "tool_mode_summary": "mock_local",
+    "production_ready": false
+  },
+  "fix_plan": {
+    "id": "fix-v1-evidence-first-triage",
+    "source_version": "v0-baseline",
+    "target_version": "v1-evidence-triage-graph",
+    "failed_rules_addressed": ["separate_facts_from_hypotheses"]
+  },
+  "comparison": {
+    "id": "compare-v0-v1-escalation-triage",
+    "baseline_version_id": "v0-baseline",
+    "candidate_version_id": "v1-evidence-triage-graph",
+    "resolved_failures": ["fp-v0-unsupported-root-cause"]
+  },
+  "gate_result": {
+    "agent_version_id": "v1-evidence-triage-graph",
+    "comparison_id": "compare-v0-v1-escalation-triage",
+    "overall_status": "pass_for_demo_not_production"
+  },
+  "outputs": {},
+  "artifact_paths": {}
+}

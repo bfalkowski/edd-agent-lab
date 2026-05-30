@@ -33,22 +33,10 @@ json_field() {
   python3 -c "import json,sys; print(json.load(sys.stdin)['${field}'])" <<<"${json}"
 }
 
-resolve_bearer_token() {
+resolve_bearer_token_explicit() {
   if [[ -n "${EDD_API_KEY:-}" ]]; then
     printf '%s' "${EDD_API_KEY}"
     return 0
-  fi
-  local platform_root="${EDD_PLATFORM_ROOT:-${LAB_ROOT}/../eval-driven-design-platform}"
-  if [[ -f "${platform_root}/api/pyproject.toml" ]]; then
-    local minted
-    minted="$(
-      cd "${platform_root}/api"
-      uv run python ../scripts/create_demo_jwt.py --tenant-id "${TENANT_ID}" --subject lab-smoke 2>/dev/null
-    )"
-    if [[ -n "${minted}" ]]; then
-      printf '%s' "${minted}"
-      return 0
-    fi
   fi
   local token_file="${EDD_TOKEN_FILE:-${TMPDIR:-/tmp}/edd-api.token}"
   if [[ -f "${token_file}" ]]; then
@@ -57,11 +45,22 @@ resolve_bearer_token() {
   fi
 }
 
-BEARER_TOKEN="$(resolve_bearer_token || true)"
+mint_demo_bearer_token() {
+  local platform_root="${EDD_PLATFORM_ROOT:-${LAB_ROOT}/../eval-driven-design-platform}"
+  if [[ -f "${platform_root}/api/pyproject.toml" ]]; then
+    (
+      cd "${platform_root}/api"
+      uv run python ../scripts/create_demo_jwt.py --tenant-id "${TENANT_ID}" --subject lab-smoke 2>/dev/null
+    )
+  fi
+}
+
+resolve_bearer_token() {
+  resolve_bearer_token_explicit || mint_demo_bearer_token || true
+}
+
+BEARER_TOKEN="$(resolve_bearer_token_explicit || true)"
 AUTH_MODE="none"
-if [[ -n "${BEARER_TOKEN}" ]]; then
-  AUTH_MODE="bearer"
-fi
 
 step "Check platform health at ${API_BASE}"
 health_code="$(curl -s -o /dev/null -w '%{http_code}' "${API_BASE}/v1/health")"
@@ -69,6 +68,7 @@ health_code="$(curl -s -o /dev/null -w '%{http_code}' "${API_BASE}/v1/health")"
 pass "Platform health OK"
 
 step "Preflight: generic run ingest endpoint is registered"
+AUTH_REQUIRED="false"
 preflight_code="$(curl -s -o /dev/null -w '%{http_code}' -X POST "${API_BASE}/v1/integrations/runs/publish" \
   -H 'Content-Type: application/json' \
   -d '{}')"
@@ -76,6 +76,7 @@ if [[ "${preflight_code}" == "404" ]]; then
   fail "POST /v1/integrations/runs/publish returned 404 — restart platform API with current code."
 fi
 if [[ "${preflight_code}" == "401" ]]; then
+  AUTH_REQUIRED="true"
   if [[ -z "${BEARER_TOKEN}" ]]; then
     BEARER_TOKEN="$(resolve_bearer_token || true)"
   fi
@@ -96,6 +97,11 @@ if [[ "${preflight_code}" == "401" ]]; then
       -d '{}')"
   fi
 fi
+# When auth is disabled, ignore stray bearer tokens so tenant_id query/body params are sent.
+if [[ "${AUTH_REQUIRED}" != "true" ]]; then
+  BEARER_TOKEN=""
+  AUTH_MODE="none"
+fi
 [[ "${preflight_code}" == "400" || "${preflight_code}" == "422" ]] \
   || fail "Unexpected preflight status for empty publish body: ${preflight_code}"
 pass "Run ingest endpoint reachable (HTTP ${preflight_code}, auth=${AUTH_MODE})"
@@ -111,17 +117,20 @@ pass "Lab package import OK"
 [[ -f "${RUN_RECORD}" ]] || fail "Missing run record: ${RUN_RECORD}"
 
 step "Create platform EvalSpec for tenant ${TENANT_ID}"
+spec_payload="{\"tenant_id\":\"${TENANT_ID}\",\"name\":\"Lab publish smoke\",\"rubric\":\"Discovery quality\",\"pass_threshold\":70}"
 if [[ -n "${BEARER_TOKEN}" ]]; then
   spec_json="$(curl -s -X POST "${API_BASE}/v1/eval-specs" \
     -H 'Content-Type: application/json' \
     -H "Authorization: Bearer ${BEARER_TOKEN}" \
-    -d "{\"name\":\"Lab publish smoke\",\"rubric\":\"Discovery quality\",\"pass_threshold\":70}")"
+    -d "${spec_payload}")"
 else
   spec_json="$(curl -s -X POST "${API_BASE}/v1/eval-specs" \
     -H 'Content-Type: application/json' \
-    -d "{\"tenant_id\":\"${TENANT_ID}\",\"name\":\"Lab publish smoke\",\"rubric\":\"Discovery quality\",\"pass_threshold\":70}")"
+    -d "${spec_payload}")"
 fi
-spec_id="$(json_field "${spec_json}" eval_spec_id)"
+if ! spec_id="$(json_field "${spec_json}" eval_spec_id 2>/dev/null)"; then
+  fail "EvalSpec create failed: ${spec_json}"
+fi
 pass "EvalSpec created: ${spec_id}"
 
 step "Publish lab run-record via edd-lab (${AGENT} ${VERSION})"
@@ -294,6 +303,66 @@ pass_run = get_run(str(pass_body["platform_run_id"]))
 if pass_run.get("status") != "completed":
     fail(f"expected completed status for pass gate run, got {pass_run.get('status')!r}")
 print(f"pass gate run={pass_body['platform_run_id']}")
+
+# --- structured failure evidence (reference scenario) ---
+platform_root = Path(os.environ.get("EDD_PLATFORM_ROOT", "")).expanduser()
+failure_yaml = platform_root / "examples" / "customer_escalation_triage" / "failure-packet-v0.yaml"
+if failure_yaml.is_file():
+    import yaml
+
+    failure_doc = yaml.safe_load(failure_yaml.read_text(encoding="utf-8"))
+    evidence_run_id = f"smoke-evidence-fail-{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}"
+    evidence_envelope = {
+        "schema_version": PUBLISH_SCHEMA_VERSION,
+        "source": "edd-agent-lab",
+        "run_id": evidence_run_id,
+        "tenant_id": tenant_id,
+        "agent": "customer_escalation_triage",
+        "agent_version": "v0-baseline",
+        "suite": "escalation_triage",
+        "eval_spec_id": spec_id,
+        "scenario_ids": ["escalation-latency-quality-regression-001"],
+        "eval_summary": {"overall_score": 0.95},
+        "failure_packet": failure_doc["failure_packet"],
+        "outputs": {},
+        "artifact_paths": {},
+    }
+    evidence_publish = httpx.post(
+        f"{api}/v1/integrations/runs/publish",
+        json=evidence_envelope,
+        headers=auth_headers(),
+        timeout=10.0,
+    )
+    if evidence_publish.status_code != 201:
+        fail(f"structured failure publish failed: {evidence_publish.status_code} {evidence_publish.text}")
+    evidence_body = evidence_publish.json()
+    if evidence_body.get("gate_status") != "fail":
+        fail(f"expected fail gate for structured failure, got {evidence_body.get('gate_status')!r}")
+    gate_explanation = str(evidence_body.get("gate_explanation") or "")
+    if "separate_facts_from_hypotheses" not in gate_explanation:
+        fail("gate_explanation missing failed behavior rule separate_facts_from_hypotheses")
+
+    evidence_run_id_platform = str(evidence_body["platform_run_id"])
+    evidence_get = httpx.get(
+        f"{api}/v1/experiment-runs/{evidence_run_id_platform}/evidence",
+        params=tenant_params(),
+        headers=auth_headers(),
+        timeout=10.0,
+    )
+    if evidence_get.status_code != 200:
+        fail(f"GET evidence failed: {evidence_get.status_code} {evidence_get.text}")
+    evidence_payload = evidence_get.json()
+    failure_packet = evidence_payload.get("failure_packet") or {}
+    if failure_packet.get("id") != "fp-v0-unsupported-root-cause":
+        fail(f"unexpected failure_packet.id: {failure_packet.get('id')!r}")
+    if failure_packet.get("failed_behavior_rule_id") != "separate_facts_from_hypotheses":
+        fail(
+            "unexpected failed_behavior_rule_id: "
+            f"{failure_packet.get('failed_behavior_rule_id')!r}"
+        )
+    print(f"structured failure evidence ok run={evidence_run_id_platform}")
+else:
+    print(f"structured failure evidence skipped (missing {failure_yaml})")
 
 # --- unified gate API ---
 fail_gate = httpx.get(

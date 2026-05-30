@@ -1,0 +1,16 @@
+{
+  "run_id": "fixture-evidence-v0-fail",
+  "agent": "customer_escalation_triage",
+  "agent_version": "v0-baseline",
+  "suite": "escalation_triage",
+  "scenario_ids": ["escalation-latency-quality-regression-001"],
+  "eval_summary": {"overall_score": 0.95},
+  "failure_packet": {
+    "id": "fp-v0-unsupported-root-cause",
+    "failed_rule": "separate_facts_from_hypotheses",
+    "severity": "critical",
+    "summary": "v0 did not separate facts from hypotheses."
+  },
+  "artifact_paths": {},
+  "outputs": {}
+}
