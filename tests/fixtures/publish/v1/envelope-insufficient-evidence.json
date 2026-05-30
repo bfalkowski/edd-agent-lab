@@ -1,0 +1,16 @@
+{
+  "schema_version": "1",
+  "source": "edd-agent-lab",
+  "run_id": "contract-fixture-insufficient",
+  "agent": "customer_solution_agent",
+  "agent_version": "v1-discovery-graph",
+  "suite": "discovery_quality",
+  "tenant_id": "tenant-a",
+  "scenario_ids": ["healthcare_documentation"],
+  "started_at": "2026-05-29T13-29-10Z",
+  "completed_at": "2026-05-29T13-29-10Z",
+  "eval_summary": null,
+  "failure_packet": null,
+  "outputs": {},
+  "artifact_paths": {}
+}
