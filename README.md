@@ -4,115 +4,111 @@ Local agent workshop for the Evaluation-Driven Design stack.
 
 This repo is the runnable companion to
 [eval-driven-design-platform](https://github.com/bfalkowski/eval-driven-design-platform).
-The lab owns local LangGraph agents, mock tools, run artifacts, eval runs, and the
-developer workbench on `:8502`. The platform repo owns canonical design intent,
-workflow state, gates, promotion, and the eventual Langfuse integration.
+The lab owns local agent drafts, deterministic runs, mock tools, eval evidence,
+and publishable artifacts. The platform repo owns canonical workflow state,
+gates, promotion, and the Langfuse integration boundary.
 
 ```text
 edd-agent-lab  ->  eval-driven-design-platform  ->  Langfuse
 ```
 
-The dependency direction is intentional. The lab publishes evidence to the platform;
-it should not import platform code or send traces directly to Langfuse.
+The dependency direction is intentional: the lab publishes evidence to the
+platform; it does not import platform code or send traces directly to Langfuse.
 
 ```mermaid
 flowchart LR
-    Lab["edd-agent-lab<br/>local agents, mock tools, eval artifacts"]
-    Platform["eval-driven-design-platform<br/>targets, rules, gates, promotion"]
+    Lab["edd-agent-lab<br/>local drafts, mock tools, eval artifacts"]
+    Platform["eval-driven-design-platform<br/>targets, gates, promotion"]
     Langfuse["Langfuse<br/>traces and observability"]
 
     Lab -->|"publish run evidence"| Platform
-    Platform -->|"emit / link traces"| Langfuse
+    Platform -->|"emit or link traces"| Langfuse
 ```
 
-## Status
+## What This App Does
 
-**Project status:** active prototype / workshop repo.
+EDD Agent Lab helps turn an agent idea into local EDD artifacts:
 
-Current emphasis:
+- draft target
+- behavior rules
+- eval contract
+- information and tool requirements
+- graph design
+- scenario
+- v0 and v1 runs
+- eval summaries
+- comparison evidence
 
-- local agent creation drafts in the lab console
-- Customer Escalation Triage reference scenario
-- v0/v1 comparison and local eval evidence
-- platform publish seam via `POST /v1/integrations/runs/publish`
-
-Not production-ready:
-
-- greenfield agent creation is local YAML only
-- draft agents do not save to platform Postgres yet
-- generated tool bindings are placeholders until reviewed
-- live model generation is optional and disabled in CI by default
-
-## Repo Roles
-
-| Repo / system | Owns |
-|---|---|
-| `edd-agent-lab` | Agent code, local scenarios, mock tools, eval suites, local run artifacts, `:8502` workbench |
-| `eval-driven-design-platform` | Agent targets, behavior rules, eval contracts, gates, comparisons, promotion, readiness, platform API, `:8501` console |
-| Langfuse | Trace and observability backend, integrated through the platform |
-
-## What You Can Do Here
-
-- Create a local draft agent target from a name and description.
-- Scaffold draft EDD artifacts: behavior rules, eval contract, information requirements, tool requirements, and graph design.
-- Add a first local test scenario and run a deterministic `v0-baseline`.
-- Run the Customer Escalation Triage reference demo: v0 overclaims root cause, v1 checks evidence.
-- Run local eval suites and write artifacts under `lab-runs/`.
-- Publish local run records to the platform API when configured.
+The local builder stores draft artifacts under `lab-runs/<agent_key>/draft/`.
+Those files are reviewable and editable in the app.
 
 ```mermaid
 flowchart LR
     Idea["Agent idea"]
     Target["Draft target"]
-    Design["Rules / eval / requirements / graph"]
-    V0["Run v0"]
-    Evidence["Local evidence"]
+    Design["Rules, eval contract, requirements, graph"]
+    Scenario["Local scenario"]
+    Runs["v0 / v1 runs"]
+    Eval["Eval evidence"]
     Publish["Publish to platform"]
 
-    Idea --> Target --> Design --> V0 --> Evidence --> Publish
+    Idea --> Target --> Design --> Scenario --> Runs --> Eval --> Publish
 ```
 
-## Quick Start
+## Run The Builder
+
+Install Python dependencies:
 
 ```bash
-cd edd-agent-lab
 uv venv --python 3.12
-uv sync --extra dev --extra agent --extra platform --extra ui
-source .venv/bin/activate
-
-edd-lab --help
-edd-lab console
+uv sync --extra dev --extra agent --extra platform --extra web
 ```
 
-Open the lab console:
+Install the React builder dependencies:
+
+```bash
+cd web/agent-builder
+npm install
+```
+
+Start the local API:
+
+```bash
+uv run --extra web uvicorn edd_agent_lab.api.builder:app --host 127.0.0.1 --port 8002
+```
+
+Start the React builder:
+
+```bash
+cd web/agent-builder
+npm run dev
+```
+
+Open:
 
 ```text
-http://localhost:8502
+http://localhost:5173
 ```
 
-The platform console, when running from the companion repo, is usually:
+The API runs at `http://127.0.0.1:8002`.
 
-```text
-http://localhost:8501
-```
+## Builder Workflow
 
-## Lab Console (`:8502`)
+1. Click `New agent`.
+2. Enter an agent name and purpose.
+3. Create the draft.
+4. Select the draft from the project list.
+5. Work through the steps in order.
+6. Review or edit generated artifacts from each step.
+7. Delete non-target artifacts when a step should be regenerated.
+8. Compare versions and publish evidence when the platform is configured.
 
-The lab console has two primary modes.
+Draft projects can be deleted from the left project list. Deleting a project
+removes its local `lab-runs/<agent_key>/` workspace.
 
-### Start New Agent
+## Local Artifacts
 
-Use this for a local greenfield draft.
-
-Current flow:
-
-1. Enter agent name and purpose.
-2. Save `agent-target.yaml` under `lab-runs/<agent_key>/draft/`.
-3. Scaffold draft design artifacts.
-4. Enter a first local test scenario.
-5. Run deterministic `v0-baseline`.
-
-Generated local files:
+A draft workspace contains files like:
 
 ```text
 lab-runs/<agent_key>/draft/
@@ -124,31 +120,25 @@ lab-runs/<agent_key>/draft/
   graph-design.yaml
   scenario.yaml
   v0-run.yaml
-  run-record.json
+  eval-summary.yaml
+  failure-packet.yaml
+  fix-plan.yaml
+  graph-design-v1.yaml
+  v1-run.yaml
+  eval-summary-v1.yaml
+  comparison.yaml
 ```
 
-These drafts are local artifacts. They do not write to platform Postgres yet.
+These are local draft artifacts. Platform persistence happens through the
+publish integration, not by importing platform code.
 
-### Reference Demo
+## CLI Examples
 
-Use this for the canonical side-by-side workbench from
-[docs/12-lab-console-design.md](docs/12-lab-console-design.md).
-
-Reference scenario:
-
-- Agent: Customer Escalation Triage
-- Scenario: Apex Health latency and quality regression
-- `v0-baseline`: guesses and overclaims root cause
-- `v1-evidence-triage-graph`: separates facts, hypotheses, and unknowns
-- Outcome: behavior passes for demo; production readiness is blocked by mock/local tools
-
-Run from CLI:
+Run the reference scenario:
 
 ```bash
 edd-lab demo-escalation
 ```
-
-## CLI Examples
 
 List and run existing scenarios:
 
@@ -179,7 +169,8 @@ edd-lab publish-run \
 
 ## Platform Integration
 
-The lab works standalone by default. To publish to the platform, configure `.env`:
+The lab works standalone by default. To publish run evidence to the platform,
+configure `.env`:
 
 ```bash
 cp .env.example .env
@@ -195,13 +186,7 @@ EDD_EVAL_SPEC_ID=<platform eval spec uuid>
 EDD_API_KEY=<jwt when platform auth is enabled>
 ```
 
-Then run:
-
-```bash
-edd-lab publish-run --agent customer-solution --version v1-discovery-graph
-```
-
-End-to-end publish smoke test:
+Publish smoke test:
 
 ```bash
 ./scripts/test_platform_publish.sh
@@ -213,51 +198,60 @@ End-to-end publish smoke test:
 edd-agent-lab/
   src/edd_agent_lab/
     agents/          # LangGraph agents and runners
+    api/             # local builder API
     cli/             # edd-lab CLI
     evals/           # eval execution and scoring helpers
-    integrations/    # platform publish seam and clients
+    integrations/    # platform publish client
     scenarios/       # scenario loading helpers
-    ui/              # Streamlit lab console
+    ui/              # local workspace store and legacy UI helpers
+  web/agent-builder/ # React builder
   scenarios/         # YAML scenario definitions
   evals/             # YAML eval suites
-  lab-runs/          # local generated run artifacts
-  docs/              # local docs and workbench specs
+  lab-runs/          # local generated draft and run artifacts
+  docs/              # design notes and integration docs
   tests/             # pytest
   scripts/           # helper scripts
 ```
 
 ## Development
 
-Run focused tests:
+Run tests and lint:
 
 ```bash
 uv run pytest
 uv run ruff check .
 ```
 
-CI and tests must pass without model-provider credentials. Live LLM generation is
-opt-in only:
+Build the React builder:
+
+```bash
+cd web/agent-builder
+npm run build
+```
+
+CI and local tests must pass without model-provider credentials. Live model
+generation is opt-in:
 
 ```bash
 OPENAI_API_KEY=...
 AGENT_GENERATION_MODE=live
 ```
 
-Default test behavior uses mock generation.
+Default behavior uses deterministic mock generation.
 
 ## Key Docs
 
+- [Platform integration](docs/05-platform-integration.md)
+- [Live generation](docs/08-live-agent-generation.md)
 - [Current developer experience](docs/09-developer-experience-today.md)
 - [Ideal developer experience](docs/10-ideal-developer-experience.md)
 - [Lab console design](docs/12-lab-console-design.md)
-- [Platform integration](docs/05-platform-integration.md)
-- [Live generation](docs/08-live-agent-generation.md)
+- [React builder pivot](docs/14-react-builder-pivot.md)
 - [Platform HLD-005 reference scenario](https://github.com/bfalkowski/eval-driven-design-platform/blob/main/docs/hld/HLD-005-reference-scenario-customer-escalation-triage.md)
-- [Platform HLD-011 console IA](https://github.com/bfalkowski/eval-driven-design-platform/blob/main/docs/hld/HLD-011-console-information-architecture.md)
 
 ## Design Principles
 
-1. Define what good behavior means before accepting agent changes.
+1. Define good behavior before accepting agent changes.
 2. Keep local drafts and platform-canonical workflow state separate.
 3. Make tool mode visible; mock/local tools do not imply production readiness.
 4. Prefer deterministic local tests and mock tools unless live mode is explicit.

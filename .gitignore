@@ -9,10 +9,13 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+node_modules/
+*.tsbuildinfo
 .DS_Store
 .idea/
 .vscode/
 lab-runs/_platform_publish_queue/
+lab-runs/*/draft/
 **/_test_publish_queue/
 lab-runs/customer_solution_agent/console-sessions/
 lab-runs/**/run-20*.json

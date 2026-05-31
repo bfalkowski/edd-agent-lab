@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -806,6 +807,45 @@ def load_draft_artifacts(agent_key: str) -> dict[str, dict[str, Any]]:
         if isinstance(data, dict):
             artifacts[artifact_key] = data
     return artifacts
+
+
+def load_draft_artifact_sources(agent_key: str) -> dict[str, str]:
+    workspace = draft_workspace_dir(agent_key)
+    sources: dict[str, str] = {}
+    for artifact_key, filename in DRAFT_ARTIFACT_FILES.items():
+        path = workspace / filename
+        if path.is_file():
+            sources[artifact_key] = path.read_text(encoding="utf-8")
+    return sources
+
+
+def save_draft_artifact_source(*, agent_key: str, artifact_key: str, source: str) -> None:
+    if artifact_key not in DRAFT_ARTIFACT_FILES:
+        raise KeyError(f"Unknown artifact: {artifact_key}")
+    data = yaml.safe_load(source)
+    if not isinstance(data, dict):
+        raise ValueError("Artifact YAML must be a mapping.")
+    path = draft_workspace_dir(agent_key) / DRAFT_ARTIFACT_FILES[artifact_key]
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+
+
+def delete_draft_artifact(*, agent_key: str, artifact_key: str) -> None:
+    if artifact_key == "target":
+        raise ValueError("Target cannot be deleted from the draft workflow.")
+    if artifact_key not in DRAFT_ARTIFACT_FILES:
+        raise KeyError(f"Unknown artifact: {artifact_key}")
+    path = draft_workspace_dir(agent_key) / DRAFT_ARTIFACT_FILES[artifact_key]
+    if path.is_file():
+        path.unlink()
+
+
+def delete_draft_workspace(agent_key: str) -> None:
+    workspace = draft_workspace_dir(agent_key)
+    root = workspace.parent
+    if not workspace.is_dir():
+        raise FileNotFoundError(f"Draft workspace not found for agent: {agent_key}")
+    shutil.rmtree(root)
 
 
 def list_draft_workspaces() -> list[DraftWorkspace]:

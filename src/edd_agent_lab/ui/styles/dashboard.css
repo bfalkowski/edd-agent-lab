@@ -7,7 +7,7 @@
 }
 
 .block-container {
-  padding-top: 1.1rem;
+  padding-top: 0.75rem;
   padding-bottom: 4rem;
   max-width: 1440px;
 }
@@ -158,7 +158,7 @@ label {
   align-items: baseline;
   gap: 0.7rem;
   color: #0d0d0d;
-  padding: 0.1rem 0 0.35rem 0;
+  padding: 0 0 0.15rem 0;
 }
 
 .edd-top-mode-label span:first-child {
@@ -173,8 +173,8 @@ label {
 
 .edd-builder-header {
   border-bottom: 1px solid rgba(148, 163, 184, 0.14);
-  margin-bottom: 0.85rem;
-  padding: 0.25rem 0 0.85rem 0;
+  margin-bottom: 0.65rem;
+  padding: 0.15rem 0 0.65rem 0;
 }
 
 .edd-builder-kicker {
@@ -188,17 +188,17 @@ label {
 
 .edd-builder-title {
   color: #f0f6fc;
-  font-size: 1.55rem;
+  font-size: 1.25rem;
   font-weight: 780;
   line-height: 1.18;
 }
 
 .edd-builder-subtitle {
   color: #8b949e;
-  font-size: 0.92rem;
+  font-size: 0.86rem;
   line-height: 1.4;
   max-width: 820px;
-  margin-top: 0.35rem;
+  margin-top: 0.25rem;
 }
 
 .edd-workbench-rail-card {
@@ -249,6 +249,44 @@ label {
   line-height: 1.35;
   overflow-wrap: anywhere;
   margin-bottom: 0.85rem;
+}
+
+.edd-workflow-list {
+  border: 1px solid #ececec;
+  border-radius: 12px;
+  padding: 0.75rem;
+  margin-top: 0.85rem;
+}
+
+.edd-workflow-row {
+  align-items: center;
+  border-bottom: 1px solid #f0f0f0;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.55rem 0;
+}
+
+.edd-workflow-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.edd-workflow-row span {
+  color: #0d0d0d;
+  font-size: 0.86rem;
+  font-weight: 560;
+}
+
+.edd-workflow-row strong {
+  color: #6b7280;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.edd-workflow-row-complete strong {
+  color: #15803d;
 }
 
 .edd-draft-header {
@@ -415,6 +453,84 @@ label {
   line-height: 1.5;
   margin-top: 0.85rem;
   overflow-wrap: anywhere;
+}
+
+.edd-artifact-list {
+  border: 1px solid #ececec;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.edd-artifact-row {
+  align-items: center;
+  border-bottom: 1px solid #ececec;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(180px, 1fr) minmax(180px, 0.8fr) auto;
+  padding: 0.85rem 1rem;
+}
+
+.edd-artifact-row:last-child {
+  border-bottom: 0;
+}
+
+.edd-artifact-title {
+  color: #0d0d0d;
+  font-size: 0.95rem;
+  font-weight: 720;
+}
+
+.edd-artifact-meta {
+  color: #6b7280;
+  font-size: 0.82rem;
+  margin-top: 0.2rem;
+}
+
+.edd-artifact-row code {
+  background: #f7f7f8;
+  border: 1px solid #ececec;
+  border-radius: 8px;
+  color: #374151;
+  font-size: 0.78rem;
+  padding: 0.25rem 0.45rem;
+  overflow-wrap: anywhere;
+}
+
+.edd-light-table {
+  border: 1px solid #ececec;
+  border-collapse: separate;
+  border-radius: 12px;
+  border-spacing: 0;
+  color: #0d0d0d;
+  font-size: 0.88rem;
+  margin: 0.9rem 0 1rem 0;
+  overflow: hidden;
+  width: 100%;
+}
+
+.edd-light-table th {
+  background: #f7f7f8;
+  border-bottom: 1px solid #ececec;
+  color: #6b7280;
+  font-size: 0.76rem;
+  font-weight: 720;
+  padding: 0.65rem 0.75rem;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.edd-light-table td {
+  background: #ffffff;
+  border-bottom: 1px solid #ececec;
+  color: #374151;
+  line-height: 1.35;
+  padding: 0.75rem;
+  vertical-align: top;
+}
+
+.edd-light-table tr:last-child td {
+  border-bottom: 0;
 }
 
 /* ---------- Workflow strip ---------- */
@@ -1002,13 +1118,88 @@ div[data-testid="stChatMessage"] {
   border-color: #ececec;
 }
 
+/* ---------- Neutralize legacy dashboard accent colors ---------- */
+.edd-workflow-row-complete strong,
+.edd-draft-step-current .edd-draft-step-state,
+.edd-draft-step-complete .edd-draft-step-state {
+  color: #6b7280 !important;
+}
+
+.edd-draft-step-complete,
+.edd-step-panel-complete,
+.edd-step-panel-ready {
+  background: #ffffff !important;
+  border-color: #ececec !important;
+}
+
+.edd-pill-green,
+.edd-pill-blue {
+  color: #374151 !important;
+  background: #f7f7f8 !important;
+  border-color: #e5e7eb !important;
+}
+
+.edd-local-banner {
+  background: #f7f7f8 !important;
+  border-color: #ececec !important;
+  color: #374151 !important;
+}
+
+[data-testid="stProgress"] > div,
+[data-testid="stProgress"] > div > div,
+[role="progressbar"],
+[role="progressbar"] > div {
+  background-color: #e5e7eb !important;
+}
+
+[data-testid="stProgress"] [style*="background-color"] {
+  background-color: #0d0d0d !important;
+}
+
+[data-testid="stBaseButton-primary"],
+[data-testid="stBaseButton-primaryFormSubmit"] {
+  background: #0d0d0d !important;
+  border: 1px solid #0d0d0d !important;
+  border-radius: 999px !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+}
+
+[data-testid="stBaseButton-secondary"],
+[data-testid="stBaseButton-secondaryFormSubmit"] {
+  background: #ffffff !important;
+  border: 1px solid #d1d5db !important;
+  border-radius: 999px !important;
+  color: #0d0d0d !important;
+  box-shadow: none !important;
+}
+
+[data-testid="stBaseButton-primary"]:disabled,
+[data-testid="stBaseButton-primaryFormSubmit"]:disabled,
+[data-testid="stBaseButton-secondary"]:disabled,
+[data-testid="stBaseButton-secondaryFormSubmit"]:disabled {
+  background: #f3f4f6 !important;
+  border-color: #e5e7eb !important;
+  color: #9ca3af !important;
+}
+
 /* ---------- Final light-theme cleanup for Streamlit chrome/widgets ---------- */
 [data-testid="stHeader"],
 [data-testid="stToolbar"],
 [data-testid="stDecoration"],
 header {
-  background: #ffffff !important;
+  background: transparent !important;
   color: #0d0d0d !important;
+}
+
+[data-testid="stHeader"] {
+  display: none !important;
+  height: 0 !important;
+}
+
+[data-testid="stToolbar"],
+[data-testid="stDecoration"] {
+  display: none !important;
 }
 
 [data-testid="stHeader"]::before,
@@ -1096,7 +1287,15 @@ header svg {
   color: #374151 !important;
 }
 
+[data-testid="stExpander"],
+[data-testid="stExpander"] details,
+[data-testid="stExpander"] summary,
+[data-testid="stExpanderDetails"] {
+  background: #ffffff !important;
+  border-color: #ececec !important;
+}
+
 [data-testid="stProgress"] > div > div,
 [role="progressbar"] > div {
-  background-color: #10a37f !important;
+  background-color: #0d0d0d !important;
 }

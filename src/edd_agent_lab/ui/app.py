@@ -66,22 +66,6 @@ _DRAFT_STEP_LABELS = [
     "Publish",
 ]
 
-_DRAFT_STEP_ARTIFACTS = {
-    "Target": ["target"],
-    "Design": [
-        "behavior_rules",
-        "eval_contract",
-        "information_requirements",
-        "tool_requirements",
-        "graph_design",
-    ],
-    "Run": ["scenario", "v0_run"],
-    "Evaluate": ["eval_summary", "failure_packet", "fix_plan"],
-    "Improve": ["graph_design_v1", "v1_run", "eval_summary_v1", "comparison"],
-    "Publish": [],
-}
-
-
 def _reset_workbench() -> None:
     import streamlit as st
 
@@ -167,7 +151,7 @@ def _render_start_page() -> None:
             next_action=str(status["next_action"]),
         )
         _render_draft_progress(status)
-        selected_step = _draft_step_selector(selected_agent, status)
+        _render_workflow_summary(status)
 
     with main:
         _render_active_draft_header(
@@ -177,18 +161,12 @@ def _render_start_page() -> None:
             total=total,
             next_action=str(status["next_action"]),
         )
-        if selected_step == "Target":
-            _render_target_step(selected_agent, agent_target)
-        elif selected_step == "Design":
-            _render_design_step(selected_agent, artifacts, target_path)
-        elif selected_step == "Run":
-            _render_run_step(selected_agent, artifacts, target_path)
-        elif selected_step == "Evaluate":
-            _render_evaluate_step(selected_agent, target_path)
-        elif selected_step == "Improve":
-            _render_improve_step(selected_agent, target_path)
-        else:
-            _render_publish_step()
+        _render_target_step(selected_agent, agent_target)
+        _render_design_step(selected_agent, artifacts, target_path)
+        _render_run_step(selected_agent, artifacts, target_path)
+        _render_evaluate_step(selected_agent, target_path)
+        _render_improve_step(selected_agent, target_path)
+        _render_publish_step()
 
 
 def _render_builder_header() -> None:
@@ -323,85 +301,33 @@ def _render_active_draft_header(
     )
 
 
-def _draft_step_selector(agent_key: str, status: dict[str, object]) -> str:
+def _render_workflow_summary(status: dict[str, object]) -> None:
     import streamlit as st
 
-    default_step = _default_draft_step(status)
-    session_key = f"draft_step_{agent_key}"
-    if st.session_state.get(session_key) not in _DRAFT_STEP_LABELS:
-        st.session_state[session_key] = default_step
-
-    selected_step = st.segmented_control(
-        "Workflow step",
-        _DRAFT_STEP_LABELS,
-        default=st.session_state[session_key],
-        key=session_key,
-        label_visibility="collapsed",
-        width="stretch",
-    )
-    selected_label = str(selected_step or default_step)
-    _render_draft_stepper(selected_label, status)
-    return selected_label
-
-
-def _default_draft_step(status: dict[str, object]) -> str:
-    first_pending = next(
-        (row["id"] for row in status["steps"] if not row["complete"]),
-        None,
-    )
-    if first_pending is None:
-        return "Publish"
-    if first_pending in {"target"}:
-        return "Target"
-    if first_pending in {
-        "behavior_rules",
-        "eval_contract",
-        "information_requirements",
-        "tool_requirements",
-        "graph_design",
-    }:
-        return "Design"
-    if first_pending in {"scenario", "v0_run"}:
-        return "Run"
-    if first_pending in {"eval_summary", "failure_packet", "fix_plan"}:
-        return "Evaluate"
-    if first_pending in {"graph_design_v1", "v1_run", "eval_summary_v1", "comparison"}:
-        return "Improve"
-    return "Publish"
-
-
-def _render_draft_stepper(selected_step: str, status: dict[str, object]) -> None:
-    import streamlit as st
-
-    completed_ids = {
-        str(row["id"]) for row in status["steps"] if bool(row["complete"])
-    }
-    tiles = []
-    for index, label in enumerate(_DRAFT_STEP_LABELS, start=1):
-        artifacts = _DRAFT_STEP_ARTIFACTS[label]
-        is_complete = bool(artifacts) and all(key in completed_ids for key in artifacts)
-        is_current = label == selected_step
-        state = "current" if is_current else "complete" if is_complete else "pending"
-        state_label = "Current" if is_current else "Done" if is_complete else "Pending"
-        tiles.append(
-            f'<div class="edd-draft-step edd-draft-step-{state}">'
-            f'<div class="edd-draft-step-index">{index}</div>'
-            '<div class="edd-draft-step-body">'
-            f'<div class="edd-draft-step-title">{html.escape(label)}</div>'
-            f'<div class="edd-draft-step-state">{state_label}</div>'
-            "</div>"
-            "</div>"
+    rows = []
+    for row in status["steps"]:
+        state = "complete" if row["complete"] else "pending"
+        label = "Done" if row["complete"] else "Pending"
+        rows.append(
+            f'<div class="edd-workflow-row edd-workflow-row-{state}">'
+            f'<span>{html.escape(str(row["step"]))}</span>'
+            f'<strong>{label}</strong>'
+            '</div>'
         )
 
     st.markdown(
-        f'<div class="edd-draft-stepper">{"".join(tiles)}</div>',
+        f"""
+        <div class="edd-workflow-list">
+          <div class="edd-rail-label">Workflow</div>
+          {"".join(rows)}
+        </div>
+        """,
         unsafe_allow_html=True,
     )
 
 
 def _render_target_step(agent_key: str, agent_target: dict[str, object]) -> None:
     _render_target_editor(agent_key, agent_target)
-    _render_artifact_cards(draft_artifact_cards(agent_key))
 
 
 def _render_design_step(
@@ -539,7 +465,7 @@ def _render_evaluate_step(agent_key: str, target_path: Path) -> None:
         st.markdown("## Local Eval Summary")
         st.caption(str(target_path.parent / DRAFT_ARTIFACT_FILES["eval_summary"]))
         st.metric("Overall score", f"{eval_summary['overall_score']:.1f} / 5")
-        st.dataframe(eval_summary["checks"], use_container_width=True, hide_index=True)
+        _render_light_table(eval_summary["checks"])
         failure = latest_artifacts.get("failure_packet", {}).get("failure_packet")
         if failure:
             st.warning(
@@ -566,7 +492,7 @@ def _render_improve_step(agent_key: str, target_path: Path) -> None:
     st.caption(str(target_path.parent / DRAFT_ARTIFACT_FILES["fix_plan"]))
     st.markdown(f"**Target version:** `{fix_plan['target_version']}`")
     st.markdown(fix_plan["summary"])
-    st.dataframe(fix_plan["graph_changes"], use_container_width=True, hide_index=True)
+    _render_light_table(fix_plan["graph_changes"])
     with st.expander("Acceptance checks", expanded=False):
         for check in fix_plan["acceptance_checks"]:
             st.markdown(f"- {check}")
@@ -608,7 +534,7 @@ def _render_improve_step(agent_key: str, target_path: Path) -> None:
     if v1_eval:
         st.markdown("## v1 Eval Summary")
         st.metric("v1 overall score", f"{v1_eval['overall_score']:.1f} / 5")
-        st.dataframe(v1_eval["checks"], use_container_width=True, hide_index=True)
+        _render_light_table(v1_eval["checks"])
     if comparison:
         st.markdown("## v0/v1 Comparison")
         metric_cols = st.columns(3)
@@ -683,6 +609,39 @@ def _render_run_response(response: str) -> None:
     )
 
 
+def _render_light_table(rows: list[dict[str, object]]) -> None:
+    import streamlit as st
+
+    if not rows:
+        return
+    columns = list(rows[0].keys())
+    header = "".join(f"<th>{html.escape(str(column))}</th>" for column in columns)
+    body_rows = []
+    for row in rows:
+        cells = "".join(
+            f"<td>{html.escape(_format_table_cell(row.get(column)))}</td>"
+            for column in columns
+        )
+        body_rows.append(f"<tr>{cells}</tr>")
+    st.markdown(
+        f"""
+        <table class="edd-light-table">
+          <thead><tr>{header}</tr></thead>
+          <tbody>{"".join(body_rows)}</tbody>
+        </table>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def _format_table_cell(value: object) -> str:
+    if isinstance(value, bool):
+        return "yes" if value else "no"
+    if isinstance(value, list):
+        return ", ".join(str(item) for item in value)
+    return "" if value is None else str(value)
+
+
 def _render_draft_version_panel(label: str, panel: dict[str, object]) -> None:
     import streamlit as st
 
@@ -742,25 +701,25 @@ def _render_artifact_cards(cards: list[dict[str, str]], title: str = "Artifact R
     import streamlit as st
 
     st.markdown(f"## {title}")
-    for start in range(0, len(cards), 3):
-        columns = st.columns(3)
-        for column, card in zip(columns, cards[start : start + 3], strict=False):
-            status = card["status"]
-            pill = status_pill(status.upper(), "green" if status == "ready" else "blue")
-            with column:
-                st.markdown(
-                    f"""
-                    <div class="edd-card-soft">
-                      <div class="edd-card-title">{html.escape(card["artifact"])}</div>
-                      <div class="edd-card-subtitle">
-                        {html.escape(card["group"])} · {pill}<br/>
-                        {html.escape(card["action"])} ·
-                        <code>{html.escape(card["file"])}</code>
-                      </div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
+    rows = []
+    for card in cards:
+        status = card["status"]
+        pill = status_pill(status.upper(), "green" if status == "ready" else "blue")
+        rows.append(
+            f'<div class="edd-artifact-row">'
+            '<div>'
+            f'<div class="edd-artifact-title">{html.escape(card["artifact"])}</div>'
+            f'<div class="edd-artifact-meta">{html.escape(card["group"])} · '
+            f'{html.escape(card["action"])}</div>'
+            '</div>'
+            f'<code>{html.escape(card["file"])}</code>'
+            f'<div>{pill}</div>'
+            '</div>'
+        )
+    st.markdown(
+        f'<div class="edd-artifact-list">{"".join(rows)}</div>',
+        unsafe_allow_html=True,
+    )
 
 
 def _render_draft_progress(status: dict[str, object]) -> None:
@@ -769,15 +728,6 @@ def _render_draft_progress(status: dict[str, object]) -> None:
     completed = int(status["completed"])
     total = int(status["total"])
     st.progress(float(status["percent"]), text=f"{completed} of {total} steps complete")
-    with st.expander("Step status", expanded=False):
-        rows = [
-            {
-                "step": row["step"],
-                "status": "complete" if row["complete"] else "pending",
-            }
-            for row in status["steps"]
-        ]
-        st.dataframe(rows, use_container_width=True, hide_index=True)
 
 
 def _render_reference_workbench(platform_health: dict[str, object]) -> None:

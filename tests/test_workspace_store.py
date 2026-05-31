@@ -322,3 +322,21 @@ def test_draft_artifact_cards_report_ready_and_pending(tmp_path, monkeypatch) ->
     assert by_id["behavior_rules"]["status"] == "ready"
     assert by_id["scenario"]["status"] == "pending"
     assert by_id["comparison"]["file"] == "comparison.yaml"
+
+
+def test_delete_draft_workspace_removes_project(tmp_path, monkeypatch) -> None:
+    from edd_agent_lab.ui import workspace_store
+
+    monkeypatch.setattr(workspace_store, "LAB_RUNS_DIR", tmp_path)
+
+    save_draft_target(
+        name="Contract Review Agent",
+        description="Help legal teams review risky clauses.",
+    )
+
+    assert workspace_store.draft_workspace_dir("contract-review-agent").is_dir()
+
+    workspace_store.delete_draft_workspace("contract-review-agent")
+
+    assert workspace_store.list_draft_workspaces() == []
+    assert not (tmp_path / "contract_review_agent").exists()

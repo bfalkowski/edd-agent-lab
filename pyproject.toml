@@ -28,6 +28,10 @@ platform = [
 ui = [
   "streamlit>=1.40.0",
 ]
+web = [
+  "fastapi>=0.115.0",
+  "uvicorn>=0.30.0",
+]
 
 [project.scripts]
 edd-lab = "edd_agent_lab.cli.main:app"
