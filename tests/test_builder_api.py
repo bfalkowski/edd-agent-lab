@@ -10,6 +10,20 @@ from fastapi.testclient import TestClient
 from edd_agent_lab.api.builder import create_app
 
 
+def test_runtime_reports_generation_config(monkeypatch) -> None:
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    client = TestClient(create_app())
+
+    response = client.get("/api/runtime")
+
+    assert response.status_code == 200
+    generation = response.json()["generation"]
+    assert generation["default_mode"] == "auto"
+    assert generation["resolved_mode"] == "mock"
+    assert generation["live_available"] is False
+    assert generation["model"]
+
+
 def test_stream_action_returns_progress_events(tmp_path, monkeypatch) -> None:
     from edd_agent_lab.ui import workspace_store
 
@@ -78,3 +92,88 @@ def test_stream_action_returns_retryable_failure(tmp_path, monkeypatch) -> None:
     assert events[-1]["retry_action"] == "run-v0"
     assert events[-1]["retryable"] is True
     assert "Draft scenario not found" in events[-1]["message"]
+
+
+def test_stream_run_action_accepts_generation_mode(tmp_path, monkeypatch) -> None:
+    from edd_agent_lab.ui import workspace_store
+
+    monkeypatch.setattr(workspace_store, "LAB_RUNS_DIR", tmp_path)
+    client = TestClient(create_app())
+
+    created = client.post(
+        "/api/drafts",
+        json={
+            "name": "Contract Review Agent",
+            "description": "Review contract clauses and surface negotiation risks.",
+        },
+    )
+    assert created.status_code == 200
+    assert client.post("/api/drafts/contract-review-agent/design").status_code == 200
+    assert (
+        client.post(
+            "/api/drafts/contract-review-agent/scenario",
+            json={"problem": "Review risky payment terms."},
+        ).status_code
+        == 200
+    )
+
+    streamed = client.post(
+        "/api/drafts/contract-review-agent/actions/run-v0/stream?generation_mode=mock"
+    )
+    assert streamed.status_code == 200
+
+    events = [json.loads(line) for line in streamed.text.splitlines()]
+
+    assert events[1]["message"] == "Running v0 candidate. Generation mode: mock."
+    assert events[-1]["draft"]["artifacts"]["v0_run"]["run"]["generation_mode"] == "mock"
+
+
+def test_stream_publish_action_returns_publish_result(tmp_path, monkeypatch) -> None:
+    from edd_agent_lab.ui import workspace_store
+
+    monkeypatch.setattr(workspace_store, "LAB_RUNS_DIR", tmp_path)
+    client = TestClient(create_app())
+
+    created = client.post(
+        "/api/drafts",
+        json={
+            "name": "Contract Review Agent",
+            "description": "Review contract clauses and surface negotiation risks.",
+        },
+    )
+    assert created.status_code == 200
+
+    assert client.post("/api/drafts/contract-review-agent/design").status_code == 200
+    assert (
+        client.post(
+            "/api/drafts/contract-review-agent/scenario",
+            json={"problem": "Review risky payment terms."},
+        ).status_code
+        == 200
+    )
+    for action in [
+        "run-v0",
+        "evaluate-v0",
+        "fix-plan",
+        "v1-graph",
+        "run-v1",
+        "evaluate-v1",
+        "compare",
+    ]:
+        assert client.post(f"/api/drafts/contract-review-agent/{action}").status_code == 200
+
+    streamed = client.post("/api/drafts/contract-review-agent/actions/publish/stream")
+    assert streamed.status_code == 200
+
+    events = [json.loads(line) for line in streamed.text.splitlines()]
+
+    assert [event["phase"] for event in events] == [
+        "starting",
+        "running",
+        "artifact",
+        "completed",
+    ]
+    assert events[2]["artifact_id"] == "publish_result"
+    assert events[-1]["draft"]["artifacts"]["publish_result"]["publish_result"]["status"] == (
+        "published_local"
+    )

@@ -275,6 +275,40 @@ kbd {
   gap: 10px;
 }
 
+.generation-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-height: 36px;
+  border: 1px solid #ececf1;
+  border-radius: 999px;
+  background: #ffffff;
+  padding: 3px;
+}
+
+.generation-control button {
+  min-height: 28px;
+  border-radius: 999px;
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 650;
+  padding: 0 9px;
+  text-transform: capitalize;
+}
+
+.generation-control button:hover,
+.generation-control button.active {
+  background: #ececf1;
+  color: #202123;
+}
+
+.generation-control span {
+  max-width: 180px;
+  color: #6b7280;
+  font-size: 12px;
+  padding: 0 8px 0 5px;
+}
+
 .topbar-button,
 .topbar-icon-button,
 .sidebar-toggle {
@@ -618,6 +652,11 @@ kbd {
   line-height: 1.4;
 }
 
+.workflow-card-main small {
+  color: #6b7280;
+  font-size: 12px;
+}
+
 .workflow-card.current .workflow-card-main em {
   color: #202123;
 }
@@ -947,6 +986,26 @@ kbd {
   .review-title > div {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .topbar {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px 18px;
+  }
+
+  .topbar-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .generation-control {
+    max-width: 100%;
+  }
+
+  .generation-control span {
+    max-width: 120px;
   }
 
   .artifact-review {

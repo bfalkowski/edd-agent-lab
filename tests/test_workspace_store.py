@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pytest
 
+from edd_agent_lab.integrations.edd_client import QueuedEDDClient
 from edd_agent_lab.ui.workspace_store import (
     build_design_scaffold,
     build_draft_scenario,
@@ -19,6 +22,7 @@ from edd_agent_lab.ui.workspace_store import (
     load_draft_artifact_validations,
     load_draft_artifacts,
     load_draft_target,
+    publish_draft_evidence,
     run_draft_v0,
     run_draft_v1,
     save_design_scaffold,
@@ -179,6 +183,48 @@ def test_run_draft_v0_writes_local_run_artifacts(tmp_path, monkeypatch) -> None:
     assert (tmp_path / "contract_review_agent" / "agent" / "manifest.yaml").is_file()
 
 
+def test_run_draft_v0_uses_live_generation_when_enabled(tmp_path, monkeypatch) -> None:
+    from edd_agent_lab.agents import draft_agent
+    from edd_agent_lab.ui import workspace_store
+
+    class FakeChatModel:
+        def invoke(self, messages):
+            assert messages[0]["role"] == "system"
+            assert messages[1]["role"] == "user"
+            return SimpleNamespace(
+                content=(
+                    "## What I can say now\n"
+                    "Live response grounded in the provided target and scenario.\n\n"
+                    "## Missing context to collect\n"
+                    "- Source material.\n\n"
+                    "## Safe next actions\n"
+                    "- Map recommendations to available evidence."
+                )
+            )
+
+    monkeypatch.setattr(workspace_store, "LAB_RUNS_DIR", tmp_path)
+    monkeypatch.setenv("AGENT_GENERATION_MODE", "live")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setattr(draft_agent, "get_chat_model", lambda temperature=0.2: FakeChatModel())
+
+    save_draft_target(
+        name="Contract Review Agent",
+        description="Help legal teams review risky clauses.",
+    )
+    save_draft_scenario(
+        agent_key="contract-review-agent",
+        problem="Review this contract for risky payment terms.",
+    )
+    run = run_draft_v0("contract-review-agent")
+
+    assert run["run"]["generation_mode"] == "live"
+    assert run["run"]["node_trace"] == [
+        "understand_request: scoped to Help legal teams review risky clauses.",
+        "draft_response: live",
+    ]
+    assert "Live response grounded" in run["run"]["final_response"]
+
+
 def test_evaluate_draft_v0_writes_summary_and_failure_packet(tmp_path, monkeypatch) -> None:
     from edd_agent_lab.ui import workspace_store
 
@@ -224,6 +270,54 @@ def test_evaluate_draft_v0_writes_summary_and_failure_packet(tmp_path, monkeypat
         "action_quality"
     )
     assert (tmp_path / "contract_review_agent" / "draft" / "eval-summary.yaml").is_file()
+
+
+def test_evaluate_live_draft_uses_hybrid_judge(tmp_path, monkeypatch) -> None:
+    from edd_agent_lab.agents import draft_agent
+    from edd_agent_lab.evals.scoring import CheckScore
+    from edd_agent_lab.ui import workspace_store
+
+    class FakeChatModel:
+        def invoke(self, _messages):
+            return SimpleNamespace(
+                content=(
+                    "Target purpose and scenario are clear. Missing context includes source "
+                    "material. Safe next actions use available evidence, explicit assumption, "
+                    "and readiness blocker."
+                )
+            )
+
+    def fake_score_check(check, _response_text):
+        return CheckScore(
+            id=check.id,
+            score=0.8,
+            passed=True,
+            comment="llm judge passed",
+            weight=check.weight,
+            method="llm_judge",
+        )
+
+    monkeypatch.setattr(workspace_store, "LAB_RUNS_DIR", tmp_path)
+    monkeypatch.setenv("AGENT_GENERATION_MODE", "live")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setattr(draft_agent, "get_chat_model", lambda temperature=0.2: FakeChatModel())
+    monkeypatch.setattr(workspace_store, "score_check", fake_score_check)
+
+    save_draft_target(
+        name="Contract Review Agent",
+        description="Help legal teams review risky clauses.",
+    )
+    save_design_scaffold("contract-review-agent")
+    save_draft_scenario(
+        agent_key="contract-review-agent",
+        problem="Review this contract for risky payment terms.",
+    )
+    run_draft_v0("contract-review-agent")
+    summary = evaluate_draft_v0("contract-review-agent")
+
+    assert summary["eval_summary"]["judge_mode"] == "hybrid"
+    assert all(check["method"] == "hybrid" for check in summary["eval_summary"]["checks"])
+    assert summary["eval_summary"]["checks"][0]["llm_score"] == 4.0
 
 
 def test_generate_draft_fix_plan_from_failure_packet(tmp_path, monkeypatch) -> None:
@@ -293,6 +387,47 @@ def test_draft_v1_run_eval_and_comparison(tmp_path, monkeypatch) -> None:
         "contract-review-agent-v0-action-quality-failure"
     ]
     assert (tmp_path / "contract_review_agent" / "draft" / "graph-design-v1.yaml").is_file()
+
+
+def test_publish_draft_evidence_writes_publish_result(tmp_path, monkeypatch) -> None:
+    from edd_agent_lab.ui import workspace_store
+
+    monkeypatch.setattr(workspace_store, "LAB_RUNS_DIR", tmp_path)
+
+    save_draft_target(
+        name="Contract Review Agent",
+        description="Help legal teams review risky clauses.",
+    )
+    save_design_scaffold("contract-review-agent")
+    save_draft_scenario(
+        agent_key="contract-review-agent",
+        problem="Review this contract for risky payment terms.",
+    )
+    run_draft_v0("contract-review-agent")
+    evaluate_draft_v0("contract-review-agent")
+    generate_draft_fix_plan("contract-review-agent")
+    generate_draft_v1_graph("contract-review-agent")
+    run_draft_v1("contract-review-agent")
+    evaluate_draft_v1("contract-review-agent")
+    compare_draft_versions("contract-review-agent")
+
+    result = publish_draft_evidence(
+        "contract-review-agent",
+        client=QueuedEDDClient(queue_dir=tmp_path / "queue"),
+    )
+    artifacts = load_draft_artifacts("contract-review-agent")
+
+    publish_result = result["publish_result"]
+    assert publish_result["status"] == "queued"
+    assert publish_result["run_id"] == (
+        "contract-review-agent-v1-evidence-aware-actions-publish"
+    )
+    assert publish_result["publish_envelope"]["publish_schema_version"] == "2"
+    assert publish_result["publish_envelope"]["target"]["id"] == (
+        "contract-review-agent-target-v1"
+    )
+    assert artifacts["publish_result"]["publish_result"]["queue_path"].endswith(".json")
+    assert (tmp_path / "contract_review_agent" / "draft" / "publish-result.yaml").is_file()
 
 
 def test_generate_draft_agent_package_writes_manifest_graph_and_tools(
@@ -365,7 +500,7 @@ def test_draft_workflow_status_reports_next_action(tmp_path, monkeypatch) -> Non
     scaffolded = draft_workflow_status("contract-review-agent")
 
     assert initial["completed"] == 1
-    assert initial["total"] == 10
+    assert initial["total"] == 11
     assert initial["next_action"] == "Scaffold rules, eval, requirements, and graph."
     assert scaffolded["completed"] == 2
     assert scaffolded["next_action"] == "Add a first local test scenario."
@@ -388,6 +523,7 @@ def test_draft_artifact_cards_report_ready_and_pending(tmp_path, monkeypatch) ->
     assert by_id["behavior_rules"]["status"] == "ready"
     assert by_id["eval_suite"]["status"] == "ready"
     assert by_id["scenario"]["status"] == "pending"
+    assert by_id["publish_result"]["file"] == "publish-result.yaml"
     assert by_id["comparison"]["file"] == "comparison.yaml"
 
 

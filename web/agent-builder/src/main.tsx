@@ -20,8 +20,11 @@ import {
   deleteArtifact,
   DraftDetail,
   DraftSummary,
+  GenerationMode,
   listDrafts,
+  loadRuntimeConfig,
   loadDraft,
+  RuntimeConfig,
   saveArtifactSource,
   saveScenario,
   streamDraftAction,
@@ -37,6 +40,7 @@ const actions = [
   { id: "run-v1", label: "Run v1", icon: Play },
   { id: "evaluate-v1", label: "Evaluate v1", icon: FileText },
   { id: "compare", label: "Compare", icon: ArrowRight },
+  { id: "publish", label: "Publish", icon: ArrowRight },
 ];
 
 const stepActions: Record<string, string> = {
@@ -49,9 +53,11 @@ const stepActions: Record<string, string> = {
   v1_run: "run-v1",
   eval_summary_v1: "evaluate-v1",
   comparison: "compare",
+  publish_result: "publish",
 };
 
 const actionLabelById = Object.fromEntries(actions.map((action) => [action.id, action.label]));
+const generationModeStorageKey = "edd-agent-lab:generation-mode";
 
 type ArtifactCards = DraftDetail["artifact_cards"];
 
@@ -60,6 +66,7 @@ const stepOutputs: Record<string, string[]> = {
   behavior_rules: [
     "behavior_rules",
     "eval_contract",
+    "eval_suite",
     "information_requirements",
     "tool_requirements",
     "graph_design",
@@ -72,6 +79,7 @@ const stepOutputs: Record<string, string[]> = {
   v1_run: ["v1_run"],
   eval_summary_v1: ["eval_summary_v1"],
   comparison: ["comparison"],
+  publish_result: ["publish_result"],
 };
 
 const outputToStep = Object.fromEntries(
@@ -144,6 +152,11 @@ function App() {
   const [reviewMode, setReviewMode] = useState<"edit" | "diff">("edit");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isReviewPanelOpen, setIsReviewPanelOpen] = useState(false);
+  const [runtimeConfig, setRuntimeConfig] = useState<RuntimeConfig | null>(null);
+  const [generationMode, setGenerationMode] = useState<GenerationMode>(() => {
+    const stored = window.localStorage.getItem(generationModeStorageKey);
+    return stored === "mock" || stored === "live" || stored === "auto" ? stored : "auto";
+  });
   const [activityByStep, setActivityByStep] = useState<Record<string, string[]>>({});
   const [lastCurrentStep, setLastCurrentStep] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -152,7 +165,20 @@ function App() {
 
   useEffect(() => {
     void refreshDrafts();
+    void refreshRuntimeConfig();
   }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(generationModeStorageKey, generationMode);
+  }, [generationMode]);
+
+  async function refreshRuntimeConfig() {
+    try {
+      setRuntimeConfig(await loadRuntimeConfig());
+    } catch {
+      setRuntimeConfig(null);
+    }
+  }
 
   async function refreshDrafts() {
     setError("");
@@ -226,10 +252,15 @@ function App() {
     const stepId = actionStepId(action);
     let sawStreamFailure = false;
     try {
-      const draft = await streamDraftAction(activeDraft.agent_key, action, (event) => {
-        appendStepActivity(event.step_id || stepId, event.message);
-        if (event.phase === "failed") sawStreamFailure = true;
-      });
+      const draft = await streamDraftAction(
+        activeDraft.agent_key,
+        action,
+        (event) => {
+          appendStepActivity(event.step_id || stepId, event.message);
+          if (event.phase === "failed") sawStreamFailure = true;
+        },
+        action === "run-v0" || action === "run-v1" ? generationMode : undefined,
+      );
       setActiveDraft(draft);
       setDrafts(await listDrafts());
     } catch (caught) {
@@ -354,6 +385,16 @@ function App() {
     }
     return byStep;
   }, [activeDraft]);
+  const resolvedGenerationMode =
+    generationMode === "auto" ? runtimeConfig?.generation.resolved_mode ?? "mock" : generationMode;
+  const generationStatus =
+    generationMode === "auto"
+      ? `Auto: ${resolvedGenerationMode}`
+      : generationMode === "live"
+        ? runtimeConfig?.generation.live_available
+          ? `Live: ${runtimeConfig.generation.model}`
+          : "Live unavailable"
+        : "Mock: deterministic";
 
   useEffect(() => {
     const currentStepId = activeStep?.id ?? "";
@@ -476,6 +517,24 @@ function App() {
             <span>{shouldShowComposer ? "Describe the target" : nextAction}</span>
           </div>
           <div className="topbar-actions">
+            <div className="generation-control" aria-label="Generation mode">
+              {(["auto", "mock", "live"] as GenerationMode[]).map((mode) => (
+                <button
+                  className={generationMode === mode ? "active" : ""}
+                  disabled={mode === "live" && runtimeConfig?.generation.live_available === false}
+                  key={mode}
+                  onClick={() => setGenerationMode(mode)}
+                  title={
+                    mode === "live" && runtimeConfig?.generation.live_available === false
+                      ? "Set OPENAI_API_KEY to enable live generation"
+                      : `Use ${mode} generation`
+                  }
+                >
+                  {mode}
+                </button>
+              ))}
+              <span>{generationStatus}</span>
+            </div>
             {!shouldShowComposer && !showReviewPanel ? (
               <button
                 className="topbar-button"
@@ -570,6 +629,17 @@ function App() {
               const isCurrent = step.id === activeStep?.id;
               const stepActivity = activityByStep[step.id] ?? [];
               const latestActivity = stepActivity[0];
+              const runArtifact = stepArtifacts.find(
+                (artifact) => artifact.id === "v0_run" || artifact.id === "v1_run",
+              );
+              const runMode =
+                runArtifact?.id && activeDraft.artifacts[runArtifact.id]
+                  ? (
+                      activeDraft.artifacts[runArtifact.id] as {
+                        run?: { generation_mode?: string };
+                      }
+                    ).run?.generation_mode
+                  : undefined;
 
               return (
                 <section
@@ -587,6 +657,7 @@ function App() {
                     <div>
                       <strong>{step.step}</strong>
                       <p>{step.complete ? "Done" : step.next_action}</p>
+                      {runMode ? <small>Generated with {runMode}</small> : null}
                       {latestActivity ? <em>{latestActivity}</em> : null}
                     </div>
                   </div>

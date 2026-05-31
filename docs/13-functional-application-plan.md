@@ -57,14 +57,15 @@ Make the local builder support the complete draft-agent loop:
 - [x] Generate a minimal agent package or folder for draft agents.
 - [x] Add mock tool binding generation.
 - [x] Run draft agents through the same runner/eval artifact format as existing agents.
-- [ ] Support optional live generation when provider credentials exist.
+- [x] Support optional live generation when provider credentials exist.
+- [x] Expose mock/auto/live generation mode from the builder UI.
 - [x] Keep CI and local tests deterministic by default.
 
 ## Phase 5: Evaluation Maturity
 
 - [x] Convert draft eval contracts into runnable eval suites.
 - [x] Add deterministic structure and keyword checks from generated rules.
-- [ ] Add optional LLM judge path.
+- [x] Add optional LLM judge path.
 - [x] Add failure packet generation per failed rule.
 - [ ] Add overfitting or variant scenario generation.
 - [ ] Add regression comparison across multiple scenarios.
@@ -72,9 +73,9 @@ Make the local builder support the complete draft-agent loop:
 
 ## Phase 6: Platform Publish Loop
 
-- [ ] Publish draft run records through the existing publish integration.
-- [ ] Include target, rule, eval, graph, and comparison identifiers in the publish envelope.
-- [ ] Show publish result and platform run ID in the builder.
+- [x] Publish draft run records through the existing publish integration.
+- [x] Include target, rule, eval, graph, and comparison identifiers in the publish envelope.
+- [x] Show publish result and platform run ID in the builder.
 - [ ] Link to relevant platform records.
 - [ ] Handle queued/offline publish clearly.
 - [ ] Add retry publish for queued runs.
@@ -91,8 +92,8 @@ Make the local builder support the complete draft-agent loop:
 
 ## Near-Term Build Order
 
-1. Add optional live generation for draft graph steps.
-2. Add schema validation in artifact review.
-3. Add structured editors for the highest-value artifacts.
-4. Publish draft evidence to the platform.
-5. Add regression comparison across multiple scenarios.
+1. Add structured editors for the highest-value artifacts.
+2. Add rename/archive for draft projects.
+3. Add optional LLM judge path.
+4. Add regression comparison across multiple scenarios.
+5. Add end-to-end tests for the React builder flow.

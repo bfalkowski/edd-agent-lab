@@ -3,10 +3,15 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel
 
+from edd_agent_lab.agents.generation import (
+    agent_model_name,
+    live_generation_available,
+    resolve_generation_mode,
+)
 from edd_agent_lab.ui.workspace_store import (
     compare_draft_versions,
     delete_draft_artifact,
@@ -23,6 +28,7 @@ from edd_agent_lab.ui.workspace_store import (
     load_draft_artifact_validations,
     load_draft_artifacts,
     load_draft_target,
+    publish_draft_evidence,
     run_draft_v0,
     run_draft_v1,
     save_design_scaffold,
@@ -45,6 +51,9 @@ class ArtifactSourceRequest(BaseModel):
     source: str
 
 
+GenerationModeRequest = Literal["mock", "live", "auto"]
+
+
 ACTION_HANDLERS = {
     "design": save_design_scaffold,
     "run-v0": run_draft_v0,
@@ -54,6 +63,7 @@ ACTION_HANDLERS = {
     "run-v1": run_draft_v1,
     "evaluate-v1": evaluate_draft_v1,
     "compare": compare_draft_versions,
+    "publish": publish_draft_evidence,
 }
 
 ACTION_EVENTS = {
@@ -104,6 +114,11 @@ ACTION_EVENTS = {
         "message": "Comparing v0 and v1.",
         "outputs": ["comparison"],
     },
+    "publish": {
+        "step_id": "publish_result",
+        "message": "Publishing draft evidence.",
+        "outputs": ["publish_result"],
+    },
 }
 
 
@@ -133,6 +148,17 @@ def create_app():
     @app.get("/health")
     def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    @app.get("/api/runtime")
+    def runtime() -> dict[str, Any]:
+        return {
+            "generation": {
+                "default_mode": "auto",
+                "resolved_mode": resolve_generation_mode("auto"),
+                "live_available": live_generation_available(),
+                "model": agent_model_name(),
+            }
+        }
 
     @app.get("/api/drafts")
     def list_drafts() -> dict[str, Any]:
@@ -217,7 +243,11 @@ def create_app():
         return load_draft(agent_key)
 
     @app.post("/api/drafts/{agent_key}/actions/{action}/stream")
-    def stream_action(agent_key: str, action: str):
+    def stream_action(
+        agent_key: str,
+        action: str,
+        generation_mode: GenerationModeRequest | None = None,
+    ):
         if action not in ACTION_HANDLERS:
             raise HTTPException(status_code=404, detail=f"Unknown action: {action}")
 
@@ -234,12 +264,16 @@ def create_app():
             yield _event(
                 step_id=step_id,
                 phase="running",
-                message=metadata["message"],
+                message=_action_message(action, metadata["message"], generation_mode),
                 retry_action=action,
                 retryable=True,
             )
             try:
-                _run_action(agent_key, ACTION_HANDLERS[action])
+                _run_action(
+                    agent_key,
+                    ACTION_HANDLERS[action],
+                    generation_mode=generation_mode,
+                )
                 draft = load_draft(agent_key)
             except Exception as exc:
                 yield _event(
@@ -290,8 +324,11 @@ def create_app():
         return load_draft(agent_key)
 
     @app.post("/api/drafts/{agent_key}/run-v0")
-    def run_v0(agent_key: str) -> dict[str, Any]:
-        _run_action(agent_key, run_draft_v0)
+    def run_v0(
+        agent_key: str,
+        generation_mode: GenerationModeRequest | None = None,
+    ) -> dict[str, Any]:
+        _run_action(agent_key, run_draft_v0, generation_mode=generation_mode)
         return load_draft(agent_key)
 
     @app.post("/api/drafts/{agent_key}/evaluate-v0")
@@ -310,8 +347,11 @@ def create_app():
         return load_draft(agent_key)
 
     @app.post("/api/drafts/{agent_key}/run-v1")
-    def run_v1(agent_key: str) -> dict[str, Any]:
-        _run_action(agent_key, run_draft_v1)
+    def run_v1(
+        agent_key: str,
+        generation_mode: GenerationModeRequest | None = None,
+    ) -> dict[str, Any]:
+        _run_action(agent_key, run_draft_v1, generation_mode=generation_mode)
         return load_draft(agent_key)
 
     @app.post("/api/drafts/{agent_key}/evaluate-v1")
@@ -324,16 +364,42 @@ def create_app():
         _run_action(agent_key, compare_draft_versions)
         return load_draft(agent_key)
 
+    @app.post("/api/drafts/{agent_key}/publish")
+    def publish_evidence(agent_key: str) -> dict[str, Any]:
+        _run_action(agent_key, publish_draft_evidence)
+        return load_draft(agent_key)
+
     return app
 
 
-def _run_action(agent_key: str, action):
+def _run_action(
+    agent_key: str,
+    action,
+    *,
+    generation_mode: GenerationModeRequest | None = None,
+):
     try:
+        if action in {run_draft_v0, run_draft_v1}:
+            return action(agent_key, generation_mode=generation_mode)
         return action(agent_key)
     except FileNotFoundError as exc:
         from fastapi import HTTPException
 
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+def _action_message(
+    action: str,
+    message: str,
+    generation_mode: GenerationModeRequest | None,
+) -> str:
+    if action not in {"run-v0", "run-v1"}:
+        return message
+    try:
+        resolved_mode = resolve_generation_mode(generation_mode)
+    except RuntimeError:
+        resolved_mode = "unavailable"
+    return f"{message} Generation mode: {resolved_mode}."
 
 
 def _event(**payload: Any) -> str:

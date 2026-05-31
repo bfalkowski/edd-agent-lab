@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from typing import Any, Literal
 
 from langgraph.graph import END, START, StateGraph
 from pydantic import BaseModel, Field
+
+from edd_agent_lab.agents.generation import get_chat_model
 
 
 class DraftAgentState(BaseModel):
@@ -128,6 +131,11 @@ def _plan_grounded_next_actions(state: DraftAgentState) -> DraftAgentState:
 
 
 def _draft_response(state: DraftAgentState) -> DraftAgentState:
+    if state.generation_mode == "live":
+        state.node_trace.append("draft_response: live")
+        state.final_response = _live_draft_response(state)
+        return state
+
     state.node_trace.append("draft_response")
     if state.grounded_actions:
         actions = state.grounded_actions
@@ -165,6 +173,41 @@ def _draft_response(state: DraftAgentState) -> DraftAgentState:
         ]
     )
     return state
+
+
+def _live_draft_response(state: DraftAgentState) -> str:
+    model = get_chat_model(temperature=0.2)
+    system = (
+        "You are generating a draft agent response inside an evaluation-driven "
+        "design lab. Stay inside the target scope, name missing context before "
+        "making claims, and recommend safe next actions grounded in available "
+        "evidence or explicit assumptions. Do not claim production readiness."
+    )
+    user = {
+        "agent_key": state.agent_key,
+        "agent_version": state.agent_version,
+        "target": state.target,
+        "scenario": state.scenario,
+        "graph_design": state.graph_design,
+        "problem_summary": state.problem_summary,
+        "missing_context": state.missing_context,
+        "grounded_actions": state.grounded_actions,
+        "required_sections": [
+            "What I can say now",
+            "Missing context to collect",
+            "Safe next actions",
+        ],
+    }
+    answer = model.invoke(
+        [
+            {"role": "system", "content": system},
+            {"role": "user", "content": json.dumps(user, indent=2)},
+        ]
+    )
+    content = getattr(answer, "content", answer)
+    if not isinstance(content, str) or not content.strip():
+        raise RuntimeError("Live draft generation returned an empty response.")
+    return content.strip()
 
 
 def _passthrough_node(node_id: str):

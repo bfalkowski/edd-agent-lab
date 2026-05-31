@@ -54,6 +54,23 @@ export type WorkflowEvent = {
   draft?: DraftDetail;
 };
 
+export type GenerationMode = "auto" | "mock" | "live";
+
+export type RuntimeConfig = {
+  generation: {
+    default_mode: GenerationMode;
+    resolved_mode: "mock" | "live";
+    live_available: boolean;
+    model: string;
+  };
+};
+
+export async function loadRuntimeConfig(): Promise<RuntimeConfig> {
+  const response = await fetch("/api/runtime");
+  await assertOk(response);
+  return response.json();
+}
+
 export async function listDrafts(): Promise<DraftSummary[]> {
   const response = await fetch("/api/drafts");
   await assertOk(response);
@@ -94,8 +111,12 @@ export async function streamDraftAction(
   agentKey: string,
   action: string,
   onEvent: (event: WorkflowEvent) => void,
+  generationMode?: GenerationMode,
 ): Promise<DraftDetail> {
-  const response = await fetch(`/api/drafts/${agentKey}/actions/${action}/stream`, {
+  const params = new URLSearchParams();
+  if (generationMode) params.set("generation_mode", generationMode);
+  const suffix = params.toString() ? `?${params.toString()}` : "";
+  const response = await fetch(`/api/drafts/${agentKey}/actions/${action}/stream${suffix}`, {
     method: "POST",
   });
   await assertOk(response);
