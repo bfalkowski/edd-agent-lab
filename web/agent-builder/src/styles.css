@@ -35,11 +35,25 @@ button:disabled {
 
 .app-shell {
   display: grid;
-  grid-template-columns: 320px minmax(0, 1fr);
+  grid-template-columns: 320px 0 minmax(0, 1fr) 0;
   min-height: 100vh;
+  min-width: 980px;
+}
+
+.app-shell.sidebar-collapsed {
+  grid-template-columns: 0 58px minmax(0, 1fr) 0;
+}
+
+.app-shell.review-open {
+  grid-template-columns: 320px 0 minmax(0, 1fr) clamp(420px, 36vw, 560px);
+}
+
+.app-shell.sidebar-collapsed.review-open {
+  grid-template-columns: 0 58px minmax(0, 1fr) clamp(420px, 36vw, 560px);
 }
 
 .sidebar {
+  grid-column: 1;
   display: flex;
   flex-direction: column;
   gap: 28px;
@@ -49,6 +63,37 @@ button:disabled {
     radial-gradient(circle at 0% 100%, rgba(171, 210, 255, 0.45), transparent 34%),
     linear-gradient(180deg, #f8f8fb 0%, #f1f2f6 100%);
   padding: 22px 18px;
+  overflow: hidden;
+  transition:
+    opacity 160ms ease,
+    padding 160ms ease;
+}
+
+.sidebar-collapsed .sidebar {
+  border-right: 0;
+  opacity: 0;
+  padding-right: 0;
+  padding-left: 0;
+  pointer-events: none;
+}
+
+.collapsed-sidebar-rail {
+  grid-column: 2;
+  display: none;
+  min-height: 100vh;
+  border-right: 1px solid #d9d9e3;
+  background: #ffffff;
+  padding: 30px 10px;
+}
+
+.sidebar-collapsed .collapsed-sidebar-rail {
+  display: block;
+}
+
+.sidebar-window-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .traffic-lights {
@@ -187,6 +232,7 @@ kbd {
 }
 
 .main-pane {
+  grid-column: 3;
   min-width: 0;
   background: #ffffff;
 }
@@ -205,7 +251,7 @@ kbd {
   backdrop-filter: blur(14px);
 }
 
-.topbar div {
+.topbar > div:first-child {
   display: grid;
   gap: 2px;
 }
@@ -221,6 +267,45 @@ kbd {
   font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.topbar-button,
+.topbar-icon-button,
+.sidebar-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  border-radius: 12px;
+  background: #f7f7f8;
+  color: #343541;
+  padding: 0 12px;
+}
+
+.topbar-icon-button,
+.sidebar-toggle {
+  justify-content: center;
+  width: 38px;
+  padding: 0;
+}
+
+.topbar-button:hover,
+.topbar-button.active,
+.topbar-icon-button:hover,
+.topbar-icon-button.active,
+.sidebar-toggle:hover,
+.sidebar-toggle:focus-visible {
+  background: #ececf1;
+}
+
+.flip-horizontal {
+  transform: scaleX(-1);
 }
 
 .composer {
@@ -324,6 +409,7 @@ kbd {
   max-width: 1040px;
   margin: 0 auto;
   padding: 38px 32px 64px;
+  width: 100%;
 }
 
 .workspace-header {
@@ -613,20 +699,27 @@ kbd {
   padding: 0 12px;
 }
 
+.output-row button:hover,
+.output-row button.active {
+  background: #ececf1;
+}
+
 .artifact-review {
-  position: fixed;
-  top: 72px;
-  right: 24px;
-  bottom: 24px;
-  z-index: 5;
+  grid-column: 4;
+  position: sticky;
+  top: 0;
+  align-self: start;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   gap: 12px;
-  width: min(680px, calc(100vw - 360px));
+  height: 100vh;
+  min-width: 0;
   border: 1px solid #ececf1;
-  border-radius: 16px;
+  border-right: 0;
+  border-bottom: 0;
+  border-radius: 0;
   background: #ffffff;
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.18);
+  box-shadow: none;
   padding: 16px;
 }
 
@@ -706,13 +799,52 @@ kbd {
 
 @media (max-width: 860px) {
   .app-shell {
+    min-width: 0;
     grid-template-columns: 1fr;
+  }
+
+  .app-shell.sidebar-collapsed {
+    grid-template-columns: 58px minmax(0, 1fr);
+  }
+
+  .app-shell.review-open,
+  .app-shell.sidebar-collapsed.review-open {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    grid-column: 1 / -1;
+  }
+
+  .collapsed-sidebar-rail {
+    grid-column: 1;
+  }
+
+  .main-pane {
+    grid-column: 1;
+  }
+
+  .sidebar-collapsed .main-pane {
+    grid-column: 2;
+  }
+
+  .review-open .main-pane {
+    grid-column: 1;
   }
 
   .sidebar {
     min-height: auto;
     border-right: 0;
     border-bottom: 1px solid #d9d9e3;
+  }
+
+  .sidebar-collapsed .sidebar {
+    display: none;
+  }
+
+  .collapsed-sidebar-rail {
+    min-height: 100vh;
+    padding-top: 18px;
   }
 
   .composer,
@@ -741,11 +873,15 @@ kbd {
   }
 
   .artifact-review {
-    top: 16px;
-    right: 16px;
-    bottom: 16px;
-    left: 16px;
+    position: fixed;
+    top: 58px;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 5;
     width: auto;
+    border-left: 0;
+    box-shadow: 0 -20px 60px rgba(0, 0, 0, 0.12);
   }
 
   .workspace-header {

@@ -5,12 +5,12 @@ import {
   FileText,
   Folder,
   Loader2,
+  PanelRight,
   PencilLine,
   Play,
   Search,
   Sparkles,
   Trash2,
-  X,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
@@ -96,6 +96,8 @@ function App() {
   const [scenario, setScenario] = useState("");
   const [selectedArtifact, setSelectedArtifact] = useState("");
   const [artifactDraft, setArtifactDraft] = useState("");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isReviewPanelOpen, setIsReviewPanelOpen] = useState(false);
   const [activityByStep, setActivityByStep] = useState<Record<string, string[]>>({});
   const [lastCurrentStep, setLastCurrentStep] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -125,6 +127,7 @@ function App() {
     try {
       const draft = await createDraft(name.trim(), description.trim());
       setActiveDraft(draft);
+      closeReviewPanel();
       setIsCreating(false);
       setName("");
       setDescription("");
@@ -141,6 +144,7 @@ function App() {
     setError("");
     try {
       setActiveDraft(await loadDraft(agentKey));
+      closeReviewPanel();
       setIsCreating(false);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not load draft.");
@@ -158,6 +162,7 @@ function App() {
       setDrafts(nextDrafts);
       if (activeDraft?.agent_key === agentKey) {
         setActiveDraft(nextDrafts[0] ? await loadDraft(nextDrafts[0].agent_key) : null);
+        closeReviewPanel();
         setIsCreating(nextDrafts.length === 0);
       }
     } catch (caught) {
@@ -241,8 +246,7 @@ function App() {
     try {
       const draft = await deleteArtifact(activeDraft.agent_key, selectedArtifact);
       setActiveDraft(draft);
-      setSelectedArtifact("");
-      setArtifactDraft("");
+      closeReviewPanel();
       setDrafts(await listDrafts());
       appendStepActivity(artifactStepId(selectedArtifact), `Deleted ${selectedArtifact}.`);
     } catch (caught) {
@@ -257,6 +261,13 @@ function App() {
     if (!activeDraft) return;
     setSelectedArtifact(artifactKey);
     setArtifactDraft(activeDraft.artifact_sources[artifactKey] ?? "");
+    setIsReviewPanelOpen(true);
+  }
+
+  function closeReviewPanel() {
+    setSelectedArtifact("");
+    setArtifactDraft("");
+    setIsReviewPanelOpen(false);
   }
 
   function appendStepActivity(stepId: string, message: string) {
@@ -271,6 +282,7 @@ function App() {
   const shouldShowComposer = isCreating || !activeDraft || !target;
   const activeStep = activeDraft?.status.steps.find((step) => !step.complete);
   const workflowDone = Boolean(activeDraft && !activeStep);
+  const showReviewPanel = Boolean(selectedArtifact && isReviewPanelOpen);
   const artifactsByStep = useMemo(() => {
     const byStep: Record<string, ArtifactCards> = {};
     if (!activeDraft) return byStep;
@@ -300,12 +312,29 @@ function App() {
   }, [activeStep?.id, lastCurrentStep]);
 
   return (
-    <main className="app-shell">
+    <main
+      className={[
+        "app-shell",
+        isSidebarOpen ? "" : "sidebar-collapsed",
+        showReviewPanel ? "review-open" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
       <aside className="sidebar">
-        <div className="traffic-lights" aria-hidden="true">
-          <span />
-          <span />
-          <span />
+        <div className="sidebar-window-bar">
+          <div className="traffic-lights" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </div>
+          <button
+            className="sidebar-toggle"
+            onClick={() => setIsSidebarOpen(false)}
+            title="Hide project panel"
+          >
+            <PanelRight className="flip-horizontal" size={18} />
+          </button>
         </div>
 
         <nav className="primary-nav" aria-label="Primary">
@@ -370,13 +399,36 @@ function App() {
         </section>
       </aside>
 
+      <aside className="collapsed-sidebar-rail">
+        <button
+          className="sidebar-toggle"
+          onClick={() => setIsSidebarOpen(true)}
+          title="Show project panel"
+        >
+          <PanelRight className="flip-horizontal" size={18} />
+        </button>
+      </aside>
+
       <section className="main-pane">
         <header className="topbar">
           <div>
             <strong>{shouldShowComposer ? "New agent" : target?.name}</strong>
             <span>{shouldShowComposer ? "Describe the target" : nextAction}</span>
           </div>
-          {isLoading ? <Loader2 className="spin" size={18} /> : null}
+          <div className="topbar-actions">
+            {!shouldShowComposer && !showReviewPanel ? (
+              <button
+                className="topbar-button"
+                onClick={() => setIsReviewPanelOpen(true)}
+                disabled={!selectedArtifact}
+                title={selectedArtifact ? "Toggle review panel" : "Select an artifact to review"}
+              >
+                <PanelRight size={17} />
+                Review
+              </button>
+            ) : null}
+            {isLoading ? <Loader2 className="spin" size={18} /> : null}
+          </div>
         </header>
 
         {shouldShowComposer ? (
@@ -513,7 +565,12 @@ function App() {
                             {artifact.file}
                           </code>
                           {artifact.status === "ready" ? (
-                            <button onClick={() => reviewArtifact(artifact.id)}>Review</button>
+                            <button
+                              className={selectedArtifact === artifact.id ? "active" : ""}
+                              onClick={() => reviewArtifact(artifact.id)}
+                            >
+                              Review
+                            </button>
                           ) : null}
                         </div>
                       ))
@@ -527,52 +584,47 @@ function App() {
           </div>
           {error ? <p className="error workspace-error">{error}</p> : null}
 
-          {selectedArtifact ? (
-            <section className="artifact-review">
-              <div className="review-title">
-                <div>
-                  <span>Review artifact</span>
-                  <strong>{selectedArtifact}</strong>
-                </div>
-                <div>
-                  <button
-                    className="secondary"
-                    onClick={() => {
-                      setSelectedArtifact("");
-                      setArtifactDraft("");
-                    }}
-                  >
-                    <X size={16} />
-                    Close
-                  </button>
-                  <button onClick={() => void handleSaveArtifact()} disabled={isLoading}>
-                    Save edits
-                  </button>
-                  <button
-                    className="danger"
-                    onClick={() => void handleDeleteArtifact()}
-                    disabled={isLoading || selectedArtifact === "target"}
-                    title={
-                      selectedArtifact === "target"
-                        ? "The draft target anchors the workspace."
-                        : "Delete artifact"
-                    }
-                  >
-                    <Trash2 size={16} />
-                    Delete
-                  </button>
-                </div>
-              </div>
-              <textarea
-                value={artifactDraft}
-                onChange={(event) => setArtifactDraft(event.target.value)}
-                spellCheck={false}
-              />
-            </section>
-          ) : null}
         </section>
         )}
       </section>
+
+      {showReviewPanel ? (
+        <aside className="artifact-review">
+          <div className="review-title">
+            <div>
+              <span>Review artifact</span>
+              <strong>{selectedArtifact}</strong>
+            </div>
+            <div>
+              <button className="secondary" onClick={closeReviewPanel}>
+                <PanelRight size={16} />
+                Close
+              </button>
+              <button onClick={() => void handleSaveArtifact()} disabled={isLoading}>
+                Save edits
+              </button>
+              <button
+                className="danger"
+                onClick={() => void handleDeleteArtifact()}
+                disabled={isLoading || selectedArtifact === "target"}
+                title={
+                  selectedArtifact === "target"
+                    ? "The draft target anchors the workspace."
+                    : "Delete artifact"
+                }
+              >
+                <Trash2 size={16} />
+                Delete
+              </button>
+            </div>
+          </div>
+          <textarea
+            value={artifactDraft}
+            onChange={(event) => setArtifactDraft(event.target.value)}
+            spellCheck={false}
+          />
+        </aside>
+      ) : null}
     </main>
   );
 }
