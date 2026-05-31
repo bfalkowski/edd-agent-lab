@@ -28,10 +28,16 @@ from edd_agent_lab.ui.workbench_views import (
 )
 from edd_agent_lab.ui.workspace_store import (
     DRAFT_ARTIFACT_FILES,
+    compare_draft_versions,
+    evaluate_draft_v0,
+    evaluate_draft_v1,
+    generate_draft_fix_plan,
+    generate_draft_v1_graph,
     list_draft_workspaces,
     load_draft_artifacts,
     load_draft_target,
     run_draft_v0,
+    run_draft_v1,
     save_design_scaffold,
     save_draft_scenario,
     save_draft_target,
@@ -193,6 +199,83 @@ def _render_start_page() -> None:
             f"Run `{run['id']}` · mode `{run['generation_mode']}` · "
             f"tool mode `{run['tool_mode']}`"
         )
+        if st.button("Evaluate v0", type="primary"):
+            evaluate_draft_v0(selected_agent)
+            st.rerun()
+
+    latest_artifacts = load_draft_artifacts(selected_agent)
+    eval_summary = latest_artifacts.get("eval_summary", {}).get("eval_summary")
+    if eval_summary:
+        st.markdown("## Local Eval Summary")
+        st.metric("Overall score", f"{eval_summary['overall_score']:.1f} / 5")
+        st.dataframe(eval_summary["checks"], use_container_width=True, hide_index=True)
+        failure = latest_artifacts.get("failure_packet", {}).get("failure_packet")
+        if failure:
+            st.warning(
+                f"Failure packet: `{failure['id']}` · failed rule "
+                f"`{failure['failed_rule']}`"
+            )
+            st.markdown(f"**Recommended fix:** {failure['recommended_fix']}")
+            if st.button("Generate fix plan", type="primary"):
+                generate_draft_fix_plan(selected_agent)
+                st.rerun()
+
+    fix_plan = latest_artifacts.get("fix_plan", {}).get("fix_plan")
+    if fix_plan:
+        st.markdown("## Draft Fix Plan")
+        st.caption(str(target_path.parent / DRAFT_ARTIFACT_FILES["fix_plan"]))
+        st.markdown(f"**Target version:** `{fix_plan['target_version']}`")
+        st.markdown(fix_plan["summary"])
+        st.dataframe(fix_plan["graph_changes"], use_container_width=True, hide_index=True)
+        with st.expander("Acceptance checks", expanded=False):
+            for check in fix_plan["acceptance_checks"]:
+                st.markdown(f"- {check}")
+
+        v1_graph = latest_artifacts.get("graph_design_v1", {}).get("graph_design")
+        v1_run = latest_artifacts.get("v1_run", {}).get("run")
+        v1_eval = latest_artifacts.get("eval_summary_v1", {}).get("eval_summary")
+        comparison = latest_artifacts.get("comparison", {}).get("comparison")
+
+        col_graph, col_run, col_eval, col_compare = st.columns(4)
+        if col_graph.button("Generate v1 graph"):
+            generate_draft_v1_graph(selected_agent)
+            st.rerun()
+        if col_run.button("Run v1", disabled=v1_graph is None):
+            run_draft_v1(selected_agent)
+            st.rerun()
+        if col_eval.button("Evaluate v1", disabled=v1_run is None):
+            evaluate_draft_v1(selected_agent)
+            st.rerun()
+        if col_compare.button("Compare v0/v1", disabled=v1_eval is None):
+            compare_draft_versions(selected_agent)
+            st.rerun()
+
+        if v1_graph:
+            with st.expander("v1 graph design", expanded=False):
+                st.caption(str(target_path.parent / DRAFT_ARTIFACT_FILES["graph_design_v1"]))
+                st.code(
+                    yaml.safe_dump({"graph_design": v1_graph}, sort_keys=False),
+                    language="yaml",
+                )
+        if v1_run:
+            st.markdown("## v1 Local Run")
+            st.caption(str(target_path.parent / DRAFT_ARTIFACT_FILES["v1_run"]))
+            st.markdown(v1_run["final_response"])
+            st.caption(
+                f"Run `{v1_run['id']}` · mode `{v1_run['generation_mode']}` · "
+                f"tool mode `{v1_run['tool_mode']}`"
+            )
+        if v1_eval:
+            st.markdown("## v1 Eval Summary")
+            st.metric("v1 overall score", f"{v1_eval['overall_score']:.1f} / 5")
+            st.dataframe(v1_eval["checks"], use_container_width=True, hide_index=True)
+        if comparison:
+            st.markdown("## v0/v1 Comparison")
+            metric_cols = st.columns(3)
+            metric_cols[0].metric("v0", f"{comparison['baseline_score']:.1f} / 5")
+            metric_cols[1].metric("v1", f"{comparison['candidate_score']:.1f} / 5")
+            metric_cols[2].metric("Delta", f"{comparison['score_delta']:+.1f}")
+            st.success(f"{comparison['decision']}: {comparison['summary']}")
 
 
 def _render_reference_workbench(platform_health: dict[str, object]) -> None:

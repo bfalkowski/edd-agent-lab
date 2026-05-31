@@ -4,10 +4,16 @@ from edd_agent_lab.ui.workspace_store import (
     build_design_scaffold,
     build_draft_scenario,
     build_target_from_description,
+    compare_draft_versions,
+    evaluate_draft_v0,
+    evaluate_draft_v1,
+    generate_draft_fix_plan,
+    generate_draft_v1_graph,
     list_draft_workspaces,
     load_draft_artifacts,
     load_draft_target,
     run_draft_v0,
+    run_draft_v1,
     save_design_scaffold,
     save_draft_scenario,
     save_draft_target,
@@ -124,3 +130,92 @@ def test_run_draft_v0_writes_local_run_artifacts(tmp_path, monkeypatch) -> None:
     assert "no tools or domain evidence wired yet" in run["run"]["final_response"]
     assert artifacts["v0_run"]["run"]["scenario_id"] == "contract-review-agent-scenario-001"
     assert (tmp_path / "contract_review_agent" / "draft" / "run-record.json").is_file()
+
+
+def test_evaluate_draft_v0_writes_summary_and_failure_packet(tmp_path, monkeypatch) -> None:
+    from edd_agent_lab.ui import workspace_store
+
+    monkeypatch.setattr(workspace_store, "LAB_RUNS_DIR", tmp_path)
+
+    save_draft_target(
+        name="Contract Review Agent",
+        description="Help legal teams review risky clauses.",
+    )
+    save_design_scaffold("contract-review-agent")
+    save_draft_scenario(
+        agent_key="contract-review-agent",
+        problem="Review this contract for risky payment terms.",
+    )
+    run_draft_v0("contract-review-agent")
+    summary = evaluate_draft_v0("contract-review-agent")
+    artifacts = load_draft_artifacts("contract-review-agent")
+
+    assert summary["eval_summary"]["passed"] is False
+    assert summary["eval_summary"]["overall_score"] == 4.0
+    assert artifacts["failure_packet"]["failure_packet"]["failed_rule"] == (
+        "recommend_safe_next_actions"
+    )
+    assert (tmp_path / "contract_review_agent" / "draft" / "eval-summary.yaml").is_file()
+
+
+def test_generate_draft_fix_plan_from_failure_packet(tmp_path, monkeypatch) -> None:
+    from edd_agent_lab.ui import workspace_store
+
+    monkeypatch.setattr(workspace_store, "LAB_RUNS_DIR", tmp_path)
+
+    save_draft_target(
+        name="Contract Review Agent",
+        description="Help legal teams review risky clauses.",
+    )
+    save_design_scaffold("contract-review-agent")
+    save_draft_scenario(
+        agent_key="contract-review-agent",
+        problem="Review this contract for risky payment terms.",
+    )
+    run_draft_v0("contract-review-agent")
+    evaluate_draft_v0("contract-review-agent")
+    fix_plan = generate_draft_fix_plan("contract-review-agent")
+    artifacts = load_draft_artifacts("contract-review-agent")
+
+    assert fix_plan["fix_plan"]["source_failure_packet_id"] == (
+        "contract-review-agent-v0-action-quality-failure"
+    )
+    assert fix_plan["fix_plan"]["target_version"] == "v1-evidence-aware-actions"
+    assert artifacts["fix_plan"]["fix_plan"]["graph_changes"][0]["id"] == (
+        "collect_domain_context"
+    )
+    assert (tmp_path / "contract_review_agent" / "draft" / "fix-plan.yaml").is_file()
+
+
+def test_draft_v1_run_eval_and_comparison(tmp_path, monkeypatch) -> None:
+    from edd_agent_lab.ui import workspace_store
+
+    monkeypatch.setattr(workspace_store, "LAB_RUNS_DIR", tmp_path)
+
+    save_draft_target(
+        name="Contract Review Agent",
+        description="Help legal teams review risky clauses.",
+    )
+    save_design_scaffold("contract-review-agent")
+    save_draft_scenario(
+        agent_key="contract-review-agent",
+        problem="Review this contract for risky payment terms.",
+    )
+    run_draft_v0("contract-review-agent")
+    evaluate_draft_v0("contract-review-agent")
+    generate_draft_fix_plan("contract-review-agent")
+    graph = generate_draft_v1_graph("contract-review-agent")
+    run = run_draft_v1("contract-review-agent")
+    summary = evaluate_draft_v1("contract-review-agent")
+    comparison = compare_draft_versions("contract-review-agent")
+    artifacts = load_draft_artifacts("contract-review-agent")
+
+    assert graph["graph_design"]["version"] == "v1-evidence-aware-actions"
+    assert run["run"]["agent_version"] == "v1-evidence-aware-actions"
+    assert summary["eval_summary"]["passed"] is True
+    assert comparison["comparison"]["score_delta"] > 0
+    assert comparison["comparison"]["decision"] == "candidate_improved"
+    assert artifacts["comparison"]["comparison"]["resolved_failures"] == [
+        "contract-review-agent-v0-action-quality-failure"
+    ]
+    assert (tmp_path / "contract_review_agent" / "draft" / "graph-design-v1.yaml").is_file()
