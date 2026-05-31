@@ -65,7 +65,7 @@ export type RuntimeConfig = {
     live_available: boolean;
     model: string;
   };
-  platform: {
+  platform?: {
     client_mode: string;
     api_base_url: string | null;
     configured: boolean;

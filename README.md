@@ -27,7 +27,13 @@ flowchart LR
 
 ## What This App Does
 
-EDD Agent Lab helps turn an agent idea into local EDD artifacts:
+EDD Agent Lab helps turn an agent idea into local EDD artifacts with a visual
+builder, structured artifact editors, deterministic runs, and platform-compatible
+publish payloads.
+
+![EDD Agent Lab builder workspace](docs/assets/builder-workspace.png)
+
+The builder guides a draft through:
 
 - draft target
 - behavior rules
@@ -40,7 +46,7 @@ EDD Agent Lab helps turn an agent idea into local EDD artifacts:
 - comparison evidence
 
 The local builder stores draft artifacts under `lab-runs/<agent_key>/draft/`.
-Those files are reviewable and editable in the app.
+Those files remain local by default and are reviewable and editable in the app.
 
 ```mermaid
 flowchart LR
@@ -97,14 +103,16 @@ The API runs at `http://127.0.0.1:8002`.
 1. Click `New agent`.
 2. Enter an agent name and purpose.
 3. Create the draft.
-4. Select the draft from the project list.
-5. Work through the steps in order.
-6. Review or edit generated artifacts from each step.
-7. Delete non-target artifacts when a step should be regenerated.
-8. Compare versions and publish evidence when the platform is configured.
+4. Select the draft from the agent list.
+5. Generate design artifacts, scenarios, runs, eval summaries, fixes, and
+   comparisons.
+6. Review and edit generated artifacts from the right-side review panel.
+7. Add or remove repeated artifact sections such as rules, metrics, gates,
+   requirements, tools, graph nodes, and graph edges.
+8. Publish evidence when the platform boundary is configured.
 
-Draft projects can be deleted from the left project list. Deleting a project
-removes its local `lab-runs/<agent_key>/` workspace.
+Drafts can be renamed, exported, archived, or deleted from the agent list.
+Deleting a draft removes its local `lab-runs/<agent_key>/` workspace.
 
 ## Local Artifacts
 
@@ -169,8 +177,8 @@ edd-lab publish-run \
 
 ## Platform Integration
 
-The lab works standalone by default. To publish run evidence to the platform,
-configure `.env`:
+The lab works standalone by default and keeps draft workspaces local. To publish
+run evidence to the platform, configure `.env`:
 
 ```bash
 cp .env.example .env

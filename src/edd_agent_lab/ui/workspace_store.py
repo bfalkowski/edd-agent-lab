@@ -6,6 +6,7 @@ import json
 import os
 import re
 import shutil
+import zipfile
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -73,6 +74,7 @@ DRAFT_ARTIFACT_ROOTS = {
 }
 
 ARCHIVE_MARKER_FILE = ".archived"
+EXPORTS_DIRNAME = "_exports"
 
 
 def slugify_agent_name(name: str) -> str:
@@ -1564,7 +1566,7 @@ def load_draft_target(agent_key: str) -> dict[str, Any] | None:
     path = draft_workspace_dir(agent_key) / "agent-target.yaml"
     if not path.is_file():
         return None
-    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    data = _load_yaml_mapping(path)
     return data if isinstance(data, dict) else None
 
 
@@ -1575,10 +1577,22 @@ def load_draft_artifacts(agent_key: str) -> dict[str, dict[str, Any]]:
         path = workspace / filename
         if not path.is_file():
             continue
-        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+        data = _load_yaml_mapping(path)
         if isinstance(data, dict):
             artifacts[artifact_key] = data
     return artifacts
+
+
+def _load_yaml_mapping(path: Path) -> dict[str, Any] | None:
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except yaml.YAMLError as exc:
+        raise ValueError(f"Invalid YAML in {path.name}: {exc}") from exc
+    if data is None:
+        return None
+    if not isinstance(data, dict):
+        raise ValueError(f"Invalid YAML in {path.name}: expected a mapping.")
+    return data
 
 
 def load_draft_artifact_sources(agent_key: str) -> dict[str, str]:
@@ -1748,6 +1762,81 @@ def archive_draft_workspace(agent_key: str) -> None:
         datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
         encoding="utf-8",
     )
+
+
+def export_draft_workspace(agent_key: str) -> Path:
+    workspace = draft_workspace_dir(agent_key)
+    if not workspace.is_dir():
+        raise FileNotFoundError(f"Draft workspace not found for agent: {agent_key}")
+    if load_draft_target(agent_key) is None:
+        raise FileNotFoundError(f"Draft target not found for agent: {agent_key}")
+
+    export_dir = LAB_RUNS_DIR / EXPORTS_DIRNAME
+    export_dir.mkdir(parents=True, exist_ok=True)
+    archive_path = export_dir / f"{agent_key}.zip"
+    with zipfile.ZipFile(archive_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        for path in sorted(workspace.rglob("*")):
+            if path.is_file():
+                archive.write(path, arcname=str(Path("draft") / path.relative_to(workspace)))
+    return archive_path
+
+
+def import_draft_workspace(archive_path: Path) -> DraftWorkspace:
+    if not archive_path.is_file():
+        raise FileNotFoundError(f"Draft export not found: {archive_path}")
+
+    with zipfile.ZipFile(archive_path) as archive:
+        target_member = _find_export_target_member(archive)
+        target = yaml.safe_load(archive.read(target_member).decode("utf-8")) or {}
+        validation = validate_draft_artifact(artifact_key="target", data=target)
+        if not validation["valid"]:
+            raise ValueError(
+                "Draft export target is invalid: "
+                + "; ".join(str(error) for error in validation["errors"])
+            )
+        agent_target = target["agent_target"]
+        agent_key = str(agent_target["id"]).removesuffix("-target-v1")
+        workspace = draft_workspace_dir(agent_key)
+        if workspace.exists():
+            raise FileExistsError(f"Draft workspace already exists for agent: {agent_key}")
+        workspace.mkdir(parents=True, exist_ok=True)
+
+        for member in archive.infolist():
+            if member.is_dir():
+                continue
+            relative_path = _safe_export_member_path(member.filename)
+            if relative_path is None:
+                continue
+            destination = workspace / relative_path
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(archive.read(member))
+
+    target_path = workspace / DRAFT_ARTIFACT_FILES["target"]
+    return DraftWorkspace(
+        agent_key=agent_key,
+        name=str(agent_target["name"]),
+        path=workspace,
+        target_path=target_path,
+        updated_at=str(agent_target.get("updated_at") or ""),
+    )
+
+
+def _find_export_target_member(archive: zipfile.ZipFile) -> str:
+    for candidate in ("draft/agent-target.yaml", "agent-target.yaml"):
+        if candidate in archive.namelist():
+            return candidate
+    raise FileNotFoundError("Draft export does not contain agent-target.yaml")
+
+
+def _safe_export_member_path(filename: str) -> Path | None:
+    path = Path(filename)
+    if path.is_absolute() or ".." in path.parts:
+        raise ValueError(f"Unsafe export path: {filename}")
+    if path.parts and path.parts[0] == "draft":
+        return Path(*path.parts[1:])
+    if path.name in DRAFT_ARTIFACT_FILES.values():
+        return path
+    return None
 
 
 def list_draft_workspaces() -> list[DraftWorkspace]:

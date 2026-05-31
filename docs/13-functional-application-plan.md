@@ -89,11 +89,11 @@ Make the local builder support the complete draft-agent loop:
 ## Phase 7: Product Hardening
 
 - [ ] Add end-to-end tests for the React builder flow.
-- [ ] Add API tests for draft create, action, artifact edit, artifact delete, and project delete.
-- [ ] Add schema tests for generated YAML artifacts.
-- [ ] Add import/export of draft workspaces.
-- [ ] Add better error handling for missing or corrupt artifacts.
-- [ ] Add screenshots once the UI stabilizes.
+- [x] Add API tests for draft create, action, artifact edit, artifact delete, and project delete.
+- [x] Add schema tests for generated YAML artifacts.
+- [x] Add import/export of draft workspaces.
+- [x] Add better error handling for missing or corrupt artifacts.
+- [x] Add screenshots once the UI stabilizes.
 
 ## Near-Term Build Order
 

@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import json
 import os
+from pathlib import Path
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
+from starlette.responses import FileResponse
 
 from edd_agent_lab.agents.generation import (
     agent_model_name,
@@ -23,8 +25,10 @@ from edd_agent_lab.ui.workspace_store import (
     draft_workflow_status,
     evaluate_draft_v0,
     evaluate_draft_v1,
+    export_draft_workspace,
     generate_draft_fix_plan,
     generate_draft_v1_graph,
+    import_draft_workspace,
     list_draft_workspaces,
     load_draft_artifact_sources,
     load_draft_artifact_validations,
@@ -54,6 +58,10 @@ class CreateDraftRequest(BaseModel):
 
 class RenameDraftRequest(BaseModel):
     name: str
+
+
+class ImportDraftRequest(BaseModel):
+    archive_path: str
 
 
 class ScenarioRequest(BaseModel):
@@ -293,18 +301,27 @@ def create_app():
 
     @app.get("/api/drafts/{agent_key}")
     def load_draft(agent_key: str) -> dict[str, Any]:
-        target = load_draft_target(agent_key)
+        try:
+            target = load_draft_target(agent_key)
+            artifacts = load_draft_artifacts(agent_key)
+            artifact_sources = load_draft_artifact_sources(agent_key)
+            artifact_validations = load_draft_artifact_validations(agent_key)
+            status = draft_workflow_status(agent_key)
+            artifact_cards = draft_artifact_cards(agent_key)
+            comparison_view = draft_comparison_view(agent_key)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
         if target is None:
             raise HTTPException(status_code=404, detail="Draft not found")
         return {
             "agent_key": agent_key,
             "target": target,
-            "artifacts": load_draft_artifacts(agent_key),
-            "artifact_sources": load_draft_artifact_sources(agent_key),
-            "artifact_validations": load_draft_artifact_validations(agent_key),
-            "status": draft_workflow_status(agent_key),
-            "artifact_cards": draft_artifact_cards(agent_key),
-            "comparison_view": draft_comparison_view(agent_key),
+            "artifacts": artifacts,
+            "artifact_sources": artifact_sources,
+            "artifact_validations": artifact_validations,
+            "status": status,
+            "artifact_cards": artifact_cards,
+            "comparison_view": comparison_view,
         }
 
     @app.delete("/api/drafts/{agent_key}")
@@ -332,6 +349,30 @@ def create_app():
         except FileNotFoundError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         return list_drafts()
+
+    @app.get("/api/drafts/{agent_key}/export")
+    def export_draft(agent_key: str) -> FileResponse:
+        try:
+            archive_path = export_draft_workspace(agent_key)
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        return FileResponse(
+            archive_path,
+            filename=archive_path.name,
+            media_type="application/zip",
+        )
+
+    @app.post("/api/drafts/import")
+    def import_draft(request: ImportDraftRequest) -> dict[str, Any]:
+        try:
+            workspace = import_draft_workspace(Path(request.archive_path))
+        except FileExistsError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return load_draft(workspace.agent_key)
 
     @app.put("/api/drafts/{agent_key}/target")
     def update_target(agent_key: str, request: TargetUpdateRequest) -> dict[str, Any]:

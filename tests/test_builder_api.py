@@ -96,6 +96,91 @@ def test_stream_action_returns_retryable_failure(tmp_path, monkeypatch) -> None:
     assert "Draft scenario not found" in events[-1]["message"]
 
 
+def test_draft_create_list_load_and_delete_api(tmp_path, monkeypatch) -> None:
+    from edd_agent_lab.ui import workspace_store
+
+    monkeypatch.setattr(workspace_store, "LAB_RUNS_DIR", tmp_path)
+    client = TestClient(create_app())
+
+    created = client.post(
+        "/api/drafts",
+        json={
+            "name": "Contract Review Agent",
+            "description": "Review contract clauses.",
+        },
+    )
+    assert created.status_code == 200
+    assert created.json()["agent_key"] == "contract-review-agent"
+
+    listed = client.get("/api/drafts")
+    assert listed.status_code == 200
+    assert listed.json()["drafts"][0]["agent_key"] == "contract-review-agent"
+
+    loaded = client.get("/api/drafts/contract-review-agent")
+    assert loaded.status_code == 200
+    assert loaded.json()["target"]["agent_target"]["purpose"] == "Review contract clauses."
+
+    deleted = client.delete("/api/drafts/contract-review-agent")
+    assert deleted.status_code == 200
+    assert deleted.json()["drafts"] == []
+    assert not workspace_store.draft_workspace_dir("contract-review-agent").parent.exists()
+
+
+def test_draft_export_and_import_api(tmp_path, monkeypatch) -> None:
+    from edd_agent_lab.ui import workspace_store
+
+    monkeypatch.setattr(workspace_store, "LAB_RUNS_DIR", tmp_path)
+    client = TestClient(create_app())
+
+    created = client.post(
+        "/api/drafts",
+        json={
+            "name": "Contract Review Agent",
+            "description": "Review contract clauses.",
+        },
+    )
+    assert created.status_code == 200
+    assert client.post("/api/drafts/contract-review-agent/design").status_code == 200
+
+    exported = client.get("/api/drafts/contract-review-agent/export")
+    archive_path = tmp_path / "_exports" / "contract-review-agent.zip"
+    assert exported.status_code == 200
+    assert exported.headers["content-type"] == "application/zip"
+    assert archive_path.is_file()
+
+    assert client.delete("/api/drafts/contract-review-agent").status_code == 200
+    imported = client.post("/api/drafts/import", json={"archive_path": str(archive_path)})
+
+    assert imported.status_code == 200
+    assert imported.json()["agent_key"] == "contract-review-agent"
+    assert imported.json()["artifact_validations"]["target"]["valid"] is True
+    assert "behavior_rules" in imported.json()["artifacts"]
+
+
+def test_load_draft_reports_corrupt_artifact_yaml(tmp_path, monkeypatch) -> None:
+    from edd_agent_lab.ui import workspace_store
+
+    monkeypatch.setattr(workspace_store, "LAB_RUNS_DIR", tmp_path)
+    client = TestClient(create_app())
+
+    created = client.post(
+        "/api/drafts",
+        json={
+            "name": "Contract Review Agent",
+            "description": "Review contract clauses.",
+        },
+    )
+    assert created.status_code == 200
+    workspace_store.draft_workspace_dir("contract-review-agent").joinpath(
+        "behavior-rules.yaml"
+    ).write_text("behavior_rules: [unterminated", encoding="utf-8")
+
+    loaded = client.get("/api/drafts/contract-review-agent")
+
+    assert loaded.status_code == 400
+    assert "Invalid YAML in behavior-rules.yaml" in loaded.json()["detail"]
+
+
 def test_update_target_returns_refreshed_draft(tmp_path, monkeypatch) -> None:
     from edd_agent_lab.ui import workspace_store
 
@@ -416,6 +501,51 @@ def test_update_graph_design_returns_refreshed_draft(tmp_path, monkeypatch) -> N
     assert "Collect source context before drafting." in updated.json()["artifact_sources"][
         "graph_design"
     ]
+
+
+def test_update_and_delete_raw_artifact_api(tmp_path, monkeypatch) -> None:
+    from edd_agent_lab.ui import workspace_store
+
+    monkeypatch.setattr(workspace_store, "LAB_RUNS_DIR", tmp_path)
+    client = TestClient(create_app())
+
+    created = client.post(
+        "/api/drafts",
+        json={
+            "name": "Contract Review Agent",
+            "description": "Review contract clauses.",
+        },
+    )
+    assert created.status_code == 200
+    assert client.post("/api/drafts/contract-review-agent/design").status_code == 200
+
+    source = "\n".join(
+        [
+            "behavior_rules:",
+            "- id: state_purpose_and_scope",
+            "  severity: medium",
+            "  description: Stay inside a revised review scope.",
+            "  target_id: contract-review-agent-target-v1",
+            "  status: review",
+            "",
+        ]
+    )
+    updated = client.put(
+        "/api/drafts/contract-review-agent/artifacts/behavior_rules",
+        json={"source": source},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["artifacts"]["behavior_rules"]["behavior_rules"][0]["status"] == (
+        "review"
+    )
+
+    deleted = client.delete("/api/drafts/contract-review-agent/artifacts/behavior_rules")
+    assert deleted.status_code == 200
+    assert "behavior_rules" not in deleted.json()["artifacts"]
+    assert (
+        deleted.json()["artifact_cards"][1]["id"],
+        deleted.json()["artifact_cards"][1]["status"],
+    ) == ("behavior_rules", "pending")
 
 
 def test_stream_run_action_accepts_generation_mode(tmp_path, monkeypatch) -> None:

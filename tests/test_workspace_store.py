@@ -17,9 +17,11 @@ from edd_agent_lab.ui.workspace_store import (
     draft_workflow_status,
     evaluate_draft_v0,
     evaluate_draft_v1,
+    export_draft_workspace,
     generate_draft_agent_package,
     generate_draft_fix_plan,
     generate_draft_v1_graph,
+    import_draft_workspace,
     list_draft_workspaces,
     load_draft_artifact_validations,
     load_draft_artifacts,
@@ -830,6 +832,28 @@ def test_archive_draft_workspace_hides_project_without_deleting(tmp_path, monkey
     assert (workspace_store.draft_workspace_dir("contract-review-agent") / ".archived").is_file()
 
 
+def test_export_and_import_draft_workspace(tmp_path, monkeypatch) -> None:
+    from edd_agent_lab.ui import workspace_store
+
+    monkeypatch.setattr(workspace_store, "LAB_RUNS_DIR", tmp_path)
+
+    save_draft_target(
+        name="Contract Review Agent",
+        description="Help legal teams review risky clauses.",
+    )
+    save_design_scaffold("contract-review-agent")
+
+    archive_path = export_draft_workspace("contract-review-agent")
+    workspace_store.delete_draft_workspace("contract-review-agent")
+    imported = import_draft_workspace(archive_path)
+
+    artifacts = load_draft_artifacts("contract-review-agent")
+    assert archive_path.name == "contract-review-agent.zip"
+    assert imported.agent_key == "contract-review-agent"
+    assert artifacts["target"]["agent_target"]["name"] == "Contract Review Agent"
+    assert artifacts["behavior_rules"]["behavior_rules"][0]["id"] == "state_purpose_and_scope"
+
+
 def test_save_draft_artifact_source_reports_invalid_yaml(tmp_path, monkeypatch) -> None:
     from edd_agent_lab.ui import workspace_store
 
@@ -898,3 +922,39 @@ def test_load_draft_artifact_validations_reports_existing_artifacts(tmp_path, mo
     assert validations["target"]["valid"] is True
     assert validations["behavior_rules"]["valid"] is True
     assert validations["eval_suite"]["valid"] is True
+
+
+def test_generated_draft_workflow_artifacts_validate(tmp_path, monkeypatch) -> None:
+    from edd_agent_lab.ui import workspace_store
+
+    monkeypatch.setattr(workspace_store, "LAB_RUNS_DIR", tmp_path)
+
+    save_draft_target(
+        name="Contract Review Agent",
+        description="Help legal teams review risky clauses.",
+    )
+    save_design_scaffold("contract-review-agent")
+    save_draft_scenario(
+        agent_key="contract-review-agent",
+        problem="Review this contract for risky payment terms.",
+    )
+    run_draft_v0("contract-review-agent")
+    evaluate_draft_v0("contract-review-agent")
+    generate_draft_fix_plan("contract-review-agent")
+    generate_draft_v1_graph("contract-review-agent")
+    run_draft_v1("contract-review-agent")
+    evaluate_draft_v1("contract-review-agent")
+    compare_draft_versions("contract-review-agent")
+    publish_draft_evidence(
+        "contract-review-agent",
+        client=QueuedEDDClient(queue_dir=tmp_path / "queue"),
+    )
+
+    validations = load_draft_artifact_validations("contract-review-agent")
+
+    assert set(validations) == set(workspace_store.DRAFT_ARTIFACT_FILES)
+    assert {
+        artifact_key: validation["errors"]
+        for artifact_key, validation in validations.items()
+        if not validation["valid"]
+    } == {}

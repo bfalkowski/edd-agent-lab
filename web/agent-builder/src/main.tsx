@@ -3,12 +3,14 @@ import {
   Archive,
   Check,
   Clock3,
+  Download,
   FileText,
-  Folder,
   Loader2,
+  MoreHorizontal,
   PanelRight,
   PencilLine,
   Play,
+  Plus,
   Search,
   Sparkles,
   Trash2,
@@ -19,7 +21,6 @@ import {
   archiveDraft,
   createDraft,
   deleteDraft,
-  deleteArtifact,
   BehaviorRule,
   DraftDetail,
   DraftSummary,
@@ -104,6 +105,27 @@ const outputToStep = Object.fromEntries(
     outputIds.map((outputId) => [outputId, stepId]),
   ),
 );
+
+const artifactDescriptions: Record<string, string> = {
+  target: "Intent, users, scope, and output expectations.",
+  behavior_rules: "Behavior constraints the agent should satisfy.",
+  eval_contract: "Metrics and gates used to judge the agent.",
+  eval_suite: "Deterministic checks generated for local evaluation.",
+  information_requirements: "Facts the agent must collect before acting.",
+  tool_requirements: "Tooling gaps or production blockers.",
+  graph_design: "First-pass graph nodes and transitions.",
+  scenario: "Local test scenario for exercising the agent.",
+  scenario_variants: "Scenario variations for broader coverage.",
+  v0_run: "First run evidence and generated response.",
+  eval_summary: "Evaluation result for the first run.",
+  failure_packet: "Focused explanation of what failed and why.",
+  fix_plan: "Bounded changes for improving the draft.",
+  graph_design_v1: "Revised graph after the fix plan.",
+  v1_run: "Second run evidence after changes.",
+  eval_summary_v1: "Evaluation result for the revised run.",
+  comparison: "Before and after comparison across versions.",
+  publish_result: "Platform publish payload and delivery status.",
+};
 
 function actionStepId(actionId: string): string {
   return Object.entries(stepActions).find(([, action]) => action === actionId)?.[0] ?? "target";
@@ -219,49 +241,41 @@ function graphDesignFromDraft(
   };
 }
 
-type DiffLine = {
-  key: string;
-  prefix: string;
-  text: string;
-  type: "same" | "added" | "removed";
-};
+function newBehaviorRule(): BehaviorRule {
+  return {
+    id: "new_rule",
+    severity: "medium",
+    description: "",
+    target_id: "",
+    status: "draft",
+  };
+}
 
-function buildLineDiff(before: string, after: string): DiffLine[] {
-  const beforeLines = before.split("\n");
-  const afterLines = after.split("\n");
-  const maxLines = Math.max(beforeLines.length, afterLines.length);
-  const lines: DiffLine[] = [];
+function newEvalMetric(): EvalMetric {
+  return { id: "new_metric", scale: "0-5", rules: [] };
+}
 
-  for (let index = 0; index < maxLines; index += 1) {
-    const beforeLine = beforeLines[index];
-    const afterLine = afterLines[index];
-    if (beforeLine === afterLine) {
-      lines.push({
-        key: `same-${index}`,
-        prefix: " ",
-        text: beforeLine ?? "",
-        type: "same",
-      });
-      continue;
-    }
-    if (beforeLine !== undefined) {
-      lines.push({
-        key: `removed-${index}`,
-        prefix: "-",
-        text: beforeLine,
-        type: "removed",
-      });
-    }
-    if (afterLine !== undefined) {
-      lines.push({
-        key: `added-${index}`,
-        prefix: "+",
-        text: afterLine,
-        type: "added",
-      });
-    }
-  }
-  return lines;
+function newEvalGate(): EvalGate {
+  return { id: "new_gate", type: "hard", condition: "" };
+}
+
+function newInformationRequirement(): InformationRequirement {
+  return { id: "new_requirement", description: "", required_for_rules: [], status: "draft" };
+}
+
+function newToolRequirement(): ToolRequirement {
+  return {
+    id: "new_tool",
+    suggested_tool_name: "",
+    information_requirements: [],
+    implementation_status: "missing",
+    production_blocker: false,
+    status: "draft",
+  };
+}
+
+function withoutIndex<T>(items: T[], index: number): T[] {
+  return items.filter((_, itemIndex) => itemIndex !== index);
 }
 
 function App() {
@@ -295,10 +309,14 @@ function App() {
     nodes: [],
     edges: [],
   });
-  const [reviewMode, setReviewMode] = useState<"edit" | "diff">("edit");
+  const [highlightedEditorItem, setHighlightedEditorItem] = useState("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isReviewPanelOpen, setIsReviewPanelOpen] = useState(false);
   const [runtimeConfig, setRuntimeConfig] = useState<RuntimeConfig | null>(null);
+  const [openDraftMenu, setOpenDraftMenu] = useState("");
+  const [editingDraftKey, setEditingDraftKey] = useState("");
+  const [editingDraftName, setEditingDraftName] = useState("");
+  const [deleteDraftTarget, setDeleteDraftTarget] = useState<DraftSummary | null>(null);
   const [generationMode, setGenerationMode] = useState<GenerationMode>(() => {
     const stored = window.localStorage.getItem(generationModeStorageKey);
     return stored === "mock" || stored === "live" || stored === "auto" ? stored : "auto";
@@ -360,6 +378,8 @@ function App() {
   async function handleSelectDraft(agentKey: string) {
     setIsLoading(true);
     setError("");
+    setOpenDraftMenu("");
+    setEditingDraftKey("");
     try {
       setActiveDraft(await loadDraft(agentKey));
       closeReviewPanel();
@@ -372,7 +392,7 @@ function App() {
   }
 
   async function handleDeleteDraft(agentKey: string, draftName: string) {
-    if (!window.confirm(`Delete "${draftName}" and its local draft artifacts?`)) return;
+    setOpenDraftMenu("");
     setIsLoading(true);
     setError("");
     try {
@@ -390,17 +410,24 @@ function App() {
     }
   }
 
-  async function handleRenameDraft(agentKey: string, draftName: string) {
-    const nextName = window.prompt("Rename project", draftName);
-    if (nextName === null || nextName.trim() === draftName) return;
+  async function handleRenameDraft(agentKey: string) {
+    const nextName = editingDraftName.trim();
+    const currentName = drafts.find((draft) => draft.agent_key === agentKey)?.name ?? "";
+    if (!nextName || nextName === currentName) {
+      setEditingDraftKey("");
+      setEditingDraftName("");
+      return;
+    }
     setIsLoading(true);
     setError("");
     try {
-      const draft = await renameDraft(agentKey, nextName.trim());
+      const draft = await renameDraft(agentKey, nextName);
       if (activeDraft?.agent_key === agentKey) {
         setActiveDraft(draft);
       }
       setDrafts(await listDrafts());
+      setEditingDraftKey("");
+      setEditingDraftName("");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not rename project.");
     } finally {
@@ -409,6 +436,7 @@ function App() {
   }
 
   async function handleArchiveDraft(agentKey: string, draftName: string) {
+    setOpenDraftMenu("");
     if (!window.confirm(`Archive "${draftName}" and hide it from the project list?`)) return;
     setIsLoading(true);
     setError("");
@@ -425,6 +453,11 @@ function App() {
     } finally {
       setIsLoading(false);
     }
+  }
+
+  function handleExportDraft(agentKey: string) {
+    setOpenDraftMenu("");
+    window.location.href = `/api/drafts/${agentKey}/export`;
   }
 
   async function handleAction(action: string) {
@@ -512,7 +545,6 @@ function App() {
       );
       setActiveDraft(draft);
       setArtifactDraft(draft.artifact_sources[selectedArtifact] ?? "");
-      setReviewMode("edit");
       setDrafts(await listDrafts());
       appendStepActivity(artifactStepId(selectedArtifact), `Saved ${selectedArtifact}.`);
     } catch (caught) {
@@ -533,7 +565,6 @@ function App() {
       setActiveDraft(draft);
       setArtifactDraft(draft.artifact_sources.behavior_rules ?? "");
       setRulesDraft(behaviorRulesFromDraft(draft));
-      setReviewMode("edit");
       setDrafts(await listDrafts());
       appendStepActivity("behavior_rules", "Saved behavior rules.");
     } catch (caught) {
@@ -554,7 +585,6 @@ function App() {
       setActiveDraft(draft);
       setArtifactDraft(draft.artifact_sources.eval_contract ?? "");
       setEvalContractDraft(evalContractFromDraft(draft));
-      setReviewMode("edit");
       setDrafts(await listDrafts());
       appendStepActivity("behavior_rules", "Saved eval contract.");
     } catch (caught) {
@@ -578,7 +608,6 @@ function App() {
       setActiveDraft(draft);
       setArtifactDraft(draft.artifact_sources.information_requirements ?? "");
       setInformationRequirementsDraft(informationRequirementsFromDraft(draft));
-      setReviewMode("edit");
       setDrafts(await listDrafts());
       appendStepActivity("behavior_rules", "Saved information requirements.");
     } catch (caught) {
@@ -601,7 +630,6 @@ function App() {
       setActiveDraft(draft);
       setArtifactDraft(draft.artifact_sources.tool_requirements ?? "");
       setToolRequirementsDraft(toolRequirementsFromDraft(draft));
-      setReviewMode("edit");
       setDrafts(await listDrafts());
       appendStepActivity("behavior_rules", "Saved tool requirements.");
     } catch (caught) {
@@ -622,7 +650,6 @@ function App() {
       setActiveDraft(draft);
       setArtifactDraft(draft.artifact_sources[graphDraft.artifact_key] ?? "");
       setGraphDraft(graphDesignFromDraft(draft, graphDraft.artifact_key));
-      setReviewMode("edit");
       setDrafts(await listDrafts());
       appendStepActivity(artifactStepId(graphDraft.artifact_key), "Saved graph design.");
     } catch (caught) {
@@ -643,31 +670,11 @@ function App() {
       setActiveDraft(draft);
       setArtifactDraft(draft.artifact_sources.target ?? "");
       setTargetDraft(targetUpdateFromDraft(draft));
-      setReviewMode("edit");
       setDrafts(await listDrafts());
       appendStepActivity("target", "Saved target.");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not save target.");
       appendStepActivity("target", "Target save failed.");
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  async function handleDeleteArtifact() {
-    if (!activeDraft || !selectedArtifact || selectedArtifact === "target") return;
-    setIsLoading(true);
-    setError("");
-    appendStepActivity(artifactStepId(selectedArtifact), `Deleting ${selectedArtifact}.`);
-    try {
-      const draft = await deleteArtifact(activeDraft.agent_key, selectedArtifact);
-      setActiveDraft(draft);
-      closeReviewPanel();
-      setDrafts(await listDrafts());
-      appendStepActivity(artifactStepId(selectedArtifact), `Deleted ${selectedArtifact}.`);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Could not delete artifact.");
-      appendStepActivity(artifactStepId(selectedArtifact), `Delete failed for ${selectedArtifact}.`);
     } finally {
       setIsLoading(false);
     }
@@ -695,15 +702,20 @@ function App() {
     if (artifactKey === "graph_design" || artifactKey === "graph_design_v1") {
       setGraphDraft(graphDesignFromDraft(activeDraft, artifactKey));
     }
-    setReviewMode("edit");
     setIsReviewPanelOpen(true);
   }
 
   function closeReviewPanel() {
     setSelectedArtifact("");
     setArtifactDraft("");
-    setReviewMode("edit");
     setIsReviewPanelOpen(false);
+  }
+
+  function markEditorItem(itemKey: string) {
+    setHighlightedEditorItem(itemKey);
+    window.setTimeout(() => {
+      setHighlightedEditorItem((current) => (current === itemKey ? "" : current));
+    }, 1300);
   }
 
   function appendStepActivity(stepId: string, message: string) {
@@ -714,10 +726,8 @@ function App() {
   }
 
   const target = activeDraft?.target.agent_target;
-  const nextAction = activeDraft?.status.next_action ?? "Create a draft target.";
   const shouldShowComposer = isCreating || !activeDraft || !target;
   const activeStep = activeDraft?.status.steps.find((step) => !step.complete);
-  const workflowDone = Boolean(activeDraft && !activeStep);
   const showReviewPanel = Boolean(selectedArtifact && isReviewPanelOpen);
   const selectedValidation = selectedArtifact
     ? activeDraft?.artifact_validations[selectedArtifact]
@@ -777,10 +787,10 @@ function App() {
               : selectedArtifact === "graph_design" || selectedArtifact === "graph_design_v1"
                 ? hasGraphChanges
                 : hasArtifactChanges;
-  const artifactDiff = useMemo(
-    () => buildLineDiff(savedArtifactSource, artifactDraft),
-    [artifactDraft, savedArtifactSource],
+  const selectedArtifactCard = activeDraft?.artifact_cards.find(
+    (artifact) => artifact.id === selectedArtifact,
   );
+  const selectedArtifactTitle = selectedArtifactCard?.artifact ?? selectedArtifact;
   const artifactsByStep = useMemo(() => {
     const byStep: Record<string, ArtifactCards> = {};
     if (!activeDraft) return byStep;
@@ -802,8 +812,9 @@ function App() {
           ? `Live: ${runtimeConfig.generation.model}`
           : "Live unavailable"
         : "Mock: deterministic";
-  const platformStatus = runtimeConfig?.platform.configured
-    ? runtimeConfig.platform.auth_configured
+  const platformConfig = runtimeConfig?.platform;
+  const platformStatus = platformConfig?.configured
+    ? platformConfig.auth_configured
       ? "Platform: HTTP + auth"
       : "Platform: HTTP"
     : "Platform: local";
@@ -835,11 +846,10 @@ function App() {
         .join(" ")}
     >
       <aside className="sidebar">
-        <div className="sidebar-window-bar">
-          <div className="traffic-lights" aria-hidden="true">
-            <span />
-            <span />
-            <span />
+        <div className="sidebar-brand">
+          <div>
+            <span className="brand-mark">E</span>
+            <strong>EDD Agent Lab</strong>
           </div>
           <button
             className="sidebar-toggle"
@@ -872,55 +882,80 @@ function App() {
         </nav>
 
         <section className="project-list">
-          <p>Projects</p>
-          <div className="project-heading">
-            <Folder size={19} />
-            <span>edd-agent-lab</span>
-          </div>
+          <p>Agents</p>
           <div className="draft-list">
             {drafts.map((draft) => (
               <div
                 className={draft.agent_key === activeDraft?.agent_key ? "draft-row active" : "draft-row"}
                 key={draft.agent_key}
               >
+                {editingDraftKey === draft.agent_key ? (
+                  <input
+                    autoFocus
+                    className="draft-rename-input"
+                    onBlur={() => void handleRenameDraft(draft.agent_key)}
+                    onChange={(event) => setEditingDraftName(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.currentTarget.blur();
+                      }
+                      if (event.key === "Escape") {
+                        setEditingDraftKey("");
+                        setEditingDraftName("");
+                      }
+                    }}
+                    value={editingDraftName}
+                  />
+                ) : (
                 <button className="draft-open" onClick={() => void handleSelectDraft(draft.agent_key)}>
-                  <strong>{draft.name}</strong>
-                </button>
+                    <strong>{draft.name}</strong>
+                  </button>
+                )}
                 <span className="draft-actions">
-                  <kbd>⌘{drafts.indexOf(draft) + 1}</kbd>
                   <button
-                    aria-label={`Rename ${draft.name}`}
-                    className="draft-icon-action"
+                    aria-label={`Open actions for ${draft.name}`}
+                    className="draft-menu-trigger"
                     onClick={(event) => {
                       event.stopPropagation();
-                      void handleRenameDraft(draft.agent_key, draft.name);
+                      setOpenDraftMenu(openDraftMenu === draft.agent_key ? "" : draft.agent_key);
                     }}
-                    title="Rename project"
+                    title="Project actions"
                   >
-                    <PencilLine size={14} />
+                    <MoreHorizontal size={18} />
                   </button>
-                  <button
-                    aria-label={`Archive ${draft.name}`}
-                    className="draft-icon-action"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      void handleArchiveDraft(draft.agent_key, draft.name);
-                    }}
-                    title="Archive project"
-                  >
-                    <Archive size={14} />
-                  </button>
-                  <button
-                    aria-label={`Delete ${draft.name}`}
-                    className="draft-icon-action delete-draft"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      void handleDeleteDraft(draft.agent_key, draft.name);
-                    }}
-                    title="Delete project"
-                  >
-                    <Trash2 size={14} />
-                  </button>
+                  {openDraftMenu === draft.agent_key ? (
+                    <div className="draft-menu">
+                      <button
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => {
+                          setOpenDraftMenu("");
+                          setEditingDraftKey(draft.agent_key);
+                          setEditingDraftName(draft.name);
+                        }}
+                      >
+                        <PencilLine size={18} />
+                        Rename
+                      </button>
+                      <button onClick={() => handleExportDraft(draft.agent_key)}>
+                        <Download size={18} />
+                        Export
+                      </button>
+                      <button onClick={() => void handleArchiveDraft(draft.agent_key, draft.name)}>
+                        <Archive size={18} />
+                        Archive
+                      </button>
+                      <button
+                        className="danger"
+                        onClick={() => {
+                          setOpenDraftMenu("");
+                          setDeleteDraftTarget(draft);
+                        }}
+                      >
+                        <Trash2 size={18} />
+                        Delete
+                      </button>
+                    </div>
+                  ) : null}
                 </span>
               </div>
             ))}
@@ -935,6 +970,7 @@ function App() {
       </aside>
 
       <aside className="collapsed-sidebar-rail">
+        <span className="brand-mark">E</span>
         <button
           className="sidebar-toggle"
           onClick={() => setIsSidebarOpen(true)}
@@ -948,7 +984,7 @@ function App() {
         <header className="topbar">
           <div>
             <strong>{shouldShowComposer ? "New agent" : target?.name}</strong>
-            <span>{shouldShowComposer ? "Describe the target" : nextAction}</span>
+            <span>{shouldShowComposer ? "Describe the target" : target?.purpose}</span>
           </div>
           <div className="topbar-actions">
             <div className="generation-control" aria-label="Generation mode">
@@ -969,7 +1005,7 @@ function App() {
               ))}
               <span>{generationStatus}</span>
             </div>
-            <span className="platform-status" title={runtimeConfig?.platform.publish_endpoint ?? ""}>
+            <span className="platform-status" title={platformConfig?.publish_endpoint ?? ""}>
               {platformStatus}
             </span>
             {!shouldShowComposer && !showReviewPanel ? (
@@ -1016,47 +1052,6 @@ function App() {
           </section>
         ) : (
         <section className="workspace">
-          <div className="workspace-header">
-            <div>
-              <p className="eyebrow">Local draft</p>
-              <h2>{target.name}</h2>
-              <p>{target.purpose}</p>
-            </div>
-            <div className="progress-card">
-              <strong>
-                {activeDraft.status.completed}/{activeDraft.status.total}
-              </strong>
-              <span>steps</span>
-            </div>
-          </div>
-
-          <div className="workflow-panel">
-            <div className="workflow-current">
-              <div>
-                <span>{workflowDone ? "Complete" : "Current step"}</span>
-                <strong>{workflowDone ? "Ready for publish review" : activeStep?.step}</strong>
-                <p>{nextAction}</p>
-              </div>
-            </div>
-
-            <div className="step-list">
-              {activeDraft.status.steps.map((step) => (
-                <div
-                  className={[
-                    "step-item",
-                    step.complete ? "complete" : "",
-                    step.id === activeStep?.id ? "current" : "",
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                  key={step.id}
-                >
-                  <span>{step.complete ? <Check size={14} /> : null}</span>
-                  <strong>{step.step}</strong>
-                </div>
-              ))}
-            </div>
-          </div>
           <div className="workflow-board">
             {activeDraft.status.steps.map((step) => {
               const action = stepActions[step.id];
@@ -1145,13 +1140,13 @@ function App() {
                   ) : null}
 
                   <div className="step-outputs">
-                    <span>Outputs</span>
                     {stepArtifacts.length > 0 ? (
                       stepArtifacts.map((artifact) => (
                         <div className="output-row" key={artifact.id}>
-                          <code className={artifact.status === "ready" ? "ready" : ""}>
-                            {artifact.file}
-                          </code>
+                          <div>
+                            <strong>{artifact.artifact}</strong>
+                            <span>{artifactDescriptions[artifact.id] ?? artifact.group}</span>
+                          </div>
                           {artifact.status === "ready" ? (
                             <button
                               className={selectedArtifact === artifact.id ? "active" : ""}
@@ -1179,78 +1174,22 @@ function App() {
       {showReviewPanel ? (
         <aside className="artifact-review">
           <div className="review-title">
+            <strong>{selectedArtifactTitle}</strong>
             <div>
-              <span>Review artifact</span>
-              <strong>{selectedArtifact}</strong>
-            </div>
-            <div>
-              <button className="secondary" onClick={closeReviewPanel}>
+              <button
+                aria-label="Close review panel"
+                className="secondary icon-only"
+                onClick={closeReviewPanel}
+                title="Close"
+              >
                 <PanelRight size={16} />
-                Close
               </button>
-              <button
-                className={reviewMode === "edit" ? "secondary active" : "secondary"}
-                onClick={() => setReviewMode("edit")}
-              >
-                Edit
-              </button>
-              <button
-                className={reviewMode === "diff" ? "secondary active" : "secondary"}
-                onClick={() => setReviewMode("diff")}
-                disabled={
-                  !hasReviewChanges ||
-                  selectedArtifact === "target" ||
-                  selectedArtifact === "behavior_rules" ||
-                  selectedArtifact === "eval_contract" ||
-                  selectedArtifact === "information_requirements" ||
-                  selectedArtifact === "tool_requirements" ||
-                  selectedArtifact === "graph_design" ||
-                  selectedArtifact === "graph_design_v1"
-                }
-                title={
-                  selectedArtifact === "target" ||
-                  selectedArtifact === "behavior_rules" ||
-                  selectedArtifact === "eval_contract" ||
-                  selectedArtifact === "information_requirements" ||
-                  selectedArtifact === "tool_requirements" ||
-                  selectedArtifact === "graph_design" ||
-                  selectedArtifact === "graph_design_v1"
-                    ? "YAML diff is available for raw artifacts."
-                    : hasArtifactChanges
-                      ? "Review unsaved changes"
-                      : "No unsaved changes"
-                }
-              >
-                Diff
-              </button>
-              <button onClick={() => void handleSaveArtifact()} disabled={isLoading}>
-                Save edits
-              </button>
-              <button
-                className="danger"
-                onClick={() => void handleDeleteArtifact()}
-                disabled={isLoading || selectedArtifact === "target"}
-                title={
-                  selectedArtifact === "target"
-                    ? "The draft target anchors the workspace."
-                    : "Delete artifact"
-                }
-              >
-                <Trash2 size={16} />
-                Delete
+              <button onClick={() => void handleSaveArtifact()} disabled={isLoading || !hasReviewChanges}>
+                Save
               </button>
             </div>
           </div>
-          {reviewMode === "diff" ? (
-            <div className="artifact-diff">
-              {artifactDiff.map((line) => (
-                <div className={`diff-line ${line.type}`} key={line.key}>
-                  <span>{line.prefix}</span>
-                  <code>{line.text || " "}</code>
-                </div>
-              ))}
-            </div>
-          ) : selectedArtifact === "target" ? (
+          {selectedArtifact === "target" ? (
             <div className="target-editor">
               <label>
                 Name
@@ -1307,9 +1246,45 @@ function App() {
                 />
               </label>
               <section>
-                <strong>Metrics</strong>
+                <div className="section-title-row">
+                  <strong>Metrics</strong>
+                  <button
+                    className="small-editor-action"
+                    onClick={() => {
+                      setEvalContractDraft({
+                        ...evalContractDraft,
+                        metrics: [newEvalMetric(), ...evalContractDraft.metrics],
+                      });
+                      markEditorItem("metric-0");
+                    }}
+                  >
+                    <Plus size={14} />
+                    Metric
+                  </button>
+                </div>
                 {evalContractDraft.metrics.map((metric, index) => (
-                  <div className="rule-editor-card" key={`${metric.id}-${index}`}>
+                  <div
+                    className={[
+                      "rule-editor-card",
+                      highlightedEditorItem === `metric-${index}` ? "newly-added" : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                    key={`${metric.id}-${index}`}
+                  >
+                    <button
+                      aria-label={`Remove ${metric.id || "metric"}`}
+                      className="card-remove"
+                      onClick={() =>
+                        setEvalContractDraft({
+                          ...evalContractDraft,
+                          metrics: withoutIndex(evalContractDraft.metrics, index),
+                        })
+                      }
+                      title="Remove"
+                    >
+                      <Trash2 size={14} />
+                    </button>
                     <label>
                       Metric id
                       <input
@@ -1353,9 +1328,45 @@ function App() {
                 ))}
               </section>
               <section>
-                <strong>Gates</strong>
+                <div className="section-title-row">
+                  <strong>Gates</strong>
+                  <button
+                    className="small-editor-action"
+                    onClick={() => {
+                      setEvalContractDraft({
+                        ...evalContractDraft,
+                        gates: [newEvalGate(), ...evalContractDraft.gates],
+                      });
+                      markEditorItem("gate-0");
+                    }}
+                  >
+                    <Plus size={14} />
+                    Gate
+                  </button>
+                </div>
                 {evalContractDraft.gates.map((gate, index) => (
-                  <div className="rule-editor-card" key={`${gate.id}-${index}`}>
+                  <div
+                    className={[
+                      "rule-editor-card",
+                      highlightedEditorItem === `gate-${index}` ? "newly-added" : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                    key={`${gate.id}-${index}`}
+                  >
+                    <button
+                      aria-label={`Remove ${gate.id || "gate"}`}
+                      className="card-remove"
+                      onClick={() =>
+                        setEvalContractDraft({
+                          ...evalContractDraft,
+                          gates: withoutIndex(evalContractDraft.gates, index),
+                        })
+                      }
+                      title="Remove"
+                    >
+                      <Trash2 size={14} />
+                    </button>
                     <label>
                       Gate id
                       <input
@@ -1395,8 +1406,44 @@ function App() {
             </div>
           ) : selectedArtifact === "information_requirements" ? (
             <div className="requirements-editor">
+              <div className="section-title-row">
+                <strong>Requirements</strong>
+                <button
+                  className="small-editor-action"
+                  onClick={() => {
+                    setInformationRequirementsDraft([
+                      newInformationRequirement(),
+                      ...informationRequirementsDraft,
+                    ]);
+                    markEditorItem("requirement-0");
+                  }}
+                >
+                  <Plus size={14} />
+                  Requirement
+                </button>
+              </div>
               {informationRequirementsDraft.map((requirement, index) => (
-                <section className="rule-editor-card" key={`${requirement.id}-${index}`}>
+                <section
+                  className={[
+                    "rule-editor-card",
+                    highlightedEditorItem === `requirement-${index}` ? "newly-added" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  key={`${requirement.id}-${index}`}
+                >
+                  <button
+                    aria-label={`Remove ${requirement.id || "requirement"}`}
+                    className="card-remove"
+                    onClick={() =>
+                      setInformationRequirementsDraft(
+                        withoutIndex(informationRequirementsDraft, index),
+                      )
+                    }
+                    title="Remove"
+                  >
+                    <Trash2 size={14} />
+                  </button>
                   <label>
                     Requirement id
                     <input
@@ -1455,8 +1502,37 @@ function App() {
             </div>
           ) : selectedArtifact === "tool_requirements" ? (
             <div className="requirements-editor">
+              <div className="section-title-row">
+                <strong>Tools</strong>
+                <button
+                  className="small-editor-action"
+                  onClick={() => {
+                    setToolRequirementsDraft([newToolRequirement(), ...toolRequirementsDraft]);
+                    markEditorItem("tool-0");
+                  }}
+                >
+                  <Plus size={14} />
+                  Tool
+                </button>
+              </div>
               {toolRequirementsDraft.map((tool, index) => (
-                <section className="rule-editor-card" key={`${tool.id}-${index}`}>
+                <section
+                  className={[
+                    "rule-editor-card",
+                    highlightedEditorItem === `tool-${index}` ? "newly-added" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  key={`${tool.id}-${index}`}
+                >
+                  <button
+                    aria-label={`Remove ${tool.id || "tool"}`}
+                    className="card-remove"
+                    onClick={() => setToolRequirementsDraft(withoutIndex(toolRequirementsDraft, index))}
+                    title="Remove"
+                  >
+                    <Trash2 size={14} />
+                  </button>
                   <label>
                     Tool id
                     <input
@@ -1554,9 +1630,48 @@ function App() {
                 />
               </label>
               <section>
-                <strong>Nodes</strong>
+                <div className="section-title-row">
+                  <strong>Nodes</strong>
+                  <button
+                    className="small-editor-action"
+                    onClick={() => {
+                      setGraphDraft({
+                        ...graphDraft,
+                        nodes: [
+                          { id: "new_node", purpose: "", supports_rules: [] },
+                          ...graphDraft.nodes,
+                        ],
+                      });
+                      markEditorItem("node-0");
+                    }}
+                  >
+                    <Plus size={14} />
+                    Node
+                  </button>
+                </div>
                 {graphDraft.nodes.map((node, index) => (
-                  <div className="rule-editor-card" key={`${node.id}-${index}`}>
+                  <div
+                    className={[
+                      "rule-editor-card",
+                      highlightedEditorItem === `node-${index}` ? "newly-added" : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                    key={`${node.id}-${index}`}
+                  >
+                    <button
+                      aria-label={`Remove ${node.id || "node"}`}
+                      className="card-remove"
+                      onClick={() =>
+                        setGraphDraft({
+                          ...graphDraft,
+                          nodes: withoutIndex(graphDraft.nodes, index),
+                        })
+                      }
+                      title="Remove"
+                    >
+                      <Trash2 size={14} />
+                    </button>
                     <label>
                       Node id
                       <input
@@ -1600,9 +1715,45 @@ function App() {
                 ))}
               </section>
               <section>
-                <strong>Edges</strong>
+                <div className="section-title-row">
+                  <strong>Edges</strong>
+                  <button
+                    className="small-editor-action"
+                    onClick={() => {
+                      setGraphDraft({
+                        ...graphDraft,
+                        edges: [{ from: "", to: "" }, ...graphDraft.edges],
+                      });
+                      markEditorItem("edge-0");
+                    }}
+                  >
+                    <Plus size={14} />
+                    Edge
+                  </button>
+                </div>
                 {graphDraft.edges.map((edge, index) => (
-                  <div className="rule-editor-card" key={`${edge.from}-${edge.to}-${index}`}>
+                  <div
+                    className={[
+                      "rule-editor-card",
+                      highlightedEditorItem === `edge-${index}` ? "newly-added" : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                    key={`${edge.from}-${edge.to}-${index}`}
+                  >
+                    <button
+                      aria-label={`Remove edge ${index + 1}`}
+                      className="card-remove"
+                      onClick={() =>
+                        setGraphDraft({
+                          ...graphDraft,
+                          edges: withoutIndex(graphDraft.edges, index),
+                        })
+                      }
+                      title="Remove"
+                    >
+                      <Trash2 size={14} />
+                    </button>
                     <label>
                       From
                       <input
@@ -1631,8 +1782,37 @@ function App() {
             </div>
           ) : selectedArtifact === "behavior_rules" ? (
             <div className="rules-editor">
+              <div className="section-title-row">
+                <strong>Rules</strong>
+                <button
+                  className="small-editor-action"
+                  onClick={() => {
+                    setRulesDraft([newBehaviorRule(), ...rulesDraft]);
+                    markEditorItem("rule-0");
+                  }}
+                >
+                  <Plus size={14} />
+                  Rule
+                </button>
+              </div>
               {rulesDraft.map((rule, index) => (
-                <section className="rule-editor-card" key={`${rule.id}-${index}`}>
+                <section
+                  className={[
+                    "rule-editor-card",
+                    highlightedEditorItem === `rule-${index}` ? "newly-added" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  key={`${rule.id}-${index}`}
+                >
+                  <button
+                    aria-label={`Remove ${rule.id || "rule"}`}
+                    className="card-remove"
+                    onClick={() => setRulesDraft(withoutIndex(rulesDraft, index))}
+                    title="Remove"
+                  >
+                    <Trash2 size={14} />
+                  </button>
                   <label>
                     Rule id
                     <input
@@ -1691,25 +1871,42 @@ function App() {
               spellCheck={false}
             />
           )}
-          <div
-            className={
-              selectedValidation?.valid === false
-                ? "validation-panel invalid"
-                : "validation-panel valid"
-            }
-          >
-            {selectedValidation?.valid === false ? (
-              <>
-                <strong>Validation issues</strong>
-                {selectedValidation.errors.map((item) => (
-                  <span key={item}>{item}</span>
-                ))}
-              </>
-            ) : (
-              <span>Artifact shape looks valid.</span>
-            )}
-          </div>
+          {selectedValidation?.valid === false ? (
+            <div className="validation-panel invalid">
+              <strong>Validation issues</strong>
+              {selectedValidation.errors.map((item) => (
+                <span key={item}>{item}</span>
+              ))}
+            </div>
+          ) : null}
         </aside>
+      ) : null}
+
+      {deleteDraftTarget ? (
+        <div className="modal-backdrop" role="presentation">
+          <section className="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="delete-draft-title">
+            <h2 id="delete-draft-title">Delete agent?</h2>
+            <p>
+              This will delete <strong>{deleteDraftTarget.name}</strong>.
+            </p>
+            <span>The local draft artifacts for this agent will be removed from this workspace.</span>
+            <div className="confirm-actions">
+              <button className="secondary" onClick={() => setDeleteDraftTarget(null)}>
+                Cancel
+              </button>
+              <button
+                className="confirm-delete"
+                disabled={isLoading}
+                onClick={() => {
+                  void handleDeleteDraft(deleteDraftTarget.agent_key, deleteDraftTarget.name);
+                  setDeleteDraftTarget(null);
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          </section>
+        </div>
       ) : null}
     </main>
   );
