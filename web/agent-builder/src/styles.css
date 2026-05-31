@@ -710,7 +710,7 @@ kbd {
   top: 0;
   align-self: start;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 12px;
   height: 100vh;
   min-width: 0;
@@ -766,13 +766,18 @@ kbd {
   color: #343541;
 }
 
+.review-title button.secondary.active {
+  background: #ececf1;
+}
+
 .review-title button.danger {
   border: 1px solid #fee2e2;
   background: #ffffff;
   color: #b42318;
 }
 
-.artifact-review textarea {
+.artifact-review textarea,
+.artifact-diff {
   width: 100%;
   min-height: 0;
   border: 1px solid #dedede;
@@ -785,6 +790,78 @@ kbd {
   outline: 0;
   padding: 14px;
   resize: vertical;
+}
+
+.artifact-diff {
+  overflow: auto;
+  padding: 0;
+}
+
+.diff-line {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  min-height: 24px;
+  border-bottom: 1px solid #ececf1;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.diff-line span {
+  display: grid;
+  place-items: center;
+  color: #6b7280;
+  user-select: none;
+}
+
+.diff-line code {
+  overflow: visible;
+  color: #202123;
+  white-space: pre;
+  padding: 3px 8px;
+}
+
+.diff-line.added {
+  background: #ecfdf3;
+}
+
+.diff-line.added span,
+.diff-line.added code {
+  color: #067647;
+}
+
+.diff-line.removed {
+  background: #fff1f3;
+}
+
+.diff-line.removed span,
+.diff-line.removed code {
+  color: #b42318;
+}
+
+.validation-panel {
+  display: grid;
+  gap: 4px;
+  border-radius: 12px;
+  font-size: 13px;
+  line-height: 1.35;
+  padding: 10px 12px;
+}
+
+.validation-panel.valid {
+  border: 1px solid #d7e7dc;
+  background: #f5fbf7;
+  color: #22633a;
+}
+
+.validation-panel.invalid {
+  border: 1px solid #fed7aa;
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.validation-panel strong {
+  color: inherit;
 }
 
 .spin {

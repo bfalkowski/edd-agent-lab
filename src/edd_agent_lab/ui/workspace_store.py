@@ -44,6 +44,25 @@ DRAFT_ARTIFACT_FILES = {
     "comparison": "comparison.yaml",
 }
 
+DRAFT_ARTIFACT_ROOTS = {
+    "target": "agent_target",
+    "behavior_rules": "behavior_rules",
+    "eval_contract": "eval_contract",
+    "eval_suite": "eval_suite",
+    "information_requirements": "information_requirements",
+    "tool_requirements": "tool_requirements",
+    "graph_design": "graph_design",
+    "scenario": "scenario",
+    "v0_run": "run",
+    "eval_summary": "eval_summary",
+    "failure_packet": "failure_packet",
+    "fix_plan": "fix_plan",
+    "graph_design_v1": "graph_design",
+    "v1_run": "run",
+    "eval_summary_v1": "eval_summary",
+    "comparison": "comparison",
+}
+
 
 def slugify_agent_name(name: str) -> str:
     slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
@@ -1007,6 +1026,111 @@ def load_draft_artifact_sources(agent_key: str) -> dict[str, str]:
     return sources
 
 
+def load_draft_artifact_validations(agent_key: str) -> dict[str, dict[str, Any]]:
+    artifacts = load_draft_artifacts(agent_key)
+    return {
+        artifact_key: validate_draft_artifact(artifact_key=artifact_key, data=data)
+        for artifact_key, data in artifacts.items()
+    }
+
+
+def validate_draft_artifact(*, artifact_key: str, data: dict[str, Any]) -> dict[str, Any]:
+    if artifact_key not in DRAFT_ARTIFACT_FILES:
+        raise KeyError(f"Unknown artifact: {artifact_key}")
+
+    errors: list[str] = []
+    root_key = DRAFT_ARTIFACT_ROOTS[artifact_key]
+    root = data.get(root_key)
+    if root is None:
+        errors.append(f"Missing top-level `{root_key}` mapping.")
+        return {"valid": False, "errors": errors}
+
+    if artifact_key in {"behavior_rules", "information_requirements", "tool_requirements"}:
+        if not isinstance(root, list) or not root:
+            errors.append(f"`{root_key}` must be a non-empty list.")
+            return {"valid": False, "errors": errors}
+        required = {
+            "behavior_rules": ("id", "description"),
+            "information_requirements": ("id", "description"),
+            "tool_requirements": ("id", "suggested_tool_name"),
+        }[artifact_key]
+        _validate_list_items(root_key=root_key, items=root, required=required, errors=errors)
+        return {"valid": not errors, "errors": errors}
+
+    if not isinstance(root, dict):
+        errors.append(f"`{root_key}` must be a mapping.")
+        return {"valid": False, "errors": errors}
+
+    required_fields = {
+        "target": ("id", "name", "purpose", "status"),
+        "eval_contract": ("id", "target_id", "metrics"),
+        "eval_suite": ("id", "target_id", "checks"),
+        "graph_design": ("id", "target_id", "version", "nodes"),
+        "graph_design_v1": ("id", "target_id", "version", "nodes"),
+        "scenario": ("id", "problem"),
+        "v0_run": ("id", "agent", "agent_version", "final_response"),
+        "v1_run": ("id", "agent", "agent_version", "final_response"),
+        "eval_summary": ("id", "agent", "overall_score", "checks"),
+        "eval_summary_v1": ("id", "agent", "overall_score", "checks"),
+        "failure_packet": ("id", "agent", "failed_rule"),
+        "fix_plan": ("id", "agent", "graph_changes"),
+        "comparison": ("id", "agent", "decision"),
+    }[artifact_key]
+    _validate_required_fields(
+        root_key=root_key,
+        payload=root,
+        required=required_fields,
+        errors=errors,
+    )
+
+    list_fields = {
+        "eval_contract": ("metrics",),
+        "eval_suite": ("checks",),
+        "graph_design": ("nodes",),
+        "graph_design_v1": ("nodes",),
+        "eval_summary": ("checks",),
+        "eval_summary_v1": ("checks",),
+        "fix_plan": ("graph_changes",),
+    }.get(artifact_key, ())
+    for field in list_fields:
+        if field in root and not isinstance(root[field], list):
+            errors.append(f"`{root_key}.{field}` must be a list.")
+
+    return {"valid": not errors, "errors": errors}
+
+
+def _validate_required_fields(
+    *,
+    root_key: str,
+    payload: dict[str, Any],
+    required: tuple[str, ...],
+    errors: list[str],
+) -> None:
+    for field in required:
+        value = payload.get(field)
+        if value in (None, ""):
+            errors.append(f"Missing `{root_key}.{field}`.")
+
+
+def _validate_list_items(
+    *,
+    root_key: str,
+    items: list[Any],
+    required: tuple[str, ...],
+    errors: list[str],
+) -> None:
+    for index, item in enumerate(items):
+        if not isinstance(item, dict):
+            errors.append(f"`{root_key}[{index}]` must be a mapping.")
+            continue
+        _validate_required_fields(
+            root_key=f"{root_key}[{index}]",
+            payload=item,
+            required=required,
+            errors=errors,
+        )
+
+
 def save_draft_artifact_source(*, agent_key: str, artifact_key: str, source: str) -> None:
     if artifact_key not in DRAFT_ARTIFACT_FILES:
         raise KeyError(f"Unknown artifact: {artifact_key}")
@@ -1016,6 +1140,11 @@ def save_draft_artifact_source(*, agent_key: str, artifact_key: str, source: str
         raise ValueError(f"Invalid artifact YAML: {exc}") from exc
     if not isinstance(data, dict):
         raise ValueError("Artifact YAML must be a mapping.")
+    validation = validate_draft_artifact(artifact_key=artifact_key, data=data)
+    if not validation["valid"]:
+        raise ValueError(
+            "Artifact validation failed: " + "; ".join(str(error) for error in validation["errors"])
+        )
     path = draft_workspace_dir(agent_key) / DRAFT_ARTIFACT_FILES[artifact_key]
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")

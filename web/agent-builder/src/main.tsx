@@ -88,6 +88,51 @@ function artifactStepId(artifactId: string): string {
   return outputToStep[artifactId] ?? "target";
 }
 
+type DiffLine = {
+  key: string;
+  prefix: string;
+  text: string;
+  type: "same" | "added" | "removed";
+};
+
+function buildLineDiff(before: string, after: string): DiffLine[] {
+  const beforeLines = before.split("\n");
+  const afterLines = after.split("\n");
+  const maxLines = Math.max(beforeLines.length, afterLines.length);
+  const lines: DiffLine[] = [];
+
+  for (let index = 0; index < maxLines; index += 1) {
+    const beforeLine = beforeLines[index];
+    const afterLine = afterLines[index];
+    if (beforeLine === afterLine) {
+      lines.push({
+        key: `same-${index}`,
+        prefix: " ",
+        text: beforeLine ?? "",
+        type: "same",
+      });
+      continue;
+    }
+    if (beforeLine !== undefined) {
+      lines.push({
+        key: `removed-${index}`,
+        prefix: "-",
+        text: beforeLine,
+        type: "removed",
+      });
+    }
+    if (afterLine !== undefined) {
+      lines.push({
+        key: `added-${index}`,
+        prefix: "+",
+        text: afterLine,
+        type: "added",
+      });
+    }
+  }
+  return lines;
+}
+
 function App() {
   const [drafts, setDrafts] = useState<DraftSummary[]>([]);
   const [activeDraft, setActiveDraft] = useState<DraftDetail | null>(null);
@@ -96,6 +141,7 @@ function App() {
   const [scenario, setScenario] = useState("");
   const [selectedArtifact, setSelectedArtifact] = useState("");
   const [artifactDraft, setArtifactDraft] = useState("");
+  const [reviewMode, setReviewMode] = useState<"edit" | "diff">("edit");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isReviewPanelOpen, setIsReviewPanelOpen] = useState(false);
   const [activityByStep, setActivityByStep] = useState<Record<string, string[]>>({});
@@ -228,6 +274,7 @@ function App() {
       );
       setActiveDraft(draft);
       setArtifactDraft(draft.artifact_sources[selectedArtifact] ?? "");
+      setReviewMode("edit");
       setDrafts(await listDrafts());
       appendStepActivity(artifactStepId(selectedArtifact), `Saved ${selectedArtifact}.`);
     } catch (caught) {
@@ -261,12 +308,14 @@ function App() {
     if (!activeDraft) return;
     setSelectedArtifact(artifactKey);
     setArtifactDraft(activeDraft.artifact_sources[artifactKey] ?? "");
+    setReviewMode("edit");
     setIsReviewPanelOpen(true);
   }
 
   function closeReviewPanel() {
     setSelectedArtifact("");
     setArtifactDraft("");
+    setReviewMode("edit");
     setIsReviewPanelOpen(false);
   }
 
@@ -283,6 +332,17 @@ function App() {
   const activeStep = activeDraft?.status.steps.find((step) => !step.complete);
   const workflowDone = Boolean(activeDraft && !activeStep);
   const showReviewPanel = Boolean(selectedArtifact && isReviewPanelOpen);
+  const selectedValidation = selectedArtifact
+    ? activeDraft?.artifact_validations[selectedArtifact]
+    : undefined;
+  const savedArtifactSource = selectedArtifact
+    ? activeDraft?.artifact_sources[selectedArtifact] ?? ""
+    : "";
+  const hasArtifactChanges = artifactDraft !== savedArtifactSource;
+  const artifactDiff = useMemo(
+    () => buildLineDiff(savedArtifactSource, artifactDraft),
+    [artifactDraft, savedArtifactSource],
+  );
   const artifactsByStep = useMemo(() => {
     const byStep: Record<string, ArtifactCards> = {};
     if (!activeDraft) return byStep;
@@ -600,6 +660,20 @@ function App() {
                 <PanelRight size={16} />
                 Close
               </button>
+              <button
+                className={reviewMode === "edit" ? "secondary active" : "secondary"}
+                onClick={() => setReviewMode("edit")}
+              >
+                Edit
+              </button>
+              <button
+                className={reviewMode === "diff" ? "secondary active" : "secondary"}
+                onClick={() => setReviewMode("diff")}
+                disabled={!hasArtifactChanges}
+                title={hasArtifactChanges ? "Review unsaved changes" : "No unsaved changes"}
+              >
+                Diff
+              </button>
               <button onClick={() => void handleSaveArtifact()} disabled={isLoading}>
                 Save edits
               </button>
@@ -618,11 +692,40 @@ function App() {
               </button>
             </div>
           </div>
-          <textarea
-            value={artifactDraft}
-            onChange={(event) => setArtifactDraft(event.target.value)}
-            spellCheck={false}
-          />
+          {reviewMode === "diff" ? (
+            <div className="artifact-diff">
+              {artifactDiff.map((line) => (
+                <div className={`diff-line ${line.type}`} key={line.key}>
+                  <span>{line.prefix}</span>
+                  <code>{line.text || " "}</code>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <textarea
+              value={artifactDraft}
+              onChange={(event) => setArtifactDraft(event.target.value)}
+              spellCheck={false}
+            />
+          )}
+          <div
+            className={
+              selectedValidation?.valid === false
+                ? "validation-panel invalid"
+                : "validation-panel valid"
+            }
+          >
+            {selectedValidation?.valid === false ? (
+              <>
+                <strong>Validation issues</strong>
+                {selectedValidation.errors.map((item) => (
+                  <span key={item}>{item}</span>
+                ))}
+              </>
+            ) : (
+              <span>Artifact shape looks valid.</span>
+            )}
+          </div>
         </aside>
       ) : null}
     </main>

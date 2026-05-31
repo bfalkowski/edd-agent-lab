@@ -50,6 +50,7 @@ def test_stream_action_returns_progress_events(tmp_path, monkeypatch) -> None:
     assert events[-1]["retryable"] is False
     assert events[-1]["draft"]["status"]["completed"] == 2
     assert "behavior_rules" in events[-1]["draft"]["artifact_sources"]
+    assert events[-1]["draft"]["artifact_validations"]["behavior_rules"]["valid"] is True
 
 
 def test_stream_action_returns_retryable_failure(tmp_path, monkeypatch) -> None:

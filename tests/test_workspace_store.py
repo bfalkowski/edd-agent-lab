@@ -16,6 +16,7 @@ from edd_agent_lab.ui.workspace_store import (
     generate_draft_fix_plan,
     generate_draft_v1_graph,
     list_draft_workspaces,
+    load_draft_artifact_validations,
     load_draft_artifacts,
     load_draft_target,
     run_draft_v0,
@@ -26,6 +27,7 @@ from edd_agent_lab.ui.workspace_store import (
     save_draft_target,
     slugify_agent_name,
     update_draft_target,
+    validate_draft_artifact,
 )
 
 
@@ -423,3 +425,55 @@ def test_save_draft_artifact_source_reports_invalid_yaml(tmp_path, monkeypatch) 
             artifact_key="scenario",
             source="scenario: [unterminated",
         )
+
+
+def test_validate_draft_artifact_reports_missing_required_fields() -> None:
+    validation = validate_draft_artifact(
+        artifact_key="target",
+        data={"agent_target": {"id": "contract-review-agent-target-v1"}},
+    )
+
+    assert validation == {
+        "valid": False,
+        "errors": [
+            "Missing `agent_target.name`.",
+            "Missing `agent_target.purpose`.",
+            "Missing `agent_target.status`.",
+        ],
+    }
+
+
+def test_save_draft_artifact_source_rejects_invalid_shape(tmp_path, monkeypatch) -> None:
+    from edd_agent_lab.ui import workspace_store
+
+    monkeypatch.setattr(workspace_store, "LAB_RUNS_DIR", tmp_path)
+
+    save_draft_target(
+        name="Contract Review Agent",
+        description="Help legal teams review risky clauses.",
+    )
+
+    with pytest.raises(ValueError, match="Artifact validation failed"):
+        save_draft_artifact_source(
+            agent_key="contract-review-agent",
+            artifact_key="target",
+            source="agent_target:\n  id: contract-review-agent-target-v1\n",
+        )
+
+
+def test_load_draft_artifact_validations_reports_existing_artifacts(tmp_path, monkeypatch) -> None:
+    from edd_agent_lab.ui import workspace_store
+
+    monkeypatch.setattr(workspace_store, "LAB_RUNS_DIR", tmp_path)
+
+    save_draft_target(
+        name="Contract Review Agent",
+        description="Help legal teams review risky clauses.",
+    )
+    save_design_scaffold("contract-review-agent")
+
+    validations = load_draft_artifact_validations("contract-review-agent")
+
+    assert validations["target"]["valid"] is True
+    assert validations["behavior_rules"]["valid"] is True
+    assert validations["eval_suite"]["valid"] is True

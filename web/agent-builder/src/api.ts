@@ -24,6 +24,7 @@ export type DraftDetail = {
   };
   artifacts: Record<string, unknown>;
   artifact_sources: Record<string, string>;
+  artifact_validations: Record<string, { valid: boolean; errors: string[] }>;
   status: {
     completed: number;
     total: number;
