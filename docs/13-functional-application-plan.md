@@ -32,7 +32,7 @@ Make `edd-agent-lab` a usable local workbench where someone can:
 - [ ] Add "Save changes" for edited draft artifacts.
 - [ ] Add validation errors for incomplete draft artifacts.
 - [ ] Add draft workspace selector/rename/delete/archive.
-- [ ] Add clear "local only, not platform persisted" status.
+- [x] Add clear "local only, not platform persisted" status.
 
 ## Phase 2: Generate v1 From Failure
 
@@ -43,8 +43,8 @@ Make `edd-agent-lab` a usable local workbench where someone can:
 - [x] Run v1 against same scenario.
 - [x] Evaluate v1.
 - [x] Compare v0 vs v1.
-- [ ] Show side-by-side outputs for greenfield agents, not only reference demo.
-- [ ] Show verdict: what failed, what changed, what remains blocked.
+- [x] Show side-by-side outputs for greenfield agents, not only reference demo.
+- [x] Show verdict: what failed, what changed, what remains blocked.
 
 ## Phase 3: Make It Feel Like an App
 
@@ -59,9 +59,9 @@ Make `edd-agent-lab` a usable local workbench where someone can:
   - Evaluate
   - Compare
   - Publish
-- [ ] Add progress/status indicators for each step.
+- [x] Add progress/status indicators for each step.
 - [ ] Add compact artifact cards with edit/review states.
-- [ ] Add "next recommended action" panel.
+- [x] Add "next recommended action" panel.
 - [ ] Reduce raw YAML exposure to an advanced/details view.
 - [ ] Improve Streamlit styling toward a focused developer workbench.
 - [ ] Add empty, loading, success, failure states.

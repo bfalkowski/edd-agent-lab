@@ -29,6 +29,8 @@ from edd_agent_lab.ui.workbench_views import (
 from edd_agent_lab.ui.workspace_store import (
     DRAFT_ARTIFACT_FILES,
     compare_draft_versions,
+    draft_comparison_view,
+    draft_workflow_status,
     evaluate_draft_v0,
     evaluate_draft_v1,
     generate_draft_fix_plan,
@@ -41,6 +43,7 @@ from edd_agent_lab.ui.workspace_store import (
     save_design_scaffold,
     save_draft_scenario,
     save_draft_target,
+    update_draft_target,
 )
 
 _SESSION_KEYS = (
@@ -147,6 +150,13 @@ def _render_start_page() -> None:
     )
     st.caption(str(target_path))
     artifacts = load_draft_artifacts(selected_agent)
+    st.info(
+        "Local draft only: this workspace is saved as YAML under `lab-runs/` and "
+        "has not been persisted to platform/Postgres."
+    )
+    _render_target_editor(selected_agent, agent_target)
+    _render_draft_progress(draft_workflow_status(selected_agent))
+
     ready_count = len(artifacts) - (0 if "target" not in artifacts else 1)
     col_scaffold, col_status = st.columns([1, 2])
     if col_scaffold.button("Scaffold design artifacts", type="primary"):
@@ -275,7 +285,93 @@ def _render_start_page() -> None:
             metric_cols[0].metric("v0", f"{comparison['baseline_score']:.1f} / 5")
             metric_cols[1].metric("v1", f"{comparison['candidate_score']:.1f} / 5")
             metric_cols[2].metric("Delta", f"{comparison['score_delta']:+.1f}")
-            st.success(f"{comparison['decision']}: {comparison['summary']}")
+            comparison_view = draft_comparison_view(selected_agent)
+            if comparison_view:
+                left, right = st.columns(2, gap="medium")
+                with left:
+                    _render_draft_version_panel("v0", comparison_view["v0"])
+                with right:
+                    _render_draft_version_panel("v1", comparison_view["v1"])
+                verdict = comparison_view["verdict"]
+                st.markdown("## Draft EDD Verdict")
+                st.success(f"{verdict['decision']}: {verdict['summary']}")
+                st.markdown(f"**What failed:** {verdict['what_failed']}")
+                st.markdown(f"**What changed:** {verdict['what_changed']}")
+                st.warning(f"Remaining blocker: {verdict['remaining_blocker']}")
+
+
+def _render_draft_version_panel(label: str, panel: dict[str, object]) -> None:
+    import streamlit as st
+
+    passed = bool(panel["passed"])
+    pill = status_pill("PASS" if passed else "FAIL", "green" if passed else "red")
+    st.markdown(f"### {label}: `{panel['version']}`")
+    st.markdown(
+        f"Score: **{float(panel['score']):.1f} / 5** · {pill} · "
+        f"Tool mode: `{panel['tool_mode']}`",
+        unsafe_allow_html=True,
+    )
+    with st.container(border=True):
+        st.markdown(str(panel["response"]))
+    if passed:
+        st.success(str(panel["callout"]))
+    else:
+        st.error(str(panel["callout"]))
+
+
+def _render_target_editor(agent_key: str, agent_target: dict[str, object]) -> None:
+    import streamlit as st
+
+    with st.expander("Edit target", expanded=False):
+        with st.form(f"edit_target_{agent_key}"):
+            name = st.text_input("Target name", value=str(agent_target.get("name", "")))
+            purpose = st.text_area(
+                "Purpose",
+                value=str(agent_target.get("purpose", "")),
+                height=120,
+            )
+            risk_tolerance = st.text_input(
+                "Risk tolerance",
+                value=str(agent_target.get("risk_tolerance", "needs_review")),
+            )
+            output_format = st.text_input(
+                "Expected output format",
+                value=str(agent_target.get("expected_output_format", "needs_review")),
+            )
+            submitted = st.form_submit_button("Save target changes")
+        if submitted:
+            try:
+                update_draft_target(
+                    agent_key=agent_key,
+                    name=name,
+                    purpose=purpose,
+                    risk_tolerance=risk_tolerance,
+                    expected_output_format=output_format,
+                )
+            except ValueError as exc:
+                st.error(str(exc))
+            else:
+                st.success("Target updated.")
+                st.rerun()
+
+
+def _render_draft_progress(status: dict[str, object]) -> None:
+    import streamlit as st
+
+    st.markdown("## Workflow Progress")
+    completed = int(status["completed"])
+    total = int(status["total"])
+    st.progress(float(status["percent"]), text=f"{completed} of {total} steps complete")
+    st.info(f"Next: {status['next_action']}")
+    with st.expander("Step status", expanded=False):
+        rows = [
+            {
+                "step": row["step"],
+                "status": "complete" if row["complete"] else "pending",
+            }
+            for row in status["steps"]
+        ]
+        st.dataframe(rows, use_container_width=True, hide_index=True)
 
 
 def _render_reference_workbench(platform_health: dict[str, object]) -> None:

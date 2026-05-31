@@ -215,6 +215,38 @@ def save_draft_target(*, name: str, description: str) -> DraftWorkspace:
     )
 
 
+def update_draft_target(
+    *,
+    agent_key: str,
+    name: str,
+    purpose: str,
+    risk_tolerance: str,
+    expected_output_format: str,
+) -> dict[str, Any]:
+    target = load_draft_target(agent_key)
+    if target is None:
+        raise FileNotFoundError(f"Draft target not found for agent: {agent_key}")
+
+    clean_name = name.strip()
+    clean_purpose = purpose.strip()
+    if not clean_name or not clean_purpose:
+        raise ValueError("Target name and purpose are required.")
+
+    agent_target = target["agent_target"]
+    agent_target["name"] = clean_name
+    agent_target["purpose"] = clean_purpose
+    agent_target["risk_tolerance"] = risk_tolerance.strip() or "needs_review"
+    agent_target["expected_output_format"] = (
+        expected_output_format.strip() or "needs_review"
+    )
+    agent_target["updated_at"] = (
+        datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    )
+    path = draft_workspace_dir(agent_key) / DRAFT_ARTIFACT_FILES["target"]
+    path.write_text(yaml.safe_dump(target, sort_keys=False), encoding="utf-8")
+    return target
+
+
 def save_design_scaffold(agent_key: str) -> dict[str, Path]:
     target = load_draft_target(agent_key)
     if target is None:
@@ -586,6 +618,90 @@ def compare_draft_versions(agent_key: str) -> dict[str, Any]:
     path = draft_workspace_dir(agent_key) / DRAFT_ARTIFACT_FILES["comparison"]
     path.write_text(yaml.safe_dump(comparison, sort_keys=False), encoding="utf-8")
     return comparison
+
+
+def draft_comparison_view(agent_key: str) -> dict[str, Any]:
+    artifacts = load_draft_artifacts(agent_key)
+    v0_run = artifacts.get("v0_run", {}).get("run")
+    v1_run = artifacts.get("v1_run", {}).get("run")
+    v0_eval = artifacts.get("eval_summary", {}).get("eval_summary")
+    v1_eval = artifacts.get("eval_summary_v1", {}).get("eval_summary")
+    failure = artifacts.get("failure_packet", {}).get("failure_packet")
+    fix_plan = artifacts.get("fix_plan", {}).get("fix_plan")
+    comparison = artifacts.get("comparison", {}).get("comparison")
+    if not all((v0_run, v1_run, v0_eval, v1_eval, failure, fix_plan, comparison)):
+        return {}
+
+    return {
+        "v0": {
+            "version": v0_run["agent_version"],
+            "score": v0_eval["overall_score"],
+            "passed": v0_eval["passed"],
+            "tool_mode": v0_run["tool_mode"],
+            "response": v0_run["final_response"],
+            "callout": (
+                f"Failed {failure['failed_rule']}: "
+                f"{failure['observed_behavior']}"
+            ),
+        },
+        "v1": {
+            "version": v1_run["agent_version"],
+            "score": v1_eval["overall_score"],
+            "passed": v1_eval["passed"],
+            "tool_mode": v1_run["tool_mode"],
+            "response": v1_run["final_response"],
+            "callout": (
+                f"Uses fix plan {fix_plan['id']} to add context collection "
+                "and grounded action planning."
+            ),
+        },
+        "verdict": {
+            "decision": comparison["decision"],
+            "score_delta": comparison["score_delta"],
+            "what_failed": failure["observed_behavior"],
+            "what_changed": fix_plan["summary"],
+            "remaining_blocker": "Draft tools are local placeholders, not production connectors.",
+            "summary": comparison["summary"],
+        },
+    }
+
+
+def draft_workflow_status(agent_key: str) -> dict[str, Any]:
+    artifacts = load_draft_artifacts(agent_key)
+    steps = [
+        ("target", "Target", "Create the draft target."),
+        ("behavior_rules", "Design scaffold", "Scaffold rules, eval, requirements, and graph."),
+        ("scenario", "Scenario", "Add a first local test scenario."),
+        ("v0_run", "Run v0", "Run the deterministic v0 baseline."),
+        ("eval_summary", "Evaluate v0", "Evaluate v0 and generate a failure packet."),
+        ("fix_plan", "Fix plan", "Generate a bounded fix plan."),
+        ("graph_design_v1", "v1 graph", "Generate the v1 graph design."),
+        ("v1_run", "Run v1", "Run v1 against the same scenario."),
+        ("eval_summary_v1", "Evaluate v1", "Evaluate the candidate version."),
+        ("comparison", "Compare", "Compare v0 and v1."),
+    ]
+    rows = [
+        {
+            "id": artifact_key,
+            "step": label,
+            "complete": artifact_key in artifacts,
+            "next_action": next_action,
+        }
+        for artifact_key, label, next_action in steps
+    ]
+    completed = sum(1 for row in rows if row["complete"])
+    next_row = next((row for row in rows if not row["complete"]), None)
+    return {
+        "completed": completed,
+        "total": len(rows),
+        "percent": round(completed / len(rows), 3),
+        "next_action": (
+            next_row["next_action"]
+            if next_row
+            else "Review comparison and publish evidence."
+        ),
+        "steps": rows,
+    }
 
 
 def _draft_v0_response(*, agent_target: dict[str, Any], scenario: dict[str, Any]) -> str:

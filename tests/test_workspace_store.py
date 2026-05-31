@@ -5,6 +5,8 @@ from edd_agent_lab.ui.workspace_store import (
     build_draft_scenario,
     build_target_from_description,
     compare_draft_versions,
+    draft_comparison_view,
+    draft_workflow_status,
     evaluate_draft_v0,
     evaluate_draft_v1,
     generate_draft_fix_plan,
@@ -18,6 +20,7 @@ from edd_agent_lab.ui.workspace_store import (
     save_draft_scenario,
     save_draft_target,
     slugify_agent_name,
+    update_draft_target,
 )
 
 
@@ -59,6 +62,33 @@ def test_save_load_and_list_draft_workspace(tmp_path, monkeypatch) -> None:
     assert loaded["agent_target"]["updated_at"].endswith("Z")
     assert len(workspaces) == 1
     assert workspaces[0].name == "Contract Review Agent"
+
+
+def test_update_draft_target_edits_existing_workspace(tmp_path, monkeypatch) -> None:
+    from edd_agent_lab.ui import workspace_store
+
+    monkeypatch.setattr(workspace_store, "LAB_RUNS_DIR", tmp_path)
+
+    save_draft_target(
+        name="Contract Review Agent",
+        description="Help legal teams review risky clauses.",
+    )
+    updated = update_draft_target(
+        agent_key="contract-review-agent",
+        name="Contract Risk Review Agent",
+        purpose="Review contract clauses and surface negotiation risks.",
+        risk_tolerance="low",
+        expected_output_format="risk summary",
+    )
+    loaded = load_draft_target("contract-review-agent")
+
+    assert updated["agent_target"]["name"] == "Contract Risk Review Agent"
+    assert loaded is not None
+    assert loaded["agent_target"]["purpose"] == (
+        "Review contract clauses and surface negotiation risks."
+    )
+    assert loaded["agent_target"]["risk_tolerance"] == "low"
+    assert loaded["agent_target"]["expected_output_format"] == "risk summary"
 
 
 def test_build_design_scaffold_links_artifacts_to_target() -> None:
@@ -219,3 +249,56 @@ def test_draft_v1_run_eval_and_comparison(tmp_path, monkeypatch) -> None:
         "contract-review-agent-v0-action-quality-failure"
     ]
     assert (tmp_path / "contract_review_agent" / "draft" / "graph-design-v1.yaml").is_file()
+
+
+def test_draft_comparison_view_summarizes_versions_and_verdict(tmp_path, monkeypatch) -> None:
+    from edd_agent_lab.ui import workspace_store
+
+    monkeypatch.setattr(workspace_store, "LAB_RUNS_DIR", tmp_path)
+
+    save_draft_target(
+        name="Contract Review Agent",
+        description="Help legal teams review risky clauses.",
+    )
+    save_design_scaffold("contract-review-agent")
+    save_draft_scenario(
+        agent_key="contract-review-agent",
+        problem="Review this contract for risky payment terms.",
+    )
+    run_draft_v0("contract-review-agent")
+    evaluate_draft_v0("contract-review-agent")
+    generate_draft_fix_plan("contract-review-agent")
+    generate_draft_v1_graph("contract-review-agent")
+    run_draft_v1("contract-review-agent")
+    evaluate_draft_v1("contract-review-agent")
+    compare_draft_versions("contract-review-agent")
+    view = draft_comparison_view("contract-review-agent")
+
+    assert view["v0"]["version"] == "v0-baseline"
+    assert view["v0"]["passed"] is False
+    assert view["v1"]["version"] == "v1-evidence-aware-actions"
+    assert view["v1"]["passed"] is True
+    assert view["verdict"]["decision"] == "candidate_improved"
+    assert view["verdict"]["remaining_blocker"] == (
+        "Draft tools are local placeholders, not production connectors."
+    )
+
+
+def test_draft_workflow_status_reports_next_action(tmp_path, monkeypatch) -> None:
+    from edd_agent_lab.ui import workspace_store
+
+    monkeypatch.setattr(workspace_store, "LAB_RUNS_DIR", tmp_path)
+
+    save_draft_target(
+        name="Contract Review Agent",
+        description="Help legal teams review risky clauses.",
+    )
+    initial = draft_workflow_status("contract-review-agent")
+    save_design_scaffold("contract-review-agent")
+    scaffolded = draft_workflow_status("contract-review-agent")
+
+    assert initial["completed"] == 1
+    assert initial["total"] == 10
+    assert initial["next_action"] == "Scaffold rules, eval, requirements, and graph."
+    assert scaffolded["completed"] == 2
+    assert scaffolded["next_action"] == "Add a first local test scenario."
