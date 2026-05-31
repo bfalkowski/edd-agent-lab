@@ -155,6 +155,116 @@ label {
   font-size: 0.82rem;
 }
 
+/* ---------- Draft workbench ---------- */
+.edd-draft-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  background: rgba(15, 23, 42, 0.82);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 8px;
+  padding: 1rem 1.05rem;
+  margin: 0.85rem 0 0.4rem 0;
+}
+
+.edd-draft-eyebrow {
+  color: #94a3b8;
+  font-size: 0.74rem;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 0.25rem;
+}
+
+.edd-draft-title {
+  color: #f8fafc;
+  font-size: 1.25rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.edd-draft-meta {
+  color: #94a3b8;
+  font-size: 0.82rem;
+  margin-top: 0.35rem;
+}
+
+.edd-draft-header-stat {
+  min-width: 90px;
+  border-left: 1px solid rgba(148, 163, 184, 0.18);
+  padding-left: 1rem;
+  text-align: right;
+}
+
+.edd-draft-stat-value {
+  color: #f8fafc;
+  font-size: 1.35rem;
+  font-weight: 850;
+  line-height: 1;
+}
+
+.edd-draft-stat-label {
+  color: #94a3b8;
+  font-size: 0.74rem;
+  font-weight: 700;
+  margin-top: 0.25rem;
+  text-transform: uppercase;
+}
+
+.edd-draft-subline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  color: #cbd5e1;
+  background: rgba(30, 41, 59, 0.46);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 8px;
+  padding: 0.65rem 0.8rem;
+  font-size: 0.84rem;
+  margin-bottom: 0.35rem;
+}
+
+.edd-draft-subline span {
+  color: #64748b;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.74rem;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+.edd-local-banner {
+  color: #fde68a;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  border-radius: 8px;
+  padding: 0.55rem 0.75rem;
+  font-size: 0.82rem;
+  font-weight: 650;
+  margin-bottom: 0.7rem;
+}
+
+.edd-empty-state {
+  border: 1px dashed rgba(148, 163, 184, 0.28);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.55);
+  padding: 1.4rem;
+  margin-top: 0.9rem;
+}
+
+.edd-empty-title {
+  color: #f8fafc;
+  font-size: 1rem;
+  font-weight: 780;
+  margin-bottom: 0.25rem;
+}
+
+.edd-empty-text {
+  color: #94a3b8;
+  font-size: 0.86rem;
+}
+
 /* ---------- Workflow strip ---------- */
 .edd-draft-stepper {
   display: grid;
@@ -405,6 +515,11 @@ div[data-testid="stAlert"] {
   border-radius: 16px;
 }
 
+[data-testid="stExpander"] {
+  border-radius: 8px;
+  border-color: rgba(148, 163, 184, 0.16);
+}
+
 /* ---------- Responsive ---------- */
 @media (max-width: 1050px) {
   .edd-draft-stepper,
@@ -418,6 +533,25 @@ div[data-testid="stAlert"] {
   .edd-draft-stepper,
   .edd-loop {
     grid-template-columns: 1fr;
+  }
+
+  .edd-draft-header,
+  .edd-draft-subline {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .edd-draft-header-stat {
+    border-left: 0;
+    border-top: 1px solid rgba(148, 163, 184, 0.18);
+    padding-left: 0;
+    padding-top: 0.8rem;
+    text-align: left;
+    width: 100%;
+  }
+
+  .edd-draft-subline span {
+    text-align: left;
   }
 
   .edd-hero-title {

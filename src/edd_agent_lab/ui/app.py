@@ -97,44 +97,10 @@ def _render_start_page() -> None:
         "Start with intent, create local design artifacts, then run and compare versions.",
     )
 
-    st.markdown(
-        """
-        <div class="edd-card">
-          <div class="edd-card-title">Create a new agent draft</div>
-          <div class="edd-card-subtitle">
-            This first slice creates the root target artifact locally. Rules, evals,
-            requirements, graph design, and v0 runs build from this target next.
-          </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    with st.form("new_agent_form"):
-        name = st.text_input("Agent name", placeholder="Contract Review Agent")
-        description = st.text_area(
-            "Agent purpose",
-            placeholder=(
-                "I want an agent that helps legal teams review contracts for risky "
-                "clauses, summarize evidence, and recommend safe next actions."
-            ),
-            height=150,
-        )
-        submitted = st.form_submit_button("Create draft target", type="primary")
-
-    if submitted:
-        clean_name = name.strip()
-        clean_description = description.strip()
-        if not clean_name or not clean_description:
-            st.error("Agent name and purpose are required.")
-        else:
-            workspace = save_draft_target(name=clean_name, description=clean_description)
-            st.session_state.active_draft_agent = workspace.agent_key
-            st.success(f"Draft target created for {workspace.name}.")
-
     workspaces = list_draft_workspaces()
+    _render_new_agent_panel(expanded=not workspaces)
     if not workspaces:
-        st.info("No local draft agents yet.")
+        _render_empty_draft_state()
         return
 
     st.markdown("## Local Drafts")
@@ -161,24 +127,16 @@ def _render_start_page() -> None:
         workspace.target_path for workspace in workspaces if workspace.agent_key == selected_agent
     )
     agent_target = target.get("agent_target") or {}
-    st.markdown(
-        f"""
-        <div class="edd-card">
-          <div class="edd-card-title">{html.escape(str(agent_target.get("name", "")))}</div>
-          <div class="edd-card-subtitle">
-            Target: {html.escape(str(agent_target.get("id", "")))} ·
-            Status: {status_pill(str(agent_target.get("status", "draft")).upper(), "blue")}
-          </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-    st.caption(str(target_path))
     artifacts = load_draft_artifacts(selected_agent)
     status = draft_workflow_status(selected_agent)
-    st.info(
-        "Local draft only: this workspace is saved as YAML under `lab-runs/` and "
-        "has not been persisted to platform/Postgres."
+    completed = int(status["completed"])
+    total = int(status["total"])
+    _render_active_draft_header(
+        agent_target=agent_target,
+        target_path=target_path,
+        completed=completed,
+        total=total,
+        next_action=str(status["next_action"]),
     )
     _render_draft_progress(status)
 
@@ -195,6 +153,95 @@ def _render_start_page() -> None:
         _render_improve_step(selected_agent, target_path)
     else:
         _render_publish_step()
+
+
+def _render_new_agent_panel(*, expanded: bool) -> None:
+    import streamlit as st
+
+    with st.expander("Create a new agent draft", expanded=expanded):
+        st.caption(
+            "Creates the root target artifact locally. Rules, evals, requirements, "
+            "graph design, and runs build from this target."
+        )
+        with st.form("new_agent_form"):
+            name = st.text_input("Agent name", placeholder="Contract Review Agent")
+            description = st.text_area(
+                "Agent purpose",
+                placeholder=(
+                    "I want an agent that helps legal teams review contracts for risky "
+                    "clauses, summarize evidence, and recommend safe next actions."
+                ),
+                height=130,
+            )
+            submitted = st.form_submit_button("Create draft target", type="primary")
+
+        if submitted:
+            clean_name = name.strip()
+            clean_description = description.strip()
+            if not clean_name or not clean_description:
+                st.error("Agent name and purpose are required.")
+            else:
+                workspace = save_draft_target(
+                    name=clean_name,
+                    description=clean_description,
+                )
+                st.session_state.active_draft_agent = workspace.agent_key
+                st.success(f"Draft target created for {workspace.name}.")
+                st.rerun()
+
+
+def _render_empty_draft_state() -> None:
+    import streamlit as st
+
+    st.markdown(
+        """
+        <div class="edd-empty-state">
+          <div class="edd-empty-title">No local drafts yet</div>
+          <div class="edd-empty-text">
+            Create a draft target above to start the local EDD loop.
+          </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def _render_active_draft_header(
+    *,
+    agent_target: dict[str, object],
+    target_path: Path,
+    completed: int,
+    total: int,
+    next_action: str,
+) -> None:
+    import streamlit as st
+
+    st.markdown(
+        f"""
+        <div class="edd-draft-header">
+          <div>
+            <div class="edd-draft-eyebrow">Local draft workspace</div>
+            <div class="edd-draft-title">{html.escape(str(agent_target.get("name", "")))}</div>
+            <div class="edd-draft-meta">
+              {html.escape(str(agent_target.get("id", "")))} ·
+              {status_pill(str(agent_target.get("status", "draft")).upper(), "blue")}
+            </div>
+          </div>
+          <div class="edd-draft-header-stat">
+            <div class="edd-draft-stat-value">{completed}/{total}</div>
+            <div class="edd-draft-stat-label">steps</div>
+          </div>
+        </div>
+        <div class="edd-draft-subline">
+          <strong>Next:</strong> {html.escape(next_action)}
+          <span>{html.escape(str(target_path))}</span>
+        </div>
+        <div class="edd-local-banner">
+          Local YAML only · not persisted to platform/Postgres
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def _draft_step_selector(agent_key: str, status: dict[str, object]) -> str:
@@ -552,11 +599,9 @@ def _render_artifact_cards(cards: list[dict[str, str]]) -> None:
 def _render_draft_progress(status: dict[str, object]) -> None:
     import streamlit as st
 
-    st.markdown("## Workflow Progress")
     completed = int(status["completed"])
     total = int(status["total"])
     st.progress(float(status["percent"]), text=f"{completed} of {total} steps complete")
-    st.info(f"Next: {status['next_action']}")
     with st.expander("Step status", expanded=False):
         rows = [
             {
