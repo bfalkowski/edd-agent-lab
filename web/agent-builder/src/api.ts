@@ -42,9 +42,17 @@ export type DraftDetail = {
   comparison_view: Record<string, unknown>;
 };
 
+export type WorkflowEvent = {
+  step_id: string;
+  phase: "starting" | "running" | "completed" | "failed";
+  message: string;
+  artifact_id?: string;
+  draft?: DraftDetail;
+};
+
 export async function listDrafts(): Promise<DraftSummary[]> {
   const response = await fetch("/api/drafts");
-  assertOk(response);
+  await assertOk(response);
   const payload = await response.json();
   return payload.drafts;
 }
@@ -55,27 +63,71 @@ export async function createDraft(name: string, description: string): Promise<Dr
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name, description }),
   });
-  assertOk(response);
+  await assertOk(response);
   return response.json();
 }
 
 export async function loadDraft(agentKey: string): Promise<DraftDetail> {
   const response = await fetch(`/api/drafts/${agentKey}`);
-  assertOk(response);
+  await assertOk(response);
   return response.json();
 }
 
 export async function deleteDraft(agentKey: string): Promise<DraftSummary[]> {
   const response = await fetch(`/api/drafts/${agentKey}`, { method: "DELETE" });
-  assertOk(response);
+  await assertOk(response);
   const payload = await response.json();
   return payload.drafts;
 }
 
 export async function runDraftAction(agentKey: string, action: string): Promise<DraftDetail> {
   const response = await fetch(`/api/drafts/${agentKey}/${action}`, { method: "POST" });
-  assertOk(response);
+  await assertOk(response);
   return response.json();
+}
+
+export async function streamDraftAction(
+  agentKey: string,
+  action: string,
+  onEvent: (event: WorkflowEvent) => void,
+): Promise<DraftDetail> {
+  const response = await fetch(`/api/drafts/${agentKey}/actions/${action}/stream`, {
+    method: "POST",
+  });
+  await assertOk(response);
+  if (!response.body) {
+    throw new Error("Streaming response was empty.");
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let finalDraft: DraftDetail | null = null;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    buffer += decoder.decode(value ?? new Uint8Array(), { stream: !done });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      const event = JSON.parse(line) as WorkflowEvent;
+      onEvent(event);
+      if (event.draft) finalDraft = event.draft;
+    }
+    if (done) break;
+  }
+
+  if (buffer.trim()) {
+    const event = JSON.parse(buffer) as WorkflowEvent;
+    onEvent(event);
+    if (event.draft) finalDraft = event.draft;
+  }
+
+  if (!finalDraft) {
+    throw new Error("Workflow action did not return a draft.");
+  }
+  return finalDraft;
 }
 
 export async function saveScenario(agentKey: string, problem: string): Promise<DraftDetail> {
@@ -84,7 +136,7 @@ export async function saveScenario(agentKey: string, problem: string): Promise<D
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ problem }),
   });
-  assertOk(response);
+  await assertOk(response);
   return response.json();
 }
 
@@ -98,7 +150,7 @@ export async function saveArtifactSource(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ source }),
   });
-  assertOk(response);
+  await assertOk(response);
   return response.json();
 }
 
@@ -106,12 +158,21 @@ export async function deleteArtifact(agentKey: string, artifactKey: string): Pro
   const response = await fetch(`/api/drafts/${agentKey}/artifacts/${artifactKey}`, {
     method: "DELETE",
   });
-  assertOk(response);
+  await assertOk(response);
   return response.json();
 }
 
-function assertOk(response: Response): void {
+async function assertOk(response: Response): Promise<void> {
   if (!response.ok) {
-    throw new Error(`Request failed: ${response.status}`);
+    let message = `Request failed: ${response.status}`;
+    try {
+      const payload = await response.json();
+      if (typeof payload.detail === "string") {
+        message = payload.detail;
+      }
+    } catch {
+      // Keep the status-only message when the response body is not JSON.
+    }
+    throw new Error(message);
   }
 }

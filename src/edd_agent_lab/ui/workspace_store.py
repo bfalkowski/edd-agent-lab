@@ -822,7 +822,10 @@ def load_draft_artifact_sources(agent_key: str) -> dict[str, str]:
 def save_draft_artifact_source(*, agent_key: str, artifact_key: str, source: str) -> None:
     if artifact_key not in DRAFT_ARTIFACT_FILES:
         raise KeyError(f"Unknown artifact: {artifact_key}")
-    data = yaml.safe_load(source)
+    try:
+        data = yaml.safe_load(source)
+    except yaml.YAMLError as exc:
+        raise ValueError(f"Invalid artifact YAML: {exc}") from exc
     if not isinstance(data, dict):
         raise ValueError("Artifact YAML must be a mapping.")
     path = draft_workspace_dir(agent_key) / DRAFT_ARTIFACT_FILES[artifact_key]

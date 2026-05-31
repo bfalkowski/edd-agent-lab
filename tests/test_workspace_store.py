@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from edd_agent_lab.ui.workspace_store import (
     build_design_scaffold,
     build_draft_scenario,
@@ -18,6 +20,7 @@ from edd_agent_lab.ui.workspace_store import (
     run_draft_v0,
     run_draft_v1,
     save_design_scaffold,
+    save_draft_artifact_source,
     save_draft_scenario,
     save_draft_target,
     slugify_agent_name,
@@ -340,3 +343,21 @@ def test_delete_draft_workspace_removes_project(tmp_path, monkeypatch) -> None:
 
     assert workspace_store.list_draft_workspaces() == []
     assert not (tmp_path / "contract_review_agent").exists()
+
+
+def test_save_draft_artifact_source_reports_invalid_yaml(tmp_path, monkeypatch) -> None:
+    from edd_agent_lab.ui import workspace_store
+
+    monkeypatch.setattr(workspace_store, "LAB_RUNS_DIR", tmp_path)
+
+    save_draft_target(
+        name="Contract Review Agent",
+        description="Help legal teams review risky clauses.",
+    )
+
+    with pytest.raises(ValueError, match="Invalid artifact YAML"):
+        save_draft_artifact_source(
+            agent_key="contract-review-agent",
+            artifact_key="scenario",
+            source="scenario: [unterminated",
+        )

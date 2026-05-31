@@ -43,10 +43,12 @@ Make the local builder support the complete draft-agent loop:
 
 ## Phase 3: Runtime Feedback
 
-- [ ] Add streaming step activity from the API.
-- [ ] Emit the same event shape in deterministic mock mode and live mode.
-- [ ] Show model/tool progress inline on the active step.
-- [ ] Show written artifacts as they are created.
+- [x] Add streaming step activity from the API.
+- [x] Emit a deterministic event shape for mock workflow actions.
+- [x] Show progress inline on the active step.
+- [x] Clear transient activity when the workflow advances.
+- [ ] Extend the same event shape to live mode.
+- [ ] Show written artifacts as they are created during longer-running steps.
 - [ ] Preserve failures with retry context on the owning step.
 
 ## Phase 4: Better Agent Execution

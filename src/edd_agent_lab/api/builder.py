@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from pydantic import BaseModel
@@ -43,9 +44,33 @@ class ArtifactSourceRequest(BaseModel):
     source: str
 
 
+ACTION_HANDLERS = {
+    "design": save_design_scaffold,
+    "run-v0": run_draft_v0,
+    "evaluate-v0": evaluate_draft_v0,
+    "fix-plan": generate_draft_fix_plan,
+    "v1-graph": generate_draft_v1_graph,
+    "run-v1": run_draft_v1,
+    "evaluate-v1": evaluate_draft_v1,
+    "compare": compare_draft_versions,
+}
+
+ACTION_EVENTS = {
+    "design": ("behavior_rules", "Generating design artifacts."),
+    "run-v0": ("v0_run", "Running v0 candidate."),
+    "evaluate-v0": ("eval_summary", "Evaluating v0 response."),
+    "fix-plan": ("fix_plan", "Creating fix plan."),
+    "v1-graph": ("graph_design_v1", "Generating v1 graph."),
+    "run-v1": ("v1_run", "Running v1 candidate."),
+    "evaluate-v1": ("eval_summary_v1", "Evaluating v1 response."),
+    "compare": ("comparison", "Comparing v0 and v1."),
+}
+
+
 def create_app():
     from fastapi import FastAPI, HTTPException
     from fastapi.middleware.cors import CORSMiddleware
+    from fastapi.responses import StreamingResponse
 
     app = FastAPI(title="EDD Agent Lab Builder API")
     app.add_middleware(
@@ -150,6 +175,46 @@ def create_app():
         _run_action(agent_key, save_design_scaffold)
         return load_draft(agent_key)
 
+    @app.post("/api/drafts/{agent_key}/actions/{action}/stream")
+    def stream_action(agent_key: str, action: str):
+        if action not in ACTION_HANDLERS:
+            raise HTTPException(status_code=404, detail=f"Unknown action: {action}")
+
+        def events():
+            artifact_id, message = ACTION_EVENTS[action]
+            yield _event(
+                step_id=artifact_id,
+                phase="starting",
+                message=f"Starting {action}.",
+                artifact_id=artifact_id,
+            )
+            yield _event(
+                step_id=artifact_id,
+                phase="running",
+                message=message,
+                artifact_id=artifact_id,
+            )
+            try:
+                _run_action(agent_key, ACTION_HANDLERS[action])
+                draft = load_draft(agent_key)
+            except Exception as exc:
+                yield _event(
+                    step_id=artifact_id,
+                    phase="failed",
+                    message=str(exc),
+                    artifact_id=artifact_id,
+                )
+                return
+            yield _event(
+                step_id=artifact_id,
+                phase="completed",
+                message=f"Wrote {artifact_id}.",
+                artifact_id=artifact_id,
+                draft=draft,
+            )
+
+        return StreamingResponse(events(), media_type="application/x-ndjson")
+
     @app.post("/api/drafts/{agent_key}/scenario")
     def save_scenario(agent_key: str, request: ScenarioRequest) -> dict[str, Any]:
         try:
@@ -203,6 +268,10 @@ def _run_action(agent_key: str, action):
         from fastapi import HTTPException
 
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+def _event(**payload: Any) -> str:
+    return json.dumps(payload) + "\n"
 
 
 app = create_app()

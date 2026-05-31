@@ -22,9 +22,9 @@ import {
   DraftSummary,
   listDrafts,
   loadDraft,
-  runDraftAction,
   saveArtifactSource,
   saveScenario,
+  streamDraftAction,
 } from "./api";
 import "./styles.css";
 
@@ -173,11 +173,12 @@ function App() {
     setError("");
     const label = actionLabelById[action] ?? action;
     const stepId = actionStepId(action);
-    appendStepActivity(stepId, `Starting ${label}.`);
     try {
-      setActiveDraft(await runDraftAction(activeDraft.agent_key, action));
+      const draft = await streamDraftAction(activeDraft.agent_key, action, (event) => {
+        appendStepActivity(event.step_id || stepId, event.message);
+      });
+      setActiveDraft(draft);
       setDrafts(await listDrafts());
-      appendStepActivity(stepId, `Finished ${label}; refreshed outputs.`);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Action failed.");
       appendStepActivity(stepId, `${label} failed.`);
@@ -265,7 +266,6 @@ function App() {
   const nextAction = activeDraft?.status.next_action ?? "Create a draft target.";
   const shouldShowComposer = isCreating || !activeDraft || !target;
   const activeStep = activeDraft?.status.steps.find((step) => !step.complete);
-  const primaryAction = activeStep ? stepActions[activeStep.id] : undefined;
   const workflowDone = Boolean(activeDraft && !activeStep);
   const artifactsByStep = useMemo(() => {
     const byStep: Record<string, ArtifactCards> = {};
@@ -425,14 +425,6 @@ function App() {
                 <strong>{workflowDone ? "Ready for publish review" : activeStep?.step}</strong>
                 <p>{nextAction}</p>
               </div>
-              {primaryAction ? (
-                <button onClick={() => void handleAction(primaryAction)} disabled={isLoading}>
-                  {actionLabelById[primaryAction]}
-                  <ArrowRight size={17} />
-                </button>
-              ) : (
-                <button disabled>{workflowDone ? "Publish pending" : "Action pending"}</button>
-              )}
             </div>
 
             <div className="step-list">
