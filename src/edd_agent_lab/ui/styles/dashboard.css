@@ -153,6 +153,24 @@ label {
 }
 
 /* ---------- Draft workbench ---------- */
+.edd-top-mode-label {
+  display: flex;
+  align-items: baseline;
+  gap: 0.7rem;
+  color: #0d0d0d;
+  padding: 0.1rem 0 0.35rem 0;
+}
+
+.edd-top-mode-label span:first-child {
+  font-size: 0.95rem;
+  font-weight: 760;
+}
+
+.edd-top-mode-label span:last-child {
+  color: #6b7280;
+  font-size: 0.82rem;
+}
+
 .edd-builder-header {
   border-bottom: 1px solid rgba(148, 163, 184, 0.14);
   margin-bottom: 0.85rem;

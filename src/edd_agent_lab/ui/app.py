@@ -89,6 +89,31 @@ def _reset_workbench() -> None:
         st.session_state.pop(key, None)
 
 
+def _render_console_mode_selector() -> str:
+    import streamlit as st
+
+    left, right = st.columns([0.78, 0.22], vertical_alignment="center")
+    with left:
+        st.markdown(
+            """
+            <div class="edd-top-mode-label">
+              <span>EDD Agent Lab</span>
+              <span>Local agent design workspace</span>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with right:
+        return str(
+            st.selectbox(
+                "Console mode",
+                ["Start New Agent", "Reference Demo"],
+                key="console_mode",
+                label_visibility="collapsed",
+            )
+        )
+
+
 def _render_start_page() -> None:
     import streamlit as st
 
@@ -769,6 +794,8 @@ def _render_reference_workbench(platform_health: dict[str, object]) -> None:
     v1_design, _ = load_graph_design_bundle("v1")
 
     with st.sidebar:
+        sidebar_brand()
+        st.divider()
         st.markdown("### Workbench")
         st.button(
             "Reset workbench",
@@ -873,21 +900,12 @@ def main() -> None:
         initial_sidebar_state="expanded",
     )
     load_css()
-    sidebar_brand()
-
-    platform_health = check_platform_health()
-
-    with st.sidebar:
-        st.markdown("### Mode")
-        mode = st.radio(
-            "Console mode",
-            ["Start New Agent", "Reference Demo"],
-            label_visibility="collapsed",
-        )
+    mode = _render_console_mode_selector()
 
     if mode == "Start New Agent":
         _render_start_page()
     else:
+        platform_health = check_platform_health()
         _render_reference_workbench(platform_health)
 
 
