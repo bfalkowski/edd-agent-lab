@@ -1,5 +1,6 @@
 import {
   ArrowRight,
+  Archive,
   Check,
   Clock3,
   FileText,
@@ -15,22 +16,34 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
+  archiveDraft,
   createDraft,
   deleteDraft,
   deleteArtifact,
   BehaviorRule,
   DraftDetail,
   DraftSummary,
+  EvalContractUpdate,
+  EvalGate,
+  EvalMetric,
   GenerationMode,
+  GraphDesignUpdate,
+  InformationRequirement,
   listDrafts,
   loadRuntimeConfig,
   loadDraft,
+  renameDraft,
   RuntimeConfig,
   saveArtifactSource,
   saveBehaviorRules,
+  saveEvalContract,
+  saveGraphDesign,
+  saveInformationRequirements,
   saveScenario,
   saveTarget,
+  saveToolRequirements,
   TargetUpdate,
+  ToolRequirement,
   streamDraftAction,
 } from "./api";
 import "./styles.css";
@@ -123,6 +136,89 @@ function behaviorRulesFromDraft(draft: DraftDetail): BehaviorRule[] {
   }));
 }
 
+function evalContractFromDraft(draft: DraftDetail): EvalContractUpdate {
+  const artifact = draft.artifacts.eval_contract as
+    | {
+        eval_contract?: {
+          metrics?: EvalMetric[];
+          gates?: EvalGate[];
+          status?: string;
+        };
+      }
+    | undefined;
+  const contract = artifact?.eval_contract;
+  return {
+    metrics: (contract?.metrics ?? []).map((metric) => ({
+      id: metric.id ?? "",
+      scale: metric.scale ?? "0-5",
+      rules: metric.rules ?? [],
+    })),
+    gates: (contract?.gates ?? []).map((gate) => ({
+      id: gate.id ?? "",
+      type: gate.type ?? "hard",
+      condition: gate.condition ?? "",
+    })),
+    status: contract?.status ?? "draft",
+  };
+}
+
+function informationRequirementsFromDraft(draft: DraftDetail): InformationRequirement[] {
+  const artifact = draft.artifacts.information_requirements as
+    | { information_requirements?: InformationRequirement[] }
+    | undefined;
+  return (artifact?.information_requirements ?? []).map((requirement) => ({
+    id: requirement.id ?? "",
+    description: requirement.description ?? "",
+    required_for_rules: requirement.required_for_rules ?? [],
+    status: requirement.status ?? "draft",
+  }));
+}
+
+function toolRequirementsFromDraft(draft: DraftDetail): ToolRequirement[] {
+  const artifact = draft.artifacts.tool_requirements as
+    | { tool_requirements?: ToolRequirement[] }
+    | undefined;
+  return (artifact?.tool_requirements ?? []).map((tool) => ({
+    id: tool.id ?? "",
+    suggested_tool_name: tool.suggested_tool_name ?? "",
+    information_requirements: tool.information_requirements ?? [],
+    implementation_status: tool.implementation_status ?? "missing",
+    production_blocker: Boolean(tool.production_blocker),
+    status: tool.status ?? "draft",
+  }));
+}
+
+function graphDesignFromDraft(
+  draft: DraftDetail,
+  artifactKey: "graph_design" | "graph_design_v1",
+): GraphDesignUpdate {
+  const artifact = draft.artifacts[artifactKey] as
+    | {
+        graph_design?: {
+          version?: string;
+          status?: string;
+          nodes?: GraphDesignUpdate["nodes"];
+          edges?: GraphDesignUpdate["edges"];
+        };
+      }
+    | undefined;
+  const graph = artifact?.graph_design;
+  return {
+    artifact_key: artifactKey,
+    version: graph?.version ?? "draft",
+    status: graph?.status ?? "draft",
+    nodes: (graph?.nodes ?? []).map((node) => ({
+      id: node.id ?? "",
+      purpose: node.purpose ?? "",
+      supports_rules: node.supports_rules ?? [],
+    })),
+    edges: (graph?.edges ?? []).map((edge) => ({
+      from: edge.from ?? "",
+      to: edge.to ?? "",
+    })),
+  };
+}
+
 type DiffLine = {
   key: string;
   prefix: string;
@@ -183,6 +279,22 @@ function App() {
     expected_output_format: "",
   });
   const [rulesDraft, setRulesDraft] = useState<BehaviorRule[]>([]);
+  const [evalContractDraft, setEvalContractDraft] = useState<EvalContractUpdate>({
+    metrics: [],
+    gates: [],
+    status: "draft",
+  });
+  const [informationRequirementsDraft, setInformationRequirementsDraft] = useState<
+    InformationRequirement[]
+  >([]);
+  const [toolRequirementsDraft, setToolRequirementsDraft] = useState<ToolRequirement[]>([]);
+  const [graphDraft, setGraphDraft] = useState<GraphDesignUpdate>({
+    artifact_key: "graph_design",
+    version: "draft",
+    status: "draft",
+    nodes: [],
+    edges: [],
+  });
   const [reviewMode, setReviewMode] = useState<"edit" | "diff">("edit");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isReviewPanelOpen, setIsReviewPanelOpen] = useState(false);
@@ -278,6 +390,43 @@ function App() {
     }
   }
 
+  async function handleRenameDraft(agentKey: string, draftName: string) {
+    const nextName = window.prompt("Rename project", draftName);
+    if (nextName === null || nextName.trim() === draftName) return;
+    setIsLoading(true);
+    setError("");
+    try {
+      const draft = await renameDraft(agentKey, nextName.trim());
+      if (activeDraft?.agent_key === agentKey) {
+        setActiveDraft(draft);
+      }
+      setDrafts(await listDrafts());
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not rename project.");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleArchiveDraft(agentKey: string, draftName: string) {
+    if (!window.confirm(`Archive "${draftName}" and hide it from the project list?`)) return;
+    setIsLoading(true);
+    setError("");
+    try {
+      const nextDrafts = await archiveDraft(agentKey);
+      setDrafts(nextDrafts);
+      if (activeDraft?.agent_key === agentKey) {
+        setActiveDraft(nextDrafts[0] ? await loadDraft(nextDrafts[0].agent_key) : null);
+        closeReviewPanel();
+        setIsCreating(nextDrafts.length === 0);
+      }
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not archive project.");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
   async function handleAction(action: string) {
     if (!activeDraft) return;
     setIsLoading(true);
@@ -336,6 +485,22 @@ function App() {
       await handleSaveRules();
       return;
     }
+    if (selectedArtifact === "eval_contract") {
+      await handleSaveEvalContract();
+      return;
+    }
+    if (selectedArtifact === "information_requirements") {
+      await handleSaveInformationRequirements();
+      return;
+    }
+    if (selectedArtifact === "tool_requirements") {
+      await handleSaveToolRequirements();
+      return;
+    }
+    if (selectedArtifact === "graph_design" || selectedArtifact === "graph_design_v1") {
+      await handleSaveGraphDesign();
+      return;
+    }
     setIsLoading(true);
     setError("");
     appendStepActivity(artifactStepId(selectedArtifact), `Saving ${selectedArtifact}.`);
@@ -374,6 +539,95 @@ function App() {
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not save behavior rules.");
       appendStepActivity("behavior_rules", "Behavior rule save failed.");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleSaveEvalContract() {
+    if (!activeDraft) return;
+    setIsLoading(true);
+    setError("");
+    appendStepActivity("behavior_rules", "Saving eval contract.");
+    try {
+      const draft = await saveEvalContract(activeDraft.agent_key, evalContractDraft);
+      setActiveDraft(draft);
+      setArtifactDraft(draft.artifact_sources.eval_contract ?? "");
+      setEvalContractDraft(evalContractFromDraft(draft));
+      setReviewMode("edit");
+      setDrafts(await listDrafts());
+      appendStepActivity("behavior_rules", "Saved eval contract.");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not save eval contract.");
+      appendStepActivity("behavior_rules", "Eval contract save failed.");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleSaveInformationRequirements() {
+    if (!activeDraft) return;
+    setIsLoading(true);
+    setError("");
+    appendStepActivity("behavior_rules", "Saving information requirements.");
+    try {
+      const draft = await saveInformationRequirements(
+        activeDraft.agent_key,
+        informationRequirementsDraft,
+      );
+      setActiveDraft(draft);
+      setArtifactDraft(draft.artifact_sources.information_requirements ?? "");
+      setInformationRequirementsDraft(informationRequirementsFromDraft(draft));
+      setReviewMode("edit");
+      setDrafts(await listDrafts());
+      appendStepActivity("behavior_rules", "Saved information requirements.");
+    } catch (caught) {
+      setError(
+        caught instanceof Error ? caught.message : "Could not save information requirements.",
+      );
+      appendStepActivity("behavior_rules", "Information requirement save failed.");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleSaveToolRequirements() {
+    if (!activeDraft) return;
+    setIsLoading(true);
+    setError("");
+    appendStepActivity("behavior_rules", "Saving tool requirements.");
+    try {
+      const draft = await saveToolRequirements(activeDraft.agent_key, toolRequirementsDraft);
+      setActiveDraft(draft);
+      setArtifactDraft(draft.artifact_sources.tool_requirements ?? "");
+      setToolRequirementsDraft(toolRequirementsFromDraft(draft));
+      setReviewMode("edit");
+      setDrafts(await listDrafts());
+      appendStepActivity("behavior_rules", "Saved tool requirements.");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not save tool requirements.");
+      appendStepActivity("behavior_rules", "Tool requirement save failed.");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleSaveGraphDesign() {
+    if (!activeDraft) return;
+    setIsLoading(true);
+    setError("");
+    appendStepActivity(artifactStepId(graphDraft.artifact_key), "Saving graph design.");
+    try {
+      const draft = await saveGraphDesign(activeDraft.agent_key, graphDraft);
+      setActiveDraft(draft);
+      setArtifactDraft(draft.artifact_sources[graphDraft.artifact_key] ?? "");
+      setGraphDraft(graphDesignFromDraft(draft, graphDraft.artifact_key));
+      setReviewMode("edit");
+      setDrafts(await listDrafts());
+      appendStepActivity(artifactStepId(graphDraft.artifact_key), "Saved graph design.");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not save graph design.");
+      appendStepActivity(artifactStepId(graphDraft.artifact_key), "Graph design save failed.");
     } finally {
       setIsLoading(false);
     }
@@ -429,6 +683,18 @@ function App() {
     if (artifactKey === "behavior_rules") {
       setRulesDraft(behaviorRulesFromDraft(activeDraft));
     }
+    if (artifactKey === "eval_contract") {
+      setEvalContractDraft(evalContractFromDraft(activeDraft));
+    }
+    if (artifactKey === "information_requirements") {
+      setInformationRequirementsDraft(informationRequirementsFromDraft(activeDraft));
+    }
+    if (artifactKey === "tool_requirements") {
+      setToolRequirementsDraft(toolRequirementsFromDraft(activeDraft));
+    }
+    if (artifactKey === "graph_design" || artifactKey === "graph_design_v1") {
+      setGraphDraft(graphDesignFromDraft(activeDraft, artifactKey));
+    }
     setReviewMode("edit");
     setIsReviewPanelOpen(true);
   }
@@ -471,12 +737,46 @@ function App() {
   const hasRulesChanges =
     selectedArtifact === "behavior_rules" &&
     JSON.stringify(rulesDraft) !== JSON.stringify(savedRulesDraft);
+  const savedEvalContractDraft = activeDraft
+    ? evalContractFromDraft(activeDraft)
+    : evalContractDraft;
+  const hasEvalContractChanges =
+    selectedArtifact === "eval_contract" &&
+    JSON.stringify(evalContractDraft) !== JSON.stringify(savedEvalContractDraft);
+  const savedInformationRequirementsDraft = activeDraft
+    ? informationRequirementsFromDraft(activeDraft)
+    : informationRequirementsDraft;
+  const hasInformationRequirementsChanges =
+    selectedArtifact === "information_requirements" &&
+    JSON.stringify(informationRequirementsDraft) !==
+      JSON.stringify(savedInformationRequirementsDraft);
+  const savedToolRequirementsDraft = activeDraft
+    ? toolRequirementsFromDraft(activeDraft)
+    : toolRequirementsDraft;
+  const hasToolRequirementsChanges =
+    selectedArtifact === "tool_requirements" &&
+    JSON.stringify(toolRequirementsDraft) !== JSON.stringify(savedToolRequirementsDraft);
+  const savedGraphDraft =
+    activeDraft && (selectedArtifact === "graph_design" || selectedArtifact === "graph_design_v1")
+      ? graphDesignFromDraft(activeDraft, selectedArtifact)
+      : graphDraft;
+  const hasGraphChanges =
+    (selectedArtifact === "graph_design" || selectedArtifact === "graph_design_v1") &&
+    JSON.stringify(graphDraft) !== JSON.stringify(savedGraphDraft);
   const hasReviewChanges =
     selectedArtifact === "target"
       ? hasTargetChanges
       : selectedArtifact === "behavior_rules"
         ? hasRulesChanges
-        : hasArtifactChanges;
+        : selectedArtifact === "eval_contract"
+          ? hasEvalContractChanges
+          : selectedArtifact === "information_requirements"
+            ? hasInformationRequirementsChanges
+            : selectedArtifact === "tool_requirements"
+              ? hasToolRequirementsChanges
+              : selectedArtifact === "graph_design" || selectedArtifact === "graph_design_v1"
+                ? hasGraphChanges
+                : hasArtifactChanges;
   const artifactDiff = useMemo(
     () => buildLineDiff(savedArtifactSource, artifactDraft),
     [artifactDraft, savedArtifactSource],
@@ -584,8 +884,30 @@ function App() {
                 <span className="draft-actions">
                   <kbd>⌘{drafts.indexOf(draft) + 1}</kbd>
                   <button
+                    aria-label={`Rename ${draft.name}`}
+                    className="draft-icon-action"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      void handleRenameDraft(draft.agent_key, draft.name);
+                    }}
+                    title="Rename project"
+                  >
+                    <PencilLine size={14} />
+                  </button>
+                  <button
+                    aria-label={`Archive ${draft.name}`}
+                    className="draft-icon-action"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      void handleArchiveDraft(draft.agent_key, draft.name);
+                    }}
+                    title="Archive project"
+                  >
+                    <Archive size={14} />
+                  </button>
+                  <button
                     aria-label={`Delete ${draft.name}`}
-                    className="delete-draft"
+                    className="draft-icon-action delete-draft"
                     onClick={(event) => {
                       event.stopPropagation();
                       void handleDeleteDraft(draft.agent_key, draft.name);
@@ -850,10 +1172,21 @@ function App() {
                 disabled={
                   !hasReviewChanges ||
                   selectedArtifact === "target" ||
-                  selectedArtifact === "behavior_rules"
+                  selectedArtifact === "behavior_rules" ||
+                  selectedArtifact === "eval_contract" ||
+                  selectedArtifact === "information_requirements" ||
+                  selectedArtifact === "tool_requirements" ||
+                  selectedArtifact === "graph_design" ||
+                  selectedArtifact === "graph_design_v1"
                 }
                 title={
-                  selectedArtifact === "target" || selectedArtifact === "behavior_rules"
+                  selectedArtifact === "target" ||
+                  selectedArtifact === "behavior_rules" ||
+                  selectedArtifact === "eval_contract" ||
+                  selectedArtifact === "information_requirements" ||
+                  selectedArtifact === "tool_requirements" ||
+                  selectedArtifact === "graph_design" ||
+                  selectedArtifact === "graph_design_v1"
                     ? "YAML diff is available for raw artifacts."
                     : hasArtifactChanges
                       ? "Review unsaved changes"
@@ -930,6 +1263,343 @@ function App() {
                   }
                 />
               </label>
+            </div>
+          ) : selectedArtifact === "eval_contract" ? (
+            <div className="eval-contract-editor">
+              <label>
+                Status
+                <input
+                  value={evalContractDraft.status}
+                  onChange={(event) =>
+                    setEvalContractDraft({
+                      ...evalContractDraft,
+                      status: event.target.value,
+                    })
+                  }
+                />
+              </label>
+              <section>
+                <strong>Metrics</strong>
+                {evalContractDraft.metrics.map((metric, index) => (
+                  <div className="rule-editor-card" key={`${metric.id}-${index}`}>
+                    <label>
+                      Metric id
+                      <input
+                        value={metric.id}
+                        onChange={(event) => {
+                          const metrics = [...evalContractDraft.metrics];
+                          metrics[index] = { ...metric, id: event.target.value };
+                          setEvalContractDraft({ ...evalContractDraft, metrics });
+                        }}
+                      />
+                    </label>
+                    <label>
+                      Scale
+                      <input
+                        value={metric.scale}
+                        onChange={(event) => {
+                          const metrics = [...evalContractDraft.metrics];
+                          metrics[index] = { ...metric, scale: event.target.value };
+                          setEvalContractDraft({ ...evalContractDraft, metrics });
+                        }}
+                      />
+                    </label>
+                    <label>
+                      Rules
+                      <input
+                        value={metric.rules.join(", ")}
+                        onChange={(event) => {
+                          const metrics = [...evalContractDraft.metrics];
+                          metrics[index] = {
+                            ...metric,
+                            rules: event.target.value
+                              .split(",")
+                              .map((item) => item.trim())
+                              .filter(Boolean),
+                          };
+                          setEvalContractDraft({ ...evalContractDraft, metrics });
+                        }}
+                      />
+                    </label>
+                  </div>
+                ))}
+              </section>
+              <section>
+                <strong>Gates</strong>
+                {evalContractDraft.gates.map((gate, index) => (
+                  <div className="rule-editor-card" key={`${gate.id}-${index}`}>
+                    <label>
+                      Gate id
+                      <input
+                        value={gate.id}
+                        onChange={(event) => {
+                          const gates = [...evalContractDraft.gates];
+                          gates[index] = { ...gate, id: event.target.value };
+                          setEvalContractDraft({ ...evalContractDraft, gates });
+                        }}
+                      />
+                    </label>
+                    <label>
+                      Type
+                      <input
+                        value={gate.type}
+                        onChange={(event) => {
+                          const gates = [...evalContractDraft.gates];
+                          gates[index] = { ...gate, type: event.target.value };
+                          setEvalContractDraft({ ...evalContractDraft, gates });
+                        }}
+                      />
+                    </label>
+                    <label>
+                      Condition
+                      <input
+                        value={gate.condition}
+                        onChange={(event) => {
+                          const gates = [...evalContractDraft.gates];
+                          gates[index] = { ...gate, condition: event.target.value };
+                          setEvalContractDraft({ ...evalContractDraft, gates });
+                        }}
+                      />
+                    </label>
+                  </div>
+                ))}
+              </section>
+            </div>
+          ) : selectedArtifact === "information_requirements" ? (
+            <div className="requirements-editor">
+              {informationRequirementsDraft.map((requirement, index) => (
+                <section className="rule-editor-card" key={`${requirement.id}-${index}`}>
+                  <label>
+                    Requirement id
+                    <input
+                      value={requirement.id}
+                      onChange={(event) => {
+                        const requirements = [...informationRequirementsDraft];
+                        requirements[index] = { ...requirement, id: event.target.value };
+                        setInformationRequirementsDraft(requirements);
+                      }}
+                    />
+                  </label>
+                  <label>
+                    Description
+                    <textarea
+                      value={requirement.description}
+                      onChange={(event) => {
+                        const requirements = [...informationRequirementsDraft];
+                        requirements[index] = {
+                          ...requirement,
+                          description: event.target.value,
+                        };
+                        setInformationRequirementsDraft(requirements);
+                      }}
+                    />
+                  </label>
+                  <label>
+                    Required for rules
+                    <input
+                      value={requirement.required_for_rules.join(", ")}
+                      onChange={(event) => {
+                        const requirements = [...informationRequirementsDraft];
+                        requirements[index] = {
+                          ...requirement,
+                          required_for_rules: event.target.value
+                            .split(",")
+                            .map((item) => item.trim())
+                            .filter(Boolean),
+                        };
+                        setInformationRequirementsDraft(requirements);
+                      }}
+                    />
+                  </label>
+                  <label>
+                    Status
+                    <input
+                      value={requirement.status}
+                      onChange={(event) => {
+                        const requirements = [...informationRequirementsDraft];
+                        requirements[index] = { ...requirement, status: event.target.value };
+                        setInformationRequirementsDraft(requirements);
+                      }}
+                    />
+                  </label>
+                </section>
+              ))}
+            </div>
+          ) : selectedArtifact === "tool_requirements" ? (
+            <div className="requirements-editor">
+              {toolRequirementsDraft.map((tool, index) => (
+                <section className="rule-editor-card" key={`${tool.id}-${index}`}>
+                  <label>
+                    Tool id
+                    <input
+                      value={tool.id}
+                      onChange={(event) => {
+                        const tools = [...toolRequirementsDraft];
+                        tools[index] = { ...tool, id: event.target.value };
+                        setToolRequirementsDraft(tools);
+                      }}
+                    />
+                  </label>
+                  <label>
+                    Suggested tool name
+                    <input
+                      value={tool.suggested_tool_name}
+                      onChange={(event) => {
+                        const tools = [...toolRequirementsDraft];
+                        tools[index] = { ...tool, suggested_tool_name: event.target.value };
+                        setToolRequirementsDraft(tools);
+                      }}
+                    />
+                  </label>
+                  <label>
+                    Information requirements
+                    <input
+                      value={tool.information_requirements.join(", ")}
+                      onChange={(event) => {
+                        const tools = [...toolRequirementsDraft];
+                        tools[index] = {
+                          ...tool,
+                          information_requirements: event.target.value
+                            .split(",")
+                            .map((item) => item.trim())
+                            .filter(Boolean),
+                        };
+                        setToolRequirementsDraft(tools);
+                      }}
+                    />
+                  </label>
+                  <label>
+                    Implementation status
+                    <input
+                      value={tool.implementation_status}
+                      onChange={(event) => {
+                        const tools = [...toolRequirementsDraft];
+                        tools[index] = { ...tool, implementation_status: event.target.value };
+                        setToolRequirementsDraft(tools);
+                      }}
+                    />
+                  </label>
+                  <label className="checkbox-row">
+                    <input
+                      checked={tool.production_blocker}
+                      onChange={(event) => {
+                        const tools = [...toolRequirementsDraft];
+                        tools[index] = { ...tool, production_blocker: event.target.checked };
+                        setToolRequirementsDraft(tools);
+                      }}
+                      type="checkbox"
+                    />
+                    Production blocker
+                  </label>
+                  <label>
+                    Status
+                    <input
+                      value={tool.status}
+                      onChange={(event) => {
+                        const tools = [...toolRequirementsDraft];
+                        tools[index] = { ...tool, status: event.target.value };
+                        setToolRequirementsDraft(tools);
+                      }}
+                    />
+                  </label>
+                </section>
+              ))}
+            </div>
+          ) : selectedArtifact === "graph_design" || selectedArtifact === "graph_design_v1" ? (
+            <div className="graph-editor">
+              <label>
+                Version
+                <input
+                  value={graphDraft.version}
+                  onChange={(event) =>
+                    setGraphDraft({ ...graphDraft, version: event.target.value })
+                  }
+                />
+              </label>
+              <label>
+                Status
+                <input
+                  value={graphDraft.status}
+                  onChange={(event) =>
+                    setGraphDraft({ ...graphDraft, status: event.target.value })
+                  }
+                />
+              </label>
+              <section>
+                <strong>Nodes</strong>
+                {graphDraft.nodes.map((node, index) => (
+                  <div className="rule-editor-card" key={`${node.id}-${index}`}>
+                    <label>
+                      Node id
+                      <input
+                        value={node.id}
+                        onChange={(event) => {
+                          const nodes = [...graphDraft.nodes];
+                          nodes[index] = { ...node, id: event.target.value };
+                          setGraphDraft({ ...graphDraft, nodes });
+                        }}
+                      />
+                    </label>
+                    <label>
+                      Purpose
+                      <textarea
+                        value={node.purpose}
+                        onChange={(event) => {
+                          const nodes = [...graphDraft.nodes];
+                          nodes[index] = { ...node, purpose: event.target.value };
+                          setGraphDraft({ ...graphDraft, nodes });
+                        }}
+                      />
+                    </label>
+                    <label>
+                      Supports rules
+                      <input
+                        value={node.supports_rules.join(", ")}
+                        onChange={(event) => {
+                          const nodes = [...graphDraft.nodes];
+                          nodes[index] = {
+                            ...node,
+                            supports_rules: event.target.value
+                              .split(",")
+                              .map((item) => item.trim())
+                              .filter(Boolean),
+                          };
+                          setGraphDraft({ ...graphDraft, nodes });
+                        }}
+                      />
+                    </label>
+                  </div>
+                ))}
+              </section>
+              <section>
+                <strong>Edges</strong>
+                {graphDraft.edges.map((edge, index) => (
+                  <div className="rule-editor-card" key={`${edge.from}-${edge.to}-${index}`}>
+                    <label>
+                      From
+                      <input
+                        value={edge.from}
+                        onChange={(event) => {
+                          const edges = [...graphDraft.edges];
+                          edges[index] = { ...edge, from: event.target.value };
+                          setGraphDraft({ ...graphDraft, edges });
+                        }}
+                      />
+                    </label>
+                    <label>
+                      To
+                      <input
+                        value={edge.to}
+                        onChange={(event) => {
+                          const edges = [...graphDraft.edges];
+                          edges[index] = { ...edge, to: event.target.value };
+                          setGraphDraft({ ...graphDraft, edges });
+                        }}
+                      />
+                    </label>
+                  </div>
+                ))}
+              </section>
             </div>
           ) : selectedArtifact === "behavior_rules" ? (
             <div className="rules-editor">

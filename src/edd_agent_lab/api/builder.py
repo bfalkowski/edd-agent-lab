@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from typing import Any, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from edd_agent_lab.agents.generation import (
     agent_model_name,
@@ -13,6 +13,7 @@ from edd_agent_lab.agents.generation import (
     resolve_generation_mode,
 )
 from edd_agent_lab.ui.workspace_store import (
+    archive_draft_workspace,
     compare_draft_versions,
     delete_draft_artifact,
     delete_draft_workspace,
@@ -29,6 +30,7 @@ from edd_agent_lab.ui.workspace_store import (
     load_draft_artifacts,
     load_draft_target,
     publish_draft_evidence,
+    rename_draft_workspace,
     run_draft_v0,
     run_draft_v1,
     save_design_scaffold,
@@ -37,12 +39,20 @@ from edd_agent_lab.ui.workspace_store import (
     save_draft_target,
     update_behavior_rules,
     update_draft_target,
+    update_eval_contract,
+    update_graph_design,
+    update_information_requirements,
+    update_tool_requirements,
 )
 
 
 class CreateDraftRequest(BaseModel):
     name: str
     description: str
+
+
+class RenameDraftRequest(BaseModel):
+    name: str
 
 
 class ScenarioRequest(BaseModel):
@@ -70,6 +80,67 @@ class BehaviorRuleRequest(BaseModel):
 
 class BehaviorRulesUpdateRequest(BaseModel):
     rules: list[BehaviorRuleRequest]
+
+
+class EvalMetricRequest(BaseModel):
+    id: str
+    scale: str
+    rules: list[str]
+
+
+class EvalGateRequest(BaseModel):
+    id: str
+    type: str
+    condition: str
+
+
+class EvalContractUpdateRequest(BaseModel):
+    metrics: list[EvalMetricRequest]
+    gates: list[EvalGateRequest]
+    status: str
+
+
+class InformationRequirementRequest(BaseModel):
+    id: str
+    description: str
+    required_for_rules: list[str]
+    status: str
+
+
+class InformationRequirementsUpdateRequest(BaseModel):
+    requirements: list[InformationRequirementRequest]
+
+
+class ToolRequirementRequest(BaseModel):
+    id: str
+    suggested_tool_name: str
+    information_requirements: list[str]
+    implementation_status: str
+    production_blocker: bool
+    status: str
+
+
+class ToolRequirementsUpdateRequest(BaseModel):
+    tools: list[ToolRequirementRequest]
+
+
+class GraphNodeRequest(BaseModel):
+    id: str
+    purpose: str
+    supports_rules: list[str]
+
+
+class GraphEdgeRequest(BaseModel):
+    from_: str = Field(alias="from")
+    to: str
+
+
+class GraphDesignUpdateRequest(BaseModel):
+    artifact_key: str
+    version: str
+    status: str
+    nodes: list[GraphNodeRequest]
+    edges: list[GraphEdgeRequest]
 
 
 GenerationModeRequest = Literal["mock", "live", "auto"]
@@ -230,6 +301,24 @@ def create_app():
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         return list_drafts()
 
+    @app.put("/api/drafts/{agent_key}/rename")
+    def rename_draft(agent_key: str, request: RenameDraftRequest) -> dict[str, Any]:
+        try:
+            rename_draft_workspace(agent_key=agent_key, name=request.name)
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return load_draft(agent_key)
+
+    @app.post("/api/drafts/{agent_key}/archive")
+    def archive_draft(agent_key: str) -> dict[str, Any]:
+        try:
+            archive_draft_workspace(agent_key)
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        return list_drafts()
+
     @app.put("/api/drafts/{agent_key}/target")
     def update_target(agent_key: str, request: TargetUpdateRequest) -> dict[str, Any]:
         try:
@@ -253,6 +342,83 @@ def create_app():
                 agent_key=agent_key,
                 rules=[rule.model_dump() for rule in request.rules],
             )
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return load_draft(agent_key)
+
+    @app.put("/api/drafts/{agent_key}/eval-contract")
+    def update_contract(
+        agent_key: str,
+        request: EvalContractUpdateRequest,
+    ) -> dict[str, Any]:
+        try:
+            update_eval_contract(
+                agent_key=agent_key,
+                metrics=[metric.model_dump() for metric in request.metrics],
+                gates=[gate.model_dump() for gate in request.gates],
+                status=request.status,
+            )
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return load_draft(agent_key)
+
+    @app.put("/api/drafts/{agent_key}/information-requirements")
+    def update_information(
+        agent_key: str,
+        request: InformationRequirementsUpdateRequest,
+    ) -> dict[str, Any]:
+        try:
+            update_information_requirements(
+                agent_key=agent_key,
+                requirements=[
+                    requirement.model_dump() for requirement in request.requirements
+                ],
+            )
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return load_draft(agent_key)
+
+    @app.put("/api/drafts/{agent_key}/tool-requirements")
+    def update_tools(
+        agent_key: str,
+        request: ToolRequirementsUpdateRequest,
+    ) -> dict[str, Any]:
+        try:
+            update_tool_requirements(
+                agent_key=agent_key,
+                tools=[tool.model_dump() for tool in request.tools],
+            )
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return load_draft(agent_key)
+
+    @app.put("/api/drafts/{agent_key}/graph-design")
+    def update_graph(
+        agent_key: str,
+        request: GraphDesignUpdateRequest,
+    ) -> dict[str, Any]:
+        try:
+            update_graph_design(
+                agent_key=agent_key,
+                artifact_key=request.artifact_key,
+                version=request.version,
+                status=request.status,
+                nodes=[node.model_dump() for node in request.nodes],
+                edges=[
+                    {"from": edge.from_, "to": edge.to}
+                    for edge in request.edges
+                ],
+            )
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
         except FileNotFoundError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         except ValueError as exc:

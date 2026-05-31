@@ -6,6 +6,7 @@ import pytest
 
 from edd_agent_lab.integrations.edd_client import QueuedEDDClient
 from edd_agent_lab.ui.workspace_store import (
+    archive_draft_workspace,
     build_design_scaffold,
     build_draft_scenario,
     build_target_from_description,
@@ -23,6 +24,7 @@ from edd_agent_lab.ui.workspace_store import (
     load_draft_artifacts,
     load_draft_target,
     publish_draft_evidence,
+    rename_draft_workspace,
     run_draft_v0,
     run_draft_v1,
     save_design_scaffold,
@@ -32,6 +34,10 @@ from edd_agent_lab.ui.workspace_store import (
     slugify_agent_name,
     update_behavior_rules,
     update_draft_target,
+    update_eval_contract,
+    update_graph_design,
+    update_information_requirements,
+    update_tool_requirements,
     validate_draft_artifact,
 )
 
@@ -172,6 +178,149 @@ def test_update_behavior_rules_edits_generated_rules(tmp_path, monkeypatch) -> N
     )
     assert artifacts["behavior_rules"]["behavior_rules"][0]["target_id"] == (
         "contract-review-agent-target-v1"
+    )
+
+
+def test_update_eval_contract_edits_metrics_and_gates(tmp_path, monkeypatch) -> None:
+    from edd_agent_lab.ui import workspace_store
+
+    monkeypatch.setattr(workspace_store, "LAB_RUNS_DIR", tmp_path)
+
+    save_draft_target(
+        name="Contract Review Agent",
+        description="Help legal teams review risky clauses.",
+    )
+    save_design_scaffold("contract-review-agent")
+
+    updated = update_eval_contract(
+        agent_key="contract-review-agent",
+        status="review",
+        metrics=[
+            {
+                "id": "scope_alignment",
+                "scale": "0-10",
+                "rules": ["state_purpose_and_scope"],
+            }
+        ],
+        gates=[
+            {
+                "id": "must_stay_in_scope",
+                "type": "hard",
+                "condition": "scope_alignment >= 8",
+            }
+        ],
+    )
+    artifacts = load_draft_artifacts("contract-review-agent")
+
+    assert updated["eval_contract"]["status"] == "review"
+    assert artifacts["eval_contract"]["eval_contract"]["metrics"][0]["scale"] == "0-10"
+    assert artifacts["eval_contract"]["eval_contract"]["gates"][0]["condition"] == (
+        "scope_alignment >= 8"
+    )
+
+
+def test_update_information_requirements_edits_design_requirements(
+    tmp_path, monkeypatch
+) -> None:
+    from edd_agent_lab.ui import workspace_store
+
+    monkeypatch.setattr(workspace_store, "LAB_RUNS_DIR", tmp_path)
+
+    save_draft_target(
+        name="Contract Review Agent",
+        description="Help legal teams review risky clauses.",
+    )
+    save_design_scaffold("contract-review-agent")
+
+    updated = update_information_requirements(
+        agent_key="contract-review-agent",
+        requirements=[
+            {
+                "id": "contract_source",
+                "description": "Original contract language and business context.",
+                "required_for_rules": ["ask_for_missing_information"],
+                "status": "review",
+            }
+        ],
+    )
+    artifacts = load_draft_artifacts("contract-review-agent")
+
+    assert updated["information_requirements"][0]["id"] == "contract_source"
+    assert artifacts["information_requirements"]["information_requirements"][0][
+        "status"
+    ] == "review"
+
+
+def test_update_tool_requirements_edits_tool_blockers(tmp_path, monkeypatch) -> None:
+    from edd_agent_lab.ui import workspace_store
+
+    monkeypatch.setattr(workspace_store, "LAB_RUNS_DIR", tmp_path)
+
+    save_draft_target(
+        name="Contract Review Agent",
+        description="Help legal teams review risky clauses.",
+    )
+    save_design_scaffold("contract-review-agent")
+
+    updated = update_tool_requirements(
+        agent_key="contract-review-agent",
+        tools=[
+            {
+                "id": "collect_contract_context",
+                "suggested_tool_name": "request_contract_context",
+                "information_requirements": ["contract_source"],
+                "implementation_status": "planned",
+                "production_blocker": True,
+                "status": "review",
+            }
+        ],
+    )
+    artifacts = load_draft_artifacts("contract-review-agent")
+
+    assert updated["tool_requirements"][0]["suggested_tool_name"] == (
+        "request_contract_context"
+    )
+    assert artifacts["tool_requirements"]["tool_requirements"][0][
+        "implementation_status"
+    ] == "planned"
+
+
+def test_update_graph_design_edits_nodes_and_edges(tmp_path, monkeypatch) -> None:
+    from edd_agent_lab.ui import workspace_store
+
+    monkeypatch.setattr(workspace_store, "LAB_RUNS_DIR", tmp_path)
+
+    save_draft_target(
+        name="Contract Review Agent",
+        description="Help legal teams review risky clauses.",
+    )
+    save_design_scaffold("contract-review-agent")
+
+    updated = update_graph_design(
+        agent_key="contract-review-agent",
+        artifact_key="graph_design",
+        version="v0-edited",
+        status="review",
+        nodes=[
+            {
+                "id": "understand_request",
+                "purpose": "Collect source context before drafting.",
+                "supports_rules": ["ask_for_missing_information"],
+            },
+            {
+                "id": "draft_response",
+                "purpose": "Draft a scoped response.",
+                "supports_rules": ["state_purpose_and_scope"],
+            },
+        ],
+        edges=[{"from": "understand_request", "to": "draft_response"}],
+    )
+    artifacts = load_draft_artifacts("contract-review-agent")
+
+    assert updated["graph_design"]["version"] == "v0-edited"
+    assert artifacts["graph_design"]["graph_design"]["status"] == "review"
+    assert artifacts["graph_design"]["graph_design"]["nodes"][0]["purpose"] == (
+        "Collect source context before drafting."
     )
 
 
@@ -576,6 +725,41 @@ def test_delete_draft_workspace_removes_project(tmp_path, monkeypatch) -> None:
 
     assert workspace_store.list_draft_workspaces() == []
     assert not (tmp_path / "contract_review_agent").exists()
+
+
+def test_rename_draft_workspace_updates_display_name(tmp_path, monkeypatch) -> None:
+    from edd_agent_lab.ui import workspace_store
+
+    monkeypatch.setattr(workspace_store, "LAB_RUNS_DIR", tmp_path)
+
+    save_draft_target(
+        name="Contract Review Agent",
+        description="Help legal teams review risky clauses.",
+    )
+
+    rename_draft_workspace(agent_key="contract-review-agent", name="Clause Review Agent")
+
+    target = load_draft_target("contract-review-agent")
+    assert target["agent_target"]["name"] == "Clause Review Agent"
+    assert list_draft_workspaces()[0].agent_key == "contract-review-agent"
+    assert list_draft_workspaces()[0].name == "Clause Review Agent"
+
+
+def test_archive_draft_workspace_hides_project_without_deleting(tmp_path, monkeypatch) -> None:
+    from edd_agent_lab.ui import workspace_store
+
+    monkeypatch.setattr(workspace_store, "LAB_RUNS_DIR", tmp_path)
+
+    save_draft_target(
+        name="Contract Review Agent",
+        description="Help legal teams review risky clauses.",
+    )
+
+    archive_draft_workspace("contract-review-agent")
+
+    assert workspace_store.list_draft_workspaces() == []
+    assert workspace_store.draft_workspace_dir("contract-review-agent").is_dir()
+    assert (workspace_store.draft_workspace_dir("contract-review-agent") / ".archived").is_file()
 
 
 def test_save_draft_artifact_source_reports_invalid_yaml(tmp_path, monkeypatch) -> None:

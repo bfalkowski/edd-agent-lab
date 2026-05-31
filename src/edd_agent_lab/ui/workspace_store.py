@@ -69,6 +69,8 @@ DRAFT_ARTIFACT_ROOTS = {
     "publish_result": "publish_result",
 }
 
+ARCHIVE_MARKER_FILE = ".archived"
+
 
 def slugify_agent_name(name: str) -> str:
     slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
@@ -304,6 +306,24 @@ def update_draft_target(
     return target
 
 
+def rename_draft_workspace(*, agent_key: str, name: str) -> dict[str, Any]:
+    target = load_draft_target(agent_key)
+    if target is None:
+        raise FileNotFoundError(f"Draft target not found for agent: {agent_key}")
+
+    clean_name = name.strip()
+    if not clean_name:
+        raise ValueError("Project name is required.")
+
+    target["agent_target"]["name"] = clean_name
+    target["agent_target"]["updated_at"] = (
+        datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    )
+    path = draft_workspace_dir(agent_key) / DRAFT_ARTIFACT_FILES["target"]
+    path.write_text(yaml.safe_dump(target, sort_keys=False), encoding="utf-8")
+    return target
+
+
 def update_behavior_rules(
     *,
     agent_key: str,
@@ -338,6 +358,214 @@ def update_behavior_rules(
 
     payload = {"behavior_rules": cleaned}
     path = draft_workspace_dir(agent_key) / DRAFT_ARTIFACT_FILES["behavior_rules"]
+    path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+    return payload
+
+
+def update_eval_contract(
+    *,
+    agent_key: str,
+    metrics: list[dict[str, Any]],
+    gates: list[dict[str, Any]],
+    status: str,
+) -> dict[str, Any]:
+    artifacts = load_draft_artifacts(agent_key)
+    contract = artifacts.get("eval_contract", {}).get("eval_contract")
+    target = load_draft_target(agent_key)
+    if target is None:
+        raise FileNotFoundError(f"Draft target not found for agent: {agent_key}")
+    if contract is None:
+        raise FileNotFoundError(f"Draft eval contract not found for agent: {agent_key}")
+    if not metrics:
+        raise ValueError("At least one eval metric is required.")
+
+    cleaned_metrics: list[dict[str, Any]] = []
+    for metric in metrics:
+        metric_id = str(metric.get("id", "")).strip()
+        if not metric_id:
+            raise ValueError("Metric id is required.")
+        cleaned_metrics.append(
+            {
+                "id": metric_id,
+                "scale": str(metric.get("scale", "")).strip() or "0-5",
+                "rules": [
+                    str(rule).strip()
+                    for rule in metric.get("rules", [])
+                    if str(rule).strip()
+                ],
+            }
+        )
+
+    cleaned_gates: list[dict[str, Any]] = []
+    for gate in gates:
+        gate_id = str(gate.get("id", "")).strip()
+        condition = str(gate.get("condition", "")).strip()
+        if not gate_id or not condition:
+            raise ValueError("Gate id and condition are required.")
+        cleaned_gates.append(
+            {
+                "id": gate_id,
+                "type": str(gate.get("type", "")).strip() or "hard",
+                "condition": condition,
+            }
+        )
+
+    payload = {
+        "eval_contract": {
+            **contract,
+            "target_id": target["agent_target"]["id"],
+            "status": status.strip() or "draft",
+            "metrics": cleaned_metrics,
+            "gates": cleaned_gates,
+        }
+    }
+    path = draft_workspace_dir(agent_key) / DRAFT_ARTIFACT_FILES["eval_contract"]
+    path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+    return payload
+
+
+def update_information_requirements(
+    *,
+    agent_key: str,
+    requirements: list[dict[str, Any]],
+) -> dict[str, Any]:
+    artifacts = load_draft_artifacts(agent_key)
+    existing = artifacts.get("information_requirements", {}).get(
+        "information_requirements"
+    )
+    if existing is None:
+        raise FileNotFoundError(
+            f"Draft information requirements not found for agent: {agent_key}"
+        )
+    if not requirements:
+        raise ValueError("At least one information requirement is required.")
+
+    cleaned: list[dict[str, Any]] = []
+    for requirement in requirements:
+        requirement_id = str(requirement.get("id", "")).strip()
+        description = str(requirement.get("description", "")).strip()
+        if not requirement_id or not description:
+            raise ValueError("Information requirement id and description are required.")
+        cleaned.append(
+            {
+                "id": requirement_id,
+                "description": description,
+                "required_for_rules": [
+                    str(rule).strip()
+                    for rule in requirement.get("required_for_rules", [])
+                    if str(rule).strip()
+                ],
+                "status": str(requirement.get("status", "")).strip() or "draft",
+            }
+        )
+
+    payload = {"information_requirements": cleaned}
+    path = draft_workspace_dir(agent_key) / DRAFT_ARTIFACT_FILES[
+        "information_requirements"
+    ]
+    path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+    return payload
+
+
+def update_tool_requirements(
+    *,
+    agent_key: str,
+    tools: list[dict[str, Any]],
+) -> dict[str, Any]:
+    artifacts = load_draft_artifacts(agent_key)
+    existing = artifacts.get("tool_requirements", {}).get("tool_requirements")
+    if existing is None:
+        raise FileNotFoundError(f"Draft tool requirements not found for agent: {agent_key}")
+    if not tools:
+        raise ValueError("At least one tool requirement is required.")
+
+    cleaned: list[dict[str, Any]] = []
+    for tool in tools:
+        tool_id = str(tool.get("id", "")).strip()
+        suggested_tool_name = str(tool.get("suggested_tool_name", "")).strip()
+        if not tool_id or not suggested_tool_name:
+            raise ValueError("Tool requirement id and suggested tool name are required.")
+        cleaned.append(
+            {
+                "id": tool_id,
+                "suggested_tool_name": suggested_tool_name,
+                "information_requirements": [
+                    str(requirement).strip()
+                    for requirement in tool.get("information_requirements", [])
+                    if str(requirement).strip()
+                ],
+                "implementation_status": (
+                    str(tool.get("implementation_status", "")).strip() or "missing"
+                ),
+                "production_blocker": bool(tool.get("production_blocker", False)),
+                "status": str(tool.get("status", "")).strip() or "draft",
+            }
+        )
+
+    payload = {"tool_requirements": cleaned}
+    path = draft_workspace_dir(agent_key) / DRAFT_ARTIFACT_FILES["tool_requirements"]
+    path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+    return payload
+
+
+def update_graph_design(
+    *,
+    agent_key: str,
+    artifact_key: str,
+    version: str,
+    status: str,
+    nodes: list[dict[str, Any]],
+    edges: list[dict[str, Any]],
+) -> dict[str, Any]:
+    if artifact_key not in {"graph_design", "graph_design_v1"}:
+        raise KeyError(f"Unsupported graph artifact: {artifact_key}")
+    artifacts = load_draft_artifacts(agent_key)
+    graph = artifacts.get(artifact_key, {}).get("graph_design")
+    target = load_draft_target(agent_key)
+    if target is None:
+        raise FileNotFoundError(f"Draft target not found for agent: {agent_key}")
+    if graph is None:
+        raise FileNotFoundError(f"Draft graph not found for agent: {agent_key}")
+    if not nodes:
+        raise ValueError("At least one graph node is required.")
+
+    cleaned_nodes: list[dict[str, Any]] = []
+    for node in nodes:
+        node_id = str(node.get("id", "")).strip()
+        purpose = str(node.get("purpose", "")).strip()
+        if not node_id or not purpose:
+            raise ValueError("Graph node id and purpose are required.")
+        cleaned_nodes.append(
+            {
+                "id": node_id,
+                "purpose": purpose,
+                "supports_rules": [
+                    str(rule).strip()
+                    for rule in node.get("supports_rules", [])
+                    if str(rule).strip()
+                ],
+            }
+        )
+
+    cleaned_edges: list[dict[str, str]] = []
+    for edge in edges:
+        source = str(edge.get("from", "")).strip()
+        target_node = str(edge.get("to", "")).strip()
+        if not source or not target_node:
+            raise ValueError("Graph edge from and to are required.")
+        cleaned_edges.append({"from": source, "to": target_node})
+
+    payload = {
+        "graph_design": {
+            **graph,
+            "target_id": target["agent_target"]["id"],
+            "version": version.strip() or graph.get("version", "draft"),
+            "status": status.strip() or "draft",
+            "nodes": cleaned_nodes,
+            "edges": cleaned_edges,
+        }
+    }
+    path = draft_workspace_dir(agent_key) / DRAFT_ARTIFACT_FILES[artifact_key]
     path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
     return payload
 
@@ -1371,9 +1599,21 @@ def delete_draft_workspace(agent_key: str) -> None:
     shutil.rmtree(root)
 
 
+def archive_draft_workspace(agent_key: str) -> None:
+    workspace = draft_workspace_dir(agent_key)
+    if not workspace.is_dir():
+        raise FileNotFoundError(f"Draft workspace not found for agent: {agent_key}")
+    (workspace / ARCHIVE_MARKER_FILE).write_text(
+        datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+        encoding="utf-8",
+    )
+
+
 def list_draft_workspaces() -> list[DraftWorkspace]:
     workspaces: list[DraftWorkspace] = []
     for path in sorted(LAB_RUNS_DIR.glob("*/draft")):
+        if (path / ARCHIVE_MARKER_FILE).is_file():
+            continue
         target_path = path / "agent-target.yaml"
         if not target_path.is_file():
             continue

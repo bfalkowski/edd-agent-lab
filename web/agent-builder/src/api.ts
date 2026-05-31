@@ -103,6 +103,23 @@ export async function deleteDraft(agentKey: string): Promise<DraftSummary[]> {
   return payload.drafts;
 }
 
+export async function renameDraft(agentKey: string, name: string): Promise<DraftDetail> {
+  const response = await fetch(`/api/drafts/${agentKey}/rename`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+  await assertOk(response);
+  return response.json();
+}
+
+export async function archiveDraft(agentKey: string): Promise<DraftSummary[]> {
+  const response = await fetch(`/api/drafts/${agentKey}/archive`, { method: "POST" });
+  await assertOk(response);
+  const payload = await response.json();
+  return payload.drafts;
+}
+
 export async function runDraftAction(agentKey: string, action: string): Promise<DraftDetail> {
   const response = await fetch(`/api/drafts/${agentKey}/${action}`, { method: "POST" });
   await assertOk(response);
@@ -188,6 +205,59 @@ export type BehaviorRule = {
   status: string;
 };
 
+export type EvalMetric = {
+  id: string;
+  scale: string;
+  rules: string[];
+};
+
+export type EvalGate = {
+  id: string;
+  type: string;
+  condition: string;
+};
+
+export type EvalContractUpdate = {
+  metrics: EvalMetric[];
+  gates: EvalGate[];
+  status: string;
+};
+
+export type InformationRequirement = {
+  id: string;
+  description: string;
+  required_for_rules: string[];
+  status: string;
+};
+
+export type ToolRequirement = {
+  id: string;
+  suggested_tool_name: string;
+  information_requirements: string[];
+  implementation_status: string;
+  production_blocker: boolean;
+  status: string;
+};
+
+export type GraphNode = {
+  id: string;
+  purpose: string;
+  supports_rules: string[];
+};
+
+export type GraphEdge = {
+  from: string;
+  to: string;
+};
+
+export type GraphDesignUpdate = {
+  artifact_key: "graph_design" | "graph_design_v1";
+  version: string;
+  status: string;
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+};
+
 export async function saveTarget(agentKey: string, target: TargetUpdate): Promise<DraftDetail> {
   const response = await fetch(`/api/drafts/${agentKey}/target`, {
     method: "PUT",
@@ -206,6 +276,58 @@ export async function saveBehaviorRules(
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ rules }),
+  });
+  await assertOk(response);
+  return response.json();
+}
+
+export async function saveEvalContract(
+  agentKey: string,
+  contract: EvalContractUpdate,
+): Promise<DraftDetail> {
+  const response = await fetch(`/api/drafts/${agentKey}/eval-contract`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(contract),
+  });
+  await assertOk(response);
+  return response.json();
+}
+
+export async function saveInformationRequirements(
+  agentKey: string,
+  requirements: InformationRequirement[],
+): Promise<DraftDetail> {
+  const response = await fetch(`/api/drafts/${agentKey}/information-requirements`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ requirements }),
+  });
+  await assertOk(response);
+  return response.json();
+}
+
+export async function saveToolRequirements(
+  agentKey: string,
+  tools: ToolRequirement[],
+): Promise<DraftDetail> {
+  const response = await fetch(`/api/drafts/${agentKey}/tool-requirements`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tools }),
+  });
+  await assertOk(response);
+  return response.json();
+}
+
+export async function saveGraphDesign(
+  agentKey: string,
+  graph: GraphDesignUpdate,
+): Promise<DraftDetail> {
+  const response = await fetch(`/api/drafts/${agentKey}/graph-design`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(graph),
   });
   await assertOk(response);
   return response.json();

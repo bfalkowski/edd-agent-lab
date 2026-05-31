@@ -128,6 +128,53 @@ def test_update_target_returns_refreshed_draft(tmp_path, monkeypatch) -> None:
     assert "risk summary" in updated.json()["artifact_sources"]["target"]
 
 
+def test_rename_draft_returns_refreshed_draft(tmp_path, monkeypatch) -> None:
+    from edd_agent_lab.ui import workspace_store
+
+    monkeypatch.setattr(workspace_store, "LAB_RUNS_DIR", tmp_path)
+    client = TestClient(create_app())
+
+    created = client.post(
+        "/api/drafts",
+        json={
+            "name": "Contract Review Agent",
+            "description": "Review contract clauses.",
+        },
+    )
+    assert created.status_code == 200
+
+    renamed = client.put(
+        "/api/drafts/contract-review-agent/rename",
+        json={"name": "Clause Review Agent"},
+    )
+
+    assert renamed.status_code == 200
+    assert renamed.json()["agent_key"] == "contract-review-agent"
+    assert renamed.json()["target"]["agent_target"]["name"] == "Clause Review Agent"
+
+
+def test_archive_draft_hides_project(tmp_path, monkeypatch) -> None:
+    from edd_agent_lab.ui import workspace_store
+
+    monkeypatch.setattr(workspace_store, "LAB_RUNS_DIR", tmp_path)
+    client = TestClient(create_app())
+
+    created = client.post(
+        "/api/drafts",
+        json={
+            "name": "Contract Review Agent",
+            "description": "Review contract clauses.",
+        },
+    )
+    assert created.status_code == 200
+
+    archived = client.post("/api/drafts/contract-review-agent/archive")
+
+    assert archived.status_code == 200
+    assert archived.json()["drafts"] == []
+    assert workspace_store.draft_workspace_dir("contract-review-agent").is_dir()
+
+
 def test_update_rules_returns_refreshed_draft(tmp_path, monkeypatch) -> None:
     from edd_agent_lab.ui import workspace_store
 
@@ -163,6 +210,179 @@ def test_update_rules_returns_refreshed_draft(tmp_path, monkeypatch) -> None:
     assert rules[0]["description"] == "Stay inside contract review scope."
     assert "Stay inside contract review scope." in updated.json()["artifact_sources"][
         "behavior_rules"
+    ]
+
+
+def test_update_eval_contract_returns_refreshed_draft(tmp_path, monkeypatch) -> None:
+    from edd_agent_lab.ui import workspace_store
+
+    monkeypatch.setattr(workspace_store, "LAB_RUNS_DIR", tmp_path)
+    client = TestClient(create_app())
+
+    created = client.post(
+        "/api/drafts",
+        json={
+            "name": "Contract Review Agent",
+            "description": "Review contract clauses.",
+        },
+    )
+    assert created.status_code == 200
+    assert client.post("/api/drafts/contract-review-agent/design").status_code == 200
+
+    updated = client.put(
+        "/api/drafts/contract-review-agent/eval-contract",
+        json={
+            "status": "review",
+            "metrics": [
+                {
+                    "id": "scope_alignment",
+                    "scale": "0-10",
+                    "rules": ["state_purpose_and_scope"],
+                }
+            ],
+            "gates": [
+                {
+                    "id": "must_stay_in_scope",
+                    "type": "hard",
+                    "condition": "scope_alignment >= 8",
+                }
+            ],
+        },
+    )
+
+    assert updated.status_code == 200
+    contract = updated.json()["artifacts"]["eval_contract"]["eval_contract"]
+    assert contract["status"] == "review"
+    assert contract["metrics"][0]["scale"] == "0-10"
+    assert "scope_alignment >= 8" in updated.json()["artifact_sources"]["eval_contract"]
+
+
+def test_update_information_requirements_returns_refreshed_draft(
+    tmp_path, monkeypatch
+) -> None:
+    from edd_agent_lab.ui import workspace_store
+
+    monkeypatch.setattr(workspace_store, "LAB_RUNS_DIR", tmp_path)
+    client = TestClient(create_app())
+
+    created = client.post(
+        "/api/drafts",
+        json={
+            "name": "Contract Review Agent",
+            "description": "Review contract clauses.",
+        },
+    )
+    assert created.status_code == 200
+    assert client.post("/api/drafts/contract-review-agent/design").status_code == 200
+
+    updated = client.put(
+        "/api/drafts/contract-review-agent/information-requirements",
+        json={
+            "requirements": [
+                {
+                    "id": "contract_source",
+                    "description": "Original contract language.",
+                    "required_for_rules": ["ask_for_missing_information"],
+                    "status": "review",
+                }
+            ]
+        },
+    )
+
+    assert updated.status_code == 200
+    requirements = updated.json()["artifacts"]["information_requirements"][
+        "information_requirements"
+    ]
+    assert requirements[0]["id"] == "contract_source"
+    assert "Original contract language." in updated.json()["artifact_sources"][
+        "information_requirements"
+    ]
+
+
+def test_update_tool_requirements_returns_refreshed_draft(tmp_path, monkeypatch) -> None:
+    from edd_agent_lab.ui import workspace_store
+
+    monkeypatch.setattr(workspace_store, "LAB_RUNS_DIR", tmp_path)
+    client = TestClient(create_app())
+
+    created = client.post(
+        "/api/drafts",
+        json={
+            "name": "Contract Review Agent",
+            "description": "Review contract clauses.",
+        },
+    )
+    assert created.status_code == 200
+    assert client.post("/api/drafts/contract-review-agent/design").status_code == 200
+
+    updated = client.put(
+        "/api/drafts/contract-review-agent/tool-requirements",
+        json={
+            "tools": [
+                {
+                    "id": "collect_contract_context",
+                    "suggested_tool_name": "request_contract_context",
+                    "information_requirements": ["contract_source"],
+                    "implementation_status": "planned",
+                    "production_blocker": True,
+                    "status": "review",
+                }
+            ]
+        },
+    )
+
+    assert updated.status_code == 200
+    tools = updated.json()["artifacts"]["tool_requirements"]["tool_requirements"]
+    assert tools[0]["suggested_tool_name"] == "request_contract_context"
+    assert "implementation_status: planned" in updated.json()["artifact_sources"][
+        "tool_requirements"
+    ]
+
+
+def test_update_graph_design_returns_refreshed_draft(tmp_path, monkeypatch) -> None:
+    from edd_agent_lab.ui import workspace_store
+
+    monkeypatch.setattr(workspace_store, "LAB_RUNS_DIR", tmp_path)
+    client = TestClient(create_app())
+
+    created = client.post(
+        "/api/drafts",
+        json={
+            "name": "Contract Review Agent",
+            "description": "Review contract clauses.",
+        },
+    )
+    assert created.status_code == 200
+    assert client.post("/api/drafts/contract-review-agent/design").status_code == 200
+
+    updated = client.put(
+        "/api/drafts/contract-review-agent/graph-design",
+        json={
+            "artifact_key": "graph_design",
+            "version": "v0-edited",
+            "status": "review",
+            "nodes": [
+                {
+                    "id": "understand_request",
+                    "purpose": "Collect source context before drafting.",
+                    "supports_rules": ["ask_for_missing_information"],
+                },
+                {
+                    "id": "draft_response",
+                    "purpose": "Draft a scoped response.",
+                    "supports_rules": ["state_purpose_and_scope"],
+                },
+            ],
+            "edges": [{"from": "understand_request", "to": "draft_response"}],
+        },
+    )
+
+    assert updated.status_code == 200
+    graph = updated.json()["artifacts"]["graph_design"]["graph_design"]
+    assert graph["version"] == "v0-edited"
+    assert graph["status"] == "review"
+    assert "Collect source context before drafting." in updated.json()["artifact_sources"][
+        "graph_design"
     ]
 
 

@@ -38,10 +38,13 @@ Make the local builder support the complete draft-agent loop:
 - [x] Keep activity status local to the step that produced it.
 - [x] Add structured editor for the target artifact.
 - [x] Add structured editor for behavior rules.
-- [ ] Add structured editors for target, rules, eval contract, requirements, and graph.
+- [x] Add structured editor for eval contract metrics and gates.
+- [x] Add structured editors for information and tool requirements.
+- [x] Add structured editor for graph nodes and edges.
+- [x] Add structured editors for target, rules, eval contract, requirements, and graph.
 - [x] Add YAML/schema validation errors in the review drawer.
 - [x] Add artifact diff view before saving edits.
-- [ ] Add rename/archive for draft projects.
+- [x] Add rename/archive for draft projects.
 
 ## Phase 3: Runtime Feedback
 

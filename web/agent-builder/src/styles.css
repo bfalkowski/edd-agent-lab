@@ -194,7 +194,7 @@ button:disabled {
   gap: 4px;
 }
 
-.delete-draft {
+.draft-icon-action {
   display: grid;
   place-items: center;
   width: 26px;
@@ -204,10 +204,15 @@ button:disabled {
   opacity: 0;
 }
 
-.draft-row:hover .delete-draft,
-.draft-row.active .delete-draft,
-.delete-draft:focus-visible {
+.draft-row:hover .draft-icon-action,
+.draft-row.active .draft-icon-action,
+.draft-icon-action:focus-visible {
   opacity: 1;
+}
+
+.draft-icon-action:hover {
+  background: #ececf1;
+  color: #343541;
 }
 
 .delete-draft:hover {
@@ -818,7 +823,10 @@ kbd {
 .artifact-review textarea,
 .artifact-diff,
 .target-editor,
-.rules-editor {
+.rules-editor,
+.eval-contract-editor,
+.requirements-editor,
+.graph-editor {
   width: 100%;
   min-height: 0;
   border: 1px solid #dedede;
@@ -834,7 +842,10 @@ kbd {
 }
 
 .target-editor,
-.rules-editor {
+.rules-editor,
+.eval-contract-editor,
+.requirements-editor,
+.graph-editor {
   align-content: start;
   display: grid;
   gap: 14px;
@@ -843,6 +854,8 @@ kbd {
 }
 
 .target-editor label,
+.eval-contract-editor label,
+.graph-editor label,
 .rule-editor-card label {
   display: grid;
   gap: 7px;
@@ -853,6 +866,9 @@ kbd {
 
 .target-editor input,
 .target-editor textarea,
+.eval-contract-editor input,
+.graph-editor input,
+.graph-editor textarea,
 .rule-editor-card input,
 .rule-editor-card textarea,
 .rule-editor-card select {
@@ -887,6 +903,34 @@ kbd {
 
 .rule-editor-card textarea {
   min-height: 92px;
+}
+
+.rule-editor-card .checkbox-row {
+  align-items: center;
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+}
+
+.rule-editor-card .checkbox-row input {
+  width: 18px;
+  min-height: 18px;
+}
+
+.eval-contract-editor section {
+  display: grid;
+  gap: 10px;
+}
+
+.eval-contract-editor section > strong,
+.graph-editor section > strong {
+  color: #202123;
+  font-size: 14px;
+}
+
+.graph-editor section {
+  display: grid;
+  gap: 10px;
 }
 
 .artifact-diff {
