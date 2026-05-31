@@ -27,8 +27,13 @@ from edd_agent_lab.ui.workbench_views import (
     run_v1_workflow,
 )
 from edd_agent_lab.ui.workspace_store import (
+    DRAFT_ARTIFACT_FILES,
     list_draft_workspaces,
+    load_draft_artifacts,
     load_draft_target,
+    run_draft_v0,
+    save_design_scaffold,
+    save_draft_scenario,
     save_draft_target,
 )
 
@@ -135,7 +140,59 @@ def _render_start_page() -> None:
         unsafe_allow_html=True,
     )
     st.caption(str(target_path))
-    st.code(yaml.safe_dump(target, sort_keys=False), language="yaml")
+    artifacts = load_draft_artifacts(selected_agent)
+    ready_count = len(artifacts) - (0 if "target" not in artifacts else 1)
+    col_scaffold, col_status = st.columns([1, 2])
+    if col_scaffold.button("Scaffold design artifacts", type="primary"):
+        save_design_scaffold(selected_agent)
+        st.rerun()
+    col_status.caption(f"{max(ready_count, 0)} downstream artifacts ready.")
+
+    display_order = [
+        ("target", "Target"),
+        ("behavior_rules", "Rules"),
+        ("eval_contract", "Eval Contract"),
+        ("information_requirements", "Information"),
+        ("tool_requirements", "Tools"),
+        ("graph_design", "Graph"),
+    ]
+    tabs = st.tabs([label for _, label in display_order])
+    for tab, (artifact_key, _label) in zip(tabs, display_order, strict=True):
+        with tab:
+            payload = artifacts.get(artifact_key)
+            if payload is None:
+                filename = DRAFT_ARTIFACT_FILES[artifact_key]
+                st.info(f"{filename} has not been generated yet.")
+                continue
+            st.caption(str(target_path.parent / DRAFT_ARTIFACT_FILES[artifact_key]))
+            st.code(yaml.safe_dump(payload, sort_keys=False), language="yaml")
+
+    st.markdown("## First Local Run")
+    scenario = artifacts.get("scenario", {}).get("scenario", {})
+    default_problem = str(
+        scenario.get("problem")
+        or "Describe the first task this draft agent should handle."
+    )
+    with st.form("draft_scenario_form"):
+        problem = st.text_area("Test scenario", value=default_problem, height=130)
+        run_submitted = st.form_submit_button("Save scenario and run v0", type="primary")
+    if run_submitted:
+        clean_problem = problem.strip()
+        if not clean_problem:
+            st.error("A test scenario is required before running v0.")
+        else:
+            save_draft_scenario(agent_key=selected_agent, problem=clean_problem)
+            run_draft_v0(selected_agent)
+            st.rerun()
+
+    run = load_draft_artifacts(selected_agent).get("v0_run", {}).get("run")
+    if run:
+        st.caption(str(target_path.parent / DRAFT_ARTIFACT_FILES["v0_run"]))
+        st.markdown(run["final_response"])
+        st.caption(
+            f"Run `{run['id']}` · mode `{run['generation_mode']}` · "
+            f"tool mode `{run['tool_mode']}`"
+        )
 
 
 def _render_reference_workbench(platform_health: dict[str, object]) -> None:
