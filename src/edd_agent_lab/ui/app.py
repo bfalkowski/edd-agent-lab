@@ -66,6 +66,21 @@ _DRAFT_STEP_LABELS = [
     "Publish",
 ]
 
+_DRAFT_STEP_ARTIFACTS = {
+    "Target": ["target"],
+    "Design": [
+        "behavior_rules",
+        "eval_contract",
+        "information_requirements",
+        "tool_requirements",
+        "graph_design",
+    ],
+    "Run": ["scenario", "v0_run"],
+    "Evaluate": ["eval_summary", "failure_packet", "fix_plan"],
+    "Improve": ["graph_design_v1", "v1_run", "eval_summary_v1", "comparison"],
+    "Publish": [],
+}
+
 
 def _reset_workbench() -> None:
     import streamlit as st
@@ -190,19 +205,26 @@ def _draft_step_selector(agent_key: str, status: dict[str, object]) -> str:
     if st.session_state.get(session_key) not in _DRAFT_STEP_LABELS:
         st.session_state[session_key] = default_step
 
-    return st.radio(
+    selected_step = st.segmented_control(
         "Workflow step",
         _DRAFT_STEP_LABELS,
-        horizontal=True,
+        default=st.session_state[session_key],
         key=session_key,
+        label_visibility="collapsed",
+        width="stretch",
     )
+    selected_label = str(selected_step or default_step)
+    _render_draft_stepper(selected_label, status)
+    return selected_label
 
 
 def _default_draft_step(status: dict[str, object]) -> str:
     first_pending = next(
         (row["id"] for row in status["steps"] if not row["complete"]),
-        "comparison",
+        None,
     )
+    if first_pending is None:
+        return "Publish"
     if first_pending in {"target"}:
         return "Target"
     if first_pending in {
@@ -220,6 +242,35 @@ def _default_draft_step(status: dict[str, object]) -> str:
     if first_pending in {"graph_design_v1", "v1_run", "eval_summary_v1", "comparison"}:
         return "Improve"
     return "Publish"
+
+
+def _render_draft_stepper(selected_step: str, status: dict[str, object]) -> None:
+    import streamlit as st
+
+    completed_ids = {
+        str(row["id"]) for row in status["steps"] if bool(row["complete"])
+    }
+    tiles = []
+    for index, label in enumerate(_DRAFT_STEP_LABELS, start=1):
+        artifacts = _DRAFT_STEP_ARTIFACTS[label]
+        is_complete = bool(artifacts) and all(key in completed_ids for key in artifacts)
+        is_current = label == selected_step
+        state = "current" if is_current else "complete" if is_complete else "pending"
+        state_label = "Current" if is_current else "Done" if is_complete else "Pending"
+        tiles.append(
+            f'<div class="edd-draft-step edd-draft-step-{state}">'
+            f'<div class="edd-draft-step-index">{index}</div>'
+            '<div class="edd-draft-step-body">'
+            f'<div class="edd-draft-step-title">{html.escape(label)}</div>'
+            f'<div class="edd-draft-step-state">{state_label}</div>'
+            "</div>"
+            "</div>"
+        )
+
+    st.markdown(
+        f'<div class="edd-draft-stepper">{"".join(tiles)}</div>',
+        unsafe_allow_html=True,
+    )
 
 
 def _render_target_step(agent_key: str, agent_target: dict[str, object]) -> None:
