@@ -1,134 +1,96 @@
 # Functional Application Plan
 
-This plan tracks the work needed to turn `edd-agent-lab` from a local prototype
-and reference workshop into a functional application for creating, running,
-evaluating, comparing, and publishing agents.
+This plan tracks the remaining work to make `edd-agent-lab` a functional local
+application for creating, running, evaluating, comparing, and publishing agents.
 
 ## Goal
 
-Make `edd-agent-lab` a usable local workbench where someone can:
+Make the local builder support the complete draft-agent loop:
 
 1. Create a new agent from scratch.
 2. Define target behavior.
 3. Generate and review rules, evals, requirements, tools, and graph design.
-4. Run v0.
-5. Evaluate v0.
-6. Generate a bounded fix plan.
-7. Create and run v1.
-8. Compare v0 vs v1.
-9. Publish evidence to the platform.
-10. Eventually persist canonical workflow state in platform/Postgres.
+4. Add scenarios.
+5. Run v0.
+6. Evaluate v0.
+7. Generate a bounded fix plan.
+8. Create and run v1.
+9. Compare v0 and v1.
+10. Publish evidence to the platform.
 
-## Phase 1: Make Local Greenfield Flow Complete
+## Phase 1: Local Draft Workflow
 
 - [x] Create local agent draft from name and description.
 - [x] Save `agent-target.yaml`.
-- [x] Scaffold draft rules/eval/requirements/tools/graph.
-- [x] Add first local scenario.
+- [x] Generate draft rules, eval contract, requirements, tools, and graph design.
+- [x] Add a first local scenario.
 - [x] Run deterministic `v0-baseline`.
 - [x] Evaluate v0 locally.
 - [x] Generate local failure packet.
-- [ ] Add editable forms for target/rules/eval/requirements instead of YAML-only display.
-- [ ] Add "Save changes" for edited draft artifacts.
-- [ ] Add validation errors for incomplete draft artifacts.
-- [ ] Add draft workspace selector/rename/delete/archive.
-- [x] Add clear "local only, not platform persisted" status.
+- [x] Generate fix plan, v1 graph, v1 run, v1 eval, and comparison.
+- [x] Delete draft projects from the local project list.
+- [x] Delete non-target artifacts so a step can be regenerated.
 
-## Phase 2: Generate v1 From Failure
+## Phase 2: Review And Editing
 
-- [x] Generate a bounded fix plan from the v0 failure packet.
-- [x] Save `fix-plan.yaml`.
-- [x] Generate `graph-design-v1.yaml`.
-- [x] Generate deterministic `v1` response path.
-- [x] Run v1 against same scenario.
-- [x] Evaluate v1.
-- [x] Compare v0 vs v1.
-- [x] Show side-by-side outputs for greenfield agents, not only reference demo.
-- [x] Show verdict: what failed, what changed, what remains blocked.
+- [x] Review generated artifact YAML in the builder.
+- [x] Save edited artifact YAML.
+- [x] Keep activity status local to the step that produced it.
+- [ ] Add structured editors for target, rules, eval contract, requirements, and graph.
+- [ ] Add YAML/schema validation errors in the review drawer.
+- [ ] Add artifact diff view before saving edits.
+- [ ] Add rename/archive for draft projects.
 
-## Phase 3: Make It Feel Like an App
+## Phase 3: Runtime Feedback
 
-- [x] Replace giant single Start page with step navigation:
-  - Target
-  - Rules
-  - Eval Contract
-  - Requirements
-  - Tools
-  - Graph
-  - Run
-  - Evaluate
-  - Compare
-  - Publish
-- [x] Add progress/status indicators for each step.
-- [x] Add compact artifact cards with edit/review states.
-- [x] Add "next recommended action" panel.
-- [x] Reduce raw YAML exposure to an advanced/details view.
-- [ ] Improve Streamlit styling toward a focused developer workbench.
-- [ ] Add empty, loading, success, failure states.
+- [ ] Add streaming step activity from the API.
+- [ ] Emit the same event shape in deterministic mock mode and live mode.
+- [ ] Show model/tool progress inline on the active step.
+- [ ] Show written artifacts as they are created.
+- [ ] Preserve failures with retry context on the owning step.
 
-## Phase 4: Real Persistence Boundary
-
-- [ ] Define platform API endpoints needed for greenfield authoring:
-  - create agent target
-  - create behavior rules
-  - create eval contract
-  - create information requirements
-  - create tool requirements
-  - create graph design
-  - create failure packet
-  - create fix plan
-  - create comparison
-- [ ] Decide which objects remain local drafts vs platform canonical records.
-- [ ] Add `Publish draft to platform`.
-- [ ] Save canonical platform IDs back into local draft artifacts.
-- [ ] Display platform sync status per artifact.
-- [ ] Make Postgres/platform persistence explicit in UI.
-
-## Phase 5: Better Agent Execution
+## Phase 4: Better Agent Execution
 
 - [ ] Replace deterministic v0 text with a generic runnable LangGraph template.
-- [ ] Generate a minimal agent package/folder for draft agents.
+- [ ] Generate a minimal agent package or folder for draft agents.
 - [ ] Add mock tool binding generation.
-- [ ] Run v0 through same runner/eval artifact format as existing agents.
-- [ ] Support optional live generation when `OPENAI_API_KEY` exists.
-- [ ] Keep CI/mock mode deterministic.
+- [ ] Run draft agents through the same runner/eval artifact format as existing agents.
+- [ ] Support optional live generation when provider credentials exist.
+- [ ] Keep CI and local tests deterministic by default.
 
-## Phase 6: Evaluation Maturity
+## Phase 5: Evaluation Maturity
 
-- [ ] Convert draft eval contract into runnable eval suite.
-- [ ] Add deterministic structure/keyword checks from generated rules.
+- [ ] Convert draft eval contracts into runnable eval suites.
+- [ ] Add deterministic structure and keyword checks from generated rules.
 - [ ] Add optional LLM judge path.
 - [ ] Add failure packet generation per failed rule.
-- [ ] Add overfitting/variant scenario generation.
+- [ ] Add overfitting or variant scenario generation.
 - [ ] Add regression comparison across multiple scenarios.
-- [ ] Show rule-level pass/fail, not only score.
+- [ ] Show rule-level pass/fail, not only an aggregate score.
 
-## Phase 7: Publish and Platform Loop
+## Phase 6: Platform Publish Loop
 
-- [ ] Publish greenfield run records through existing publish seam.
-- [ ] Include target/rule/eval/graph IDs in publish envelope.
-- [ ] Show publish result and platform run ID.
-- [ ] Link to platform console pages.
+- [ ] Publish draft run records through the existing publish integration.
+- [ ] Include target, rule, eval, graph, and comparison identifiers in the publish envelope.
+- [ ] Show publish result and platform run ID in the builder.
+- [ ] Link to relevant platform records.
 - [ ] Handle queued/offline publish clearly.
 - [ ] Add retry publish for queued runs.
-- [ ] Add platform health/auth diagnostics in the UI.
+- [ ] Add platform health and auth diagnostics in the UI.
 
-## Phase 8: Product Hardening
+## Phase 7: Product Hardening
 
-- [ ] Add end-to-end tests for local draft flow.
-- [ ] Add UI smoke tests for `:8502`.
+- [ ] Add end-to-end tests for the React builder flow.
+- [ ] Add API tests for draft create, action, artifact edit, artifact delete, and project delete.
 - [ ] Add schema tests for generated YAML artifacts.
-- [ ] Add docs for local-only vs platform-persisted flows.
-- [ ] Add cleanup/ignore policy for `lab-runs/` generated drafts.
 - [ ] Add import/export of draft workspaces.
-- [ ] Add better error handling for missing/corrupt artifacts.
-- [ ] Add README screenshots or GIF once UI stabilizes.
+- [ ] Add better error handling for missing or corrupt artifacts.
+- [ ] Add screenshots once the UI stabilizes.
 
 ## Near-Term Build Order
 
-1. Editable artifact review forms.
-2. Generate local `fix-plan.yaml` from v0 failure.
-3. Generate, run, and evaluate local v1.
-4. Greenfield side-by-side compare view.
-5. Publish greenfield evidence to platform.
-6. Platform persistence API design.
+1. Add API streaming for workflow actions.
+2. Add schema validation in artifact review.
+3. Add structured editors for the highest-value artifacts.
+4. Publish draft evidence to the platform.
+5. Generate runnable draft agent packages.

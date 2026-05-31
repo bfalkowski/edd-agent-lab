@@ -1,62 +1,83 @@
 # Developer Experience Today
 
-This document describes how an agent developer actually works with **edd-agent-lab** and **eval-driven-design-platform** **right now** — not the target state.
+This document describes how an agent developer works with **edd-agent-lab** and
+**eval-driven-design-platform** right now.
 
-For integration boundaries, see `05-platform-integration.md`. For live vs mock generation, see `08-live-agent-generation.md`.
+For integration boundaries, see [05-platform-integration.md](05-platform-integration.md).
+For live vs mock generation, see [08-live-agent-generation.md](08-live-agent-generation.md).
 
----
+## Mental Model
 
-## Mental model
+`edd-agent-lab` is the local authoring and evidence workspace.
 
-You are running two related but mostly **separate** tools:
+`eval-driven-design-platform` is the canonical persistence, gate, promotion, and
+observability boundary.
 
-| Tool | Port | Role today |
-|---|---|---|
-| **edd-agent-lab** | `:8502` (console), CLI | Build agents, run local evals, compare versions in chat |
-| **eval-driven-design-platform** | `:8501` (console), `:8000` (API) | EvalSpec / EvalCase / ExperimentRun workflow, Langfuse adapter |
-
-The intended direction is `lab → platform → Langfuse`. **The lab publish seam exists; platform ingest does not yet.**
-
----
-
-## Day-one setup
-
-```bash
-cd edd-agent-lab
-python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev,agent,ui]"
-cp .env.example .env
-# Optional: OPENAI_API_KEY for live generation
+```text
+edd-agent-lab  ->  eval-driven-design-platform  ->  Langfuse
 ```
 
-Platform (separate repo):
+The lab can run standalone. When the platform API is configured, the lab
+publishes run evidence through the platform integration endpoint.
+
+## Local Builder
+
+Start the builder API:
 
 ```bash
-cd eval-driven-design-platform
-# Follow README / scripts/local_e2e.sh for API + console on :8000 / :8501
+uv run --extra web uvicorn edd_agent_lab.api.builder:app --host 127.0.0.1 --port 8002
 ```
 
-There is **no single command** that starts both stacks and wires them together.
+Start the React builder:
 
----
+```bash
+cd web/agent-builder
+npm run dev
+```
 
-## Primary workflow: CLI-first
+Open:
 
-Most engineering work happens in the terminal.
+```text
+http://localhost:5173
+```
 
-### 1. Run an agent version
+The builder flow:
+
+1. Create a draft agent from a name and purpose.
+2. Generate and review design artifacts.
+3. Add a local scenario.
+4. Run v0.
+5. Evaluate v0.
+6. Generate a fix plan.
+7. Generate and run v1.
+8. Evaluate v1.
+9. Compare v0 and v1.
+10. Publish evidence to the platform when configured.
+
+Draft projects live under:
+
+```text
+lab-runs/<agent_key>/draft/
+```
+
+The UI can review, edit, delete, and regenerate local draft artifacts.
+
+## CLI Workflow
+
+The CLI still supports reference agents, scenarios, eval suites, and publish
+smoke tests.
+
+Run an agent version:
 
 ```bash
 edd-lab run-agent \
   --agent customer-solution \
   --version v1 \
   --scenario healthcare_documentation \
-  --generation-mode mock   # or live with OPENAI_API_KEY
+  --generation-mode mock
 ```
 
-Writes artifacts under `lab-runs/customer_solution_agent/v1-discovery-graph/`.
-
-### 2. Score with an eval suite
+Run evals:
 
 ```bash
 edd-lab run-evals \
@@ -65,147 +86,66 @@ edd-lab run-evals \
   --suite discovery_quality
 ```
 
-Produces `eval-summary-*.json` and optionally `failure-packet-*.json`.
-
-### 3. Compare versions (CLI)
-
-```bash
-edd-lab compare-turn \
-  --scenario healthcare_documentation \
-  --before v0 --after v1
-```
-
-### 4. Check overfitting
-
-```bash
-edd-lab run-evals --version v1 --suite overfitting
-```
-
-### 5. Publish (seam only)
+Publish a run record:
 
 ```bash
 edd-lab publish-run --agent customer-solution --version v1
-# or: edd-lab run-evals ... --publish
 ```
 
-**Today:** if the platform API is not running or ingest is missing, envelopes land in `lab-runs/_platform_publish_queue/` — not in the platform UI.
-
----
-
-## Secondary workflow: side-by-side console
-
-```bash
-edd-lab console   # http://localhost:8502
-```
-
-**Good for:**
-
-- Same prompt → two agent versions → scored replies
-- Multi-turn discovery conversations
-- Turn-level analysis (latest turn)
-- Session score rollup (average across turns)
-- Session resume (`?session_id=` or sidebar picker)
-- **Mock / Live toggle** in sidebar
-
-**Not good for (yet):**
-
-- Editing agent code or graph
-- Running full eval suites from the UI
-- Publishing to platform
-- Viewing Langfuse traces
-- Team-wide run history (sessions are local files)
-
-Console artifacts: `lab-runs/customer_solution_agent/console-sessions/<session_id>/`.
-
----
-
-## Generation modes
-
-| Mode | Where set | Behavior |
-|---|---|---|
-| **Mock** | Console toggle or `--generation-mode mock` | Deterministic LangGraph templates + chat formatter |
-| **Live** | Console toggle or `--generation-mode live` | OpenAI structured discovery + chat (needs API key) |
-| **Auto** | `AGENT_GENERATION_MODE=auto` in env | Live if key present, else mock (CLI default when unset) |
-
-CI / pytest always forces mock via `tests/conftest.py`.
-
----
-
-## What “evidence” looks like on disk
+If the platform API is unavailable, publish payloads are queued locally under:
 
 ```text
-lab-runs/customer_solution_agent/
-  v0-baseline/
-    run-record.json
-    eval-summary-discovery_quality.json
-    failure-packet-*.json
-    agent-output.json
-  console-sessions/
-    <session_id>/
-      session.json              # chat + turn summaries
-      turns/<turn_id>/
-        turn-evaluation.json
-        turn-comparison.json
-  _platform_publish_queue/      # when publish cannot reach platform
+lab-runs/_platform_publish_queue/
 ```
 
-You inspect JSON manually or via CLI output. There is no unified “run explorer” in the lab.
+## Generation Modes
 
----
+| Mode | Behavior |
+|---|---|
+| `mock` | deterministic local generation |
+| `live` | provider-backed generation when credentials are available |
+| `auto` | live if credentials exist, otherwise mock |
 
-## Platform workflow today (parallel path)
+Tests force mock generation so CI does not require provider keys.
 
-On **eval-driven-design-platform** `:8501`:
+## Platform Workflow
 
-1. Define **EvalSpec** (what good means)
-2. Add **EvalCases** (manual or Langfuse import)
-3. Run **ExperimentRun** against a candidate version
-4. Review results in Results Explorer
-5. Quality gates — planned, not fully enforced
+The platform repo owns durable workflow state:
 
-This workflow uses the **platform’s own scaffold/evaluator**, not lab LangGraph agents. Lab run records do **not** automatically appear here.
+- agent targets
+- behavior rules
+- eval contracts
+- experiment runs
+- gate results
+- promotion records
+- Langfuse integration
 
----
+Lab artifacts do not become platform records until they are published through the
+integration client.
 
-## MCP seam (lab)
+## Friction Points
 
-```bash
-edd-lab invoke-mcp --tool edd.run_eval_suite --args '{"suite":"discovery_quality"}'
-edd-lab invoke-mcp --tool edd.publish_run --args '{"run_record":"..."}'
-```
+1. Draft artifacts are local until publish integration is wired for the desired
+   platform object.
+2. Live generation is opt-in and should not be required for deterministic tests.
+3. Publish requires the platform API and auth settings when platform auth is
+   enabled.
+4. Draft agents are not production-ready just because local evals pass.
 
-Local shims today; remote MCP server optional via `EDD_MCP_SERVER_URL`.
+## What Works Well
 
----
+- local draft creation from an idea
+- deterministic v0/v1 run and eval loop
+- editable artifact review
+- local project deletion and regeneration
+- platform publish boundary through `POST /v1/integrations/runs/publish`
 
-## Friction points (honest)
-
-1. **Two consoles, two mental models** — `:8502` chat comparison vs `:8501` experiment workflow.
-2. **Auth wiring for publish** — `local_e2e.sh` enables platform auth; lab publish needs `EDD_API_KEY` unless the smoke script auto-mints a JWT.
-3. **Console vs CLI for promotion** — lab console has eval suite + publish panel, but durable registry and gates live on platform `:8501`.
-4. **Mock vs live confusion** — easy to demo in mock and think behavior is “real.”
-5. **Turn eval is heuristic** — pattern checks unless LLM judge is wired for that path.
-6. **No in-console agent editing** — code changes still happen in IDE + terminal rerun.
-7. **Console sessions are local** — not shared via platform or team dashboard.
-
----
-
-## What works well today
-
-- Clear **v0 / v1 / v3** graph story and local eval suites
-- **Deterministic CI** with mock generation
-- **Side-by-side chat** with session persistence and rollup scores
-- **Publish envelope contract** and live HTTP ingest to platform (`POST /v1/integrations/runs/publish`)
-- **Overfitting suite** to catch brittle “fixes”
-
----
-
-## Related docs
+## Related Docs
 
 | Doc | Topic |
 |---|---|
-| `03-evaluation-driven-design.md` | EDD principles |
-| `05-platform-integration.md` | Ownership + publish envelope |
-| `07-final-milestone-side-by-side-console.md` | Console spec |
-| `08-live-agent-generation.md` | Mock / live / auto |
-| `10-ideal-developer-experience.md` | Target DX |
+| [03-evaluation-driven-design.md](03-evaluation-driven-design.md) | EDD principles |
+| [05-platform-integration.md](05-platform-integration.md) | Ownership and publish envelope |
+| [08-live-agent-generation.md](08-live-agent-generation.md) | Mock, live, and auto modes |
+| [13-functional-application-plan.md](13-functional-application-plan.md) | Active application backlog |
+| [14-react-builder-pivot.md](14-react-builder-pivot.md) | Builder architecture |

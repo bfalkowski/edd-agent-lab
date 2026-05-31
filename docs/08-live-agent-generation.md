@@ -1,8 +1,9 @@
-# Milestone 10: Live Agent Generation
+# Live Agent Generation
 
 ## Goal
 
-Replace template-only agent behavior with **OpenAI-backed generation** while keeping deterministic mock mode for CI and offline development.
+Support provider-backed generation while keeping deterministic mock mode for CI
+and offline development.
 
 ```text
 same scenario + user message
@@ -34,7 +35,7 @@ AGENT_MODEL=gpt-4o-mini      # optional
 
 - LangGraph topology demonstrates v0 / v1 / v3 policy differences
 - Deterministic node templates fill `CustomerSolutionState`
-- Console chat uses template formatter in mock mode
+- Local runs use deterministic formatters in mock mode
 
 ### Live path (new)
 
@@ -59,7 +60,7 @@ Version behavior is enforced through policy prompts in `prompts.py`, not separat
 ## Usage
 
 ```bash
-pip install -e ".[dev,agent,ui]"
+uv sync --extra dev --extra agent --extra web
 
 # Deterministic (no API key)
 AGENT_GENERATION_MODE=mock edd-lab run-agent \
@@ -70,9 +71,6 @@ export OPENAI_API_KEY=sk-...
 edd-lab run-agent \
   --agent customer-solution --version v1 --scenario healthcare_documentation \
   --generation-mode live
-
-# Console: auto uses live when key is present
-edd-lab console
 ```
 
 ## Testing Strategy
@@ -87,11 +85,9 @@ edd-lab console
 - Platform publish endpoint on eval-driven-design-platform is still a seam
 - LangGraph nodes are not individually LLM-backed in live mode (single structured draft call instead)
 
-## Next Steps (Phase 11+)
+## Next Steps
 
 1. Per-node LLM calls inside LangGraph for trace granularity
-2. ~~Session persistence outside Streamlit `session_state`~~ (see session resume in console)
-3. Hybrid turn eval (structure checks + LLM judge by default in live mode)
+2. Streaming progress events for builder workflow steps
+3. Hybrid turn eval with structure checks and optional LLM judge
 4. Platform ingest verification end-to-end
-
-Console sessions persist under `lab-runs/customer_solution_agent/console-sessions/<session_id>/session.json` with full chat transcripts and turn summaries. Resume via sidebar or `?session_id=` query param.

@@ -203,7 +203,7 @@ edd-agent-lab/
     evals/           # eval execution and scoring helpers
     integrations/    # platform publish client
     scenarios/       # scenario loading helpers
-    ui/              # local workspace store and legacy UI helpers
+    ui/              # local workspace store
   web/agent-builder/ # React builder
   scenarios/         # YAML scenario definitions
   evals/             # YAML eval suites
@@ -245,8 +245,8 @@ Default behavior uses deterministic mock generation.
 - [Live generation](docs/08-live-agent-generation.md)
 - [Current developer experience](docs/09-developer-experience-today.md)
 - [Ideal developer experience](docs/10-ideal-developer-experience.md)
-- [Lab console design](docs/12-lab-console-design.md)
-- [React builder pivot](docs/14-react-builder-pivot.md)
+- [Functional application plan](docs/13-functional-application-plan.md)
+- [React builder architecture](docs/14-react-builder-pivot.md)
 - [Platform HLD-005 reference scenario](https://github.com/bfalkowski/eval-driven-design-platform/blob/main/docs/hld/HLD-005-reference-scenario-customer-escalation-triage.md)
 
 ## Design Principles
