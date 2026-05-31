@@ -361,7 +361,7 @@ function App() {
     setIsLoading(true);
     setError("");
     try {
-      const draft = await createDraft(name.trim(), description.trim());
+      const draft = await createDraft(name.trim(), description.trim(), generationMode);
       setActiveDraft(draft);
       closeReviewPanel();
       setIsCreating(false);

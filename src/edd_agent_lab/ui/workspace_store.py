@@ -90,7 +90,21 @@ def draft_workspace_dir(agent_key: str) -> Path:
     return LAB_RUNS_DIR / agent_key.replace("-", "_") / "draft"
 
 
-def build_target_from_description(*, name: str, description: str) -> dict[str, Any]:
+def build_target_from_description(
+    *,
+    name: str,
+    description: str,
+    generation_mode: GenerationModeSetting | None = None,
+) -> dict[str, Any]:
+    resolved_generation_mode = (
+        resolve_generation_mode(generation_mode) if generation_mode is not None else "mock"
+    )
+    if resolved_generation_mode == "live":
+        return _build_live_target_from_description(name=name, description=description)
+    return build_mock_target_from_description(name=name, description=description)
+
+
+def build_mock_target_from_description(*, name: str, description: str) -> dict[str, Any]:
     agent_key = slugify_agent_name(name)
     text = description.strip()
     return {
@@ -109,6 +123,113 @@ def build_target_from_description(*, name: str, description: str) -> dict[str, A
             "status": "draft",
         }
     }
+
+
+def _build_live_target_from_description(*, name: str, description: str) -> dict[str, Any]:
+    agent_key = slugify_agent_name(name)
+    target_id = f"{agent_key}-target-v1"
+    model = get_chat_model(temperature=0.2)
+    answer = model.invoke(
+        [
+            {
+                "role": "system",
+                "content": (
+                    "You draft target artifacts for an evaluation-driven agent "
+                    "design lab. Return only valid JSON. Do not invent production "
+                    "integrations or claim the agent is production-ready."
+                ),
+            },
+            {
+                "role": "user",
+                "content": _live_target_prompt(
+                    name=name,
+                    description=description,
+                    target_id=target_id,
+                ),
+            },
+        ]
+    )
+    content = getattr(answer, "content", answer)
+    if not isinstance(content, str) or not content.strip():
+        raise RuntimeError("Live target generation returned an empty response.")
+    payload = _parse_live_design_json(content)
+    return _normalize_live_target(
+        payload=payload,
+        fallback_name=name,
+        fallback_description=description,
+        target_id=target_id,
+    )
+
+
+def _live_target_prompt(*, name: str, description: str, target_id: str) -> str:
+    return json.dumps(
+        {
+            "task": "Expand this initial agent idea into a draft agent target.",
+            "input": {
+                "name": name,
+                "description": description,
+            },
+            "required_json_shape": {
+                "name": "clear agent name",
+                "purpose": "specific purpose statement",
+                "intended_users": ["user group"],
+                "primary_goals": ["goal"],
+                "non_goals": ["explicit non-goal"],
+                "allowed_tool_categories": ["local_files|search|http_api|human_review"],
+                "risk_tolerance": "low|medium|high|needs_review",
+                "expected_output_format": "specific output format",
+                "example_scenarios": ["short scenario"],
+            },
+            "constraints": [
+                f"Use target id {target_id}.",
+                "Return JSON only, with no markdown fences.",
+                "Keep the target scoped to the user's description.",
+                "Use needs_review when risk or output expectations are unclear.",
+                "Include at least one non-goal that keeps the agent bounded.",
+            ],
+        },
+        indent=2,
+    )
+
+
+def _normalize_live_target(
+    *,
+    payload: dict[str, Any],
+    fallback_name: str,
+    fallback_description: str,
+    target_id: str,
+) -> dict[str, Any]:
+    source_description = fallback_description.strip()
+    target = {
+        "agent_target": {
+            "id": target_id,
+            "name": _clean_text(payload.get("name"), fallback=fallback_name.strip()),
+            "purpose": _clean_text(payload.get("purpose"), fallback=source_description),
+            "intended_users": _clean_string_list(payload.get("intended_users")),
+            "primary_goals": _clean_string_list(payload.get("primary_goals")),
+            "non_goals": _clean_string_list(payload.get("non_goals")),
+            "allowed_tool_categories": _clean_string_list(
+                payload.get("allowed_tool_categories")
+            ),
+            "risk_tolerance": _clean_choice(
+                payload.get("risk_tolerance"),
+                choices={"low", "medium", "high", "needs_review"},
+                fallback="needs_review",
+            ),
+            "expected_output_format": _clean_text(
+                payload.get("expected_output_format"),
+                fallback="needs_review",
+            ),
+            "example_scenarios": _clean_string_list(payload.get("example_scenarios")),
+            "source_description": source_description,
+            "status": "draft",
+        }
+    }
+    validation = validate_draft_artifact(artifact_key="target", data=target)
+    if not validation["valid"]:
+        errors = "; ".join(validation["errors"])
+        raise ValueError(f"Live target generation produced invalid target: {errors}")
+    return target
 
 
 def build_design_scaffold(
@@ -764,8 +885,17 @@ def _clean_choice(value: Any, *, choices: set[str], fallback: str) -> str:
     return text if text in choices else fallback
 
 
-def save_draft_target(*, name: str, description: str) -> DraftWorkspace:
-    target = build_target_from_description(name=name, description=description)
+def save_draft_target(
+    *,
+    name: str,
+    description: str,
+    generation_mode: GenerationModeSetting | None = None,
+) -> DraftWorkspace:
+    target = build_target_from_description(
+        name=name,
+        description=description,
+        generation_mode=generation_mode,
+    )
     agent_key = slugify_agent_name(name)
     workspace = draft_workspace_dir(agent_key)
     workspace.mkdir(parents=True, exist_ok=True)
@@ -776,7 +906,7 @@ def save_draft_target(*, name: str, description: str) -> DraftWorkspace:
     target_path.write_text(yaml.safe_dump(target, sort_keys=False), encoding="utf-8")
     return DraftWorkspace(
         agent_key=agent_key,
-        name=name.strip(),
+        name=str(target["agent_target"]["name"]),
         path=workspace,
         target_path=target_path,
         updated_at=now,

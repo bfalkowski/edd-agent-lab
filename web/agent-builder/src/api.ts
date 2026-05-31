@@ -88,11 +88,15 @@ export async function listDrafts(): Promise<DraftSummary[]> {
   return payload.drafts;
 }
 
-export async function createDraft(name: string, description: string): Promise<DraftDetail> {
+export async function createDraft(
+  name: string,
+  description: string,
+  generationMode?: GenerationMode,
+): Promise<DraftDetail> {
   const response = await fetch("/api/drafts", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, description }),
+    body: JSON.stringify({ name, description, generation_mode: generationMode }),
   });
   await assertOk(response);
   return response.json();

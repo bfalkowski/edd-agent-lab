@@ -126,6 +126,51 @@ def test_draft_create_list_load_and_delete_api(tmp_path, monkeypatch) -> None:
     assert not workspace_store.draft_workspace_dir("contract-review-agent").parent.exists()
 
 
+def test_draft_create_can_use_live_target_generation(tmp_path, monkeypatch) -> None:
+    from types import SimpleNamespace
+
+    from edd_agent_lab.ui import workspace_store
+
+    class FakeModel:
+        def invoke(self, messages):
+            assert "Expand this initial agent idea" in messages[1]["content"]
+            return SimpleNamespace(
+                content=json.dumps(
+                    {
+                        "name": "Contract Risk Review Agent",
+                        "purpose": "Review contract clauses and surface risks.",
+                        "intended_users": ["legal operations"],
+                        "primary_goals": ["identify risky clauses"],
+                        "non_goals": ["provide legal advice"],
+                        "allowed_tool_categories": ["local_files"],
+                        "risk_tolerance": "low",
+                        "expected_output_format": "risk summary",
+                        "example_scenarios": ["Review a vendor clause."],
+                    }
+                )
+            )
+
+    monkeypatch.setattr(workspace_store, "LAB_RUNS_DIR", tmp_path)
+    monkeypatch.setattr(workspace_store, "get_chat_model", lambda temperature: FakeModel())
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    client = TestClient(create_app())
+
+    created = client.post(
+        "/api/drafts",
+        json={
+            "name": "Contract Review Agent",
+            "description": "Review contract clauses.",
+            "generation_mode": "live",
+        },
+    )
+
+    assert created.status_code == 200
+    target = created.json()["target"]["agent_target"]
+    assert created.json()["agent_key"] == "contract-review-agent"
+    assert target["name"] == "Contract Risk Review Agent"
+    assert target["risk_tolerance"] == "low"
+
+
 def test_draft_export_and_import_api(tmp_path, monkeypatch) -> None:
     from edd_agent_lab.ui import workspace_store
 

@@ -50,10 +50,13 @@ from edd_agent_lab.ui.workspace_store import (
     update_tool_requirements,
 )
 
+GenerationModeRequest = Literal["mock", "live", "auto"]
+
 
 class CreateDraftRequest(BaseModel):
     name: str
     description: str
+    generation_mode: GenerationModeRequest | None = None
 
 
 class RenameDraftRequest(BaseModel):
@@ -150,9 +153,6 @@ class GraphDesignUpdateRequest(BaseModel):
     status: str
     nodes: list[GraphNodeRequest]
     edges: list[GraphEdgeRequest]
-
-
-GenerationModeRequest = Literal["mock", "live", "auto"]
 
 
 ACTION_HANDLERS = {
@@ -294,6 +294,7 @@ def create_app():
             workspace = save_draft_target(
                 name=request.name,
                 description=request.description,
+                generation_mode=request.generation_mode,
             )
         except KeyError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc

@@ -40,9 +40,9 @@ AGENT_MODEL=gpt-4o-mini      # optional
 
 ### Live path
 
-1. **Structured artifact generation** — the builder asks the model for behavior
-   rules, eval metrics/gates, information requirements, tool requirements,
-   graph designs, and bounded fix plans.
+1. **Structured artifact generation** — the builder asks the model for an
+   expanded target, behavior rules, eval metrics/gates, information
+   requirements, tool requirements, graph designs, and bounded fix plans.
 2. **Artifact normalization** — the response is parsed as JSON, repaired into
    the expected local artifact shape, and validated before YAML is written.
 3. **Draft response generation** — `Run v0` and `Run v1` call the live model for
@@ -50,7 +50,7 @@ AGENT_MODEL=gpt-4o-mini      # optional
 4. **Evaluation** — evals score the produced response. Hybrid/LLM judging can be
    used when live generation is active.
 
-The React builder passes generation mode to `Generate design`,
+The React builder passes generation mode to `Create draft`, `Generate design`,
 `Create fix plan`, `Generate v1 graph`, `Run v0`, and `Run v1`. In `auto`, those
 steps use live generation when `OPENAI_API_KEY` is available and fall back to
 mock otherwise.
@@ -97,20 +97,19 @@ npm run dev
 ```
 
 Open `http://localhost:5173`, keep generation mode on `Auto` or select `Live`,
-then use `Generate design`, `Create fix plan`, `Generate v1 graph`, `Run v0`,
-and `Run v1`.
+then create a draft and use `Generate design`, `Create fix plan`,
+`Generate v1 graph`, `Run v0`, and `Run v1`.
 
 ## Testing Strategy
 
 - All existing tests run in **mock** mode via `tests/conftest.py`
 - `tests/test_live_generation.py` patches live generators to avoid network calls
 - `tests/test_workspace_store.py` patches live builder models and verifies
-  normalized design, fix-plan, and v1 graph artifacts validate
+  normalized target, design, fix-plan, and v1 graph artifacts validate
 - Eval suites continue to score whichever response path produced the output
 
 ## What Is Still Not Live
 
-- Target creation from the first name/description is still deterministic.
 - Tool use is not connected to live external systems; draft tool mode remains
   `local_draft`.
 - LangGraph nodes are not individually LLM-backed in live mode.
@@ -118,7 +117,6 @@ and `Run v1`.
 
 ## Next Steps
 
-1. Add live target drafting from the initial description.
-2. Add token streaming for long live model calls.
-3. Add per-node LLM calls inside LangGraph for trace granularity.
-4. Verify platform ingest end to end with a live-generated draft.
+1. Add token streaming for long live model calls.
+2. Add per-node LLM calls inside LangGraph for trace granularity.
+3. Verify platform ingest end to end with a live-generated draft.

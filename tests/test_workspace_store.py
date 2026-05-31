@@ -85,6 +85,51 @@ def test_save_load_and_list_draft_workspace(tmp_path, monkeypatch) -> None:
     assert workspaces[0].name == "Contract Review Agent"
 
 
+def test_save_draft_target_uses_live_generation_when_enabled(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    from edd_agent_lab.ui import workspace_store
+
+    class FakeModel:
+        def invoke(self, messages):
+            assert "Expand this initial agent idea" in messages[1]["content"]
+            return SimpleNamespace(
+                content="""
+                {
+                  "name": "Contract Risk Review Agent",
+                  "purpose": "Review contract clauses and surface negotiation risks.",
+                  "intended_users": ["legal operations"],
+                  "primary_goals": ["identify risky clauses"],
+                  "non_goals": ["provide legal advice"],
+                  "allowed_tool_categories": ["local_files", "human_review"],
+                  "risk_tolerance": "low",
+                  "expected_output_format": "risk summary with cited assumptions",
+                  "example_scenarios": ["Review a vendor indemnity clause."]
+                }
+                """
+            )
+
+    monkeypatch.setattr(workspace_store, "LAB_RUNS_DIR", tmp_path)
+    monkeypatch.setattr(workspace_store, "get_chat_model", lambda temperature: FakeModel())
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+
+    workspace = save_draft_target(
+        name="Contract Review Agent",
+        description="Help legal teams review risky clauses.",
+        generation_mode="live",
+    )
+    loaded = load_draft_target("contract-review-agent")
+
+    assert workspace.name == "Contract Risk Review Agent"
+    assert loaded is not None
+    assert loaded["agent_target"]["id"] == "contract-review-agent-target-v1"
+    assert loaded["agent_target"]["name"] == "Contract Risk Review Agent"
+    assert loaded["agent_target"]["risk_tolerance"] == "low"
+    assert loaded["agent_target"]["primary_goals"] == ["identify risky clauses"]
+    assert validate_draft_artifact(artifact_key="target", data=loaded)["valid"] is True
+
+
 def test_update_draft_target_edits_existing_workspace(tmp_path, monkeypatch) -> None:
     from edd_agent_lab.ui import workspace_store
 
