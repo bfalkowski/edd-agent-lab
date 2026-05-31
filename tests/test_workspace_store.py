@@ -152,6 +152,103 @@ def test_save_design_scaffold_writes_downstream_artifacts(tmp_path, monkeypatch)
     assert artifacts["tool_requirements"]["tool_requirements"][0]["production_blocker"] is True
 
 
+def test_save_design_scaffold_uses_live_generation_when_enabled(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    from edd_agent_lab.ui import workspace_store
+
+    class FakeModel:
+        def invoke(self, messages):
+            assert "Generate initial EDD design artifacts" in messages[1]["content"]
+            return SimpleNamespace(
+                content="""
+                {
+                  "behavior_rules": [
+                    {
+                      "id": "cite_source_material",
+                      "severity": "high",
+                      "description": "Cite source material before giving contract risk advice."
+                    }
+                  ],
+                  "eval_contract": {
+                    "metrics": [
+                      {
+                        "id": "source_grounding",
+                        "scale": "0-5",
+                        "rules": ["cite_source_material"]
+                      }
+                    ],
+                    "gates": [
+                      {
+                        "id": "must_ground_claims",
+                        "type": "hard",
+                        "condition": "source_grounding >= 4"
+                      }
+                    ]
+                  },
+                  "information_requirements": [
+                    {
+                      "id": "contract_source_text",
+                      "description": "The contract language under review.",
+                      "required_for_rules": ["cite_source_material"]
+                    }
+                  ],
+                  "tool_requirements": [
+                    {
+                      "id": "collect_contract_text",
+                      "suggested_tool_name": "request_contract_text",
+                      "information_requirements": ["contract_source_text"],
+                      "implementation_status": "missing",
+                      "production_blocker": true
+                    }
+                  ],
+                  "graph_design": {
+                    "nodes": [
+                      {
+                        "id": "understand_request",
+                        "purpose": "Identify the contract review request.",
+                        "supports_rules": ["cite_source_material"]
+                      },
+                      {
+                        "id": "draft_response",
+                        "purpose": "Draft a scoped answer grounded in source text.",
+                        "supports_rules": ["cite_source_material"]
+                      }
+                    ],
+                    "edges": [
+                      {"from": "understand_request", "to": "draft_response"}
+                    ]
+                  }
+                }
+                """
+            )
+
+    monkeypatch.setattr(workspace_store, "LAB_RUNS_DIR", tmp_path)
+    monkeypatch.setattr(workspace_store, "get_chat_model", lambda temperature: FakeModel())
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+
+    save_draft_target(
+        name="Contract Review Agent",
+        description="Help legal teams review risky clauses.",
+    )
+    save_design_scaffold("contract-review-agent", generation_mode="live")
+    artifacts = load_draft_artifacts("contract-review-agent")
+    validations = load_draft_artifact_validations("contract-review-agent")
+
+    assert artifacts["behavior_rules"]["behavior_rules"][0]["id"] == "cite_source_material"
+    assert artifacts["eval_contract"]["eval_contract"]["metrics"][0]["id"] == (
+        "source_grounding"
+    )
+    assert artifacts["eval_suite"]["eval_suite"]["checks"][0]["metric_id"] == (
+        "source_grounding"
+    )
+    assert artifacts["graph_design"]["graph_design"]["target_id"] == (
+        "contract-review-agent-target-v1"
+    )
+    assert all(validation["valid"] for validation in validations.values())
+
+
 def test_update_behavior_rules_edits_generated_rules(tmp_path, monkeypatch) -> None:
     from edd_agent_lab.ui import workspace_store
 
@@ -558,6 +655,113 @@ def test_generate_draft_fix_plan_from_failure_packet(tmp_path, monkeypatch) -> N
         "collect_domain_context"
     )
     assert (tmp_path / "contract_review_agent" / "draft" / "fix-plan.yaml").is_file()
+
+
+def test_generate_draft_fix_plan_uses_live_generation(tmp_path, monkeypatch) -> None:
+    from edd_agent_lab.ui import workspace_store
+
+    class FakeModel:
+        def invoke(self, messages):
+            assert "Generate a bounded fix plan" in messages[1]["content"]
+            return SimpleNamespace(
+                content="""
+                {
+                  "target_version": "v1_contract_grounding",
+                  "summary": "Add contract-source collection before drafting advice.",
+                  "failed_rules_addressed": ["recommend_safe_next_actions"],
+                  "graph_changes": [
+                    {
+                      "id": "collect_contract_source",
+                      "change_type": "add_node",
+                      "reason": "Ground recommendations in contract text.",
+                      "supports_rules": ["recommend_safe_next_actions"]
+                    }
+                  ],
+                  "acceptance_checks": [
+                    "v1 asks for contract text before risk advice."
+                  ]
+                }
+                """
+            )
+
+    monkeypatch.setattr(workspace_store, "LAB_RUNS_DIR", tmp_path)
+    monkeypatch.setattr(workspace_store, "get_chat_model", lambda temperature: FakeModel())
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+
+    save_draft_target(
+        name="Contract Review Agent",
+        description="Help legal teams review risky clauses.",
+    )
+    save_design_scaffold("contract-review-agent")
+    save_draft_scenario(
+        agent_key="contract-review-agent",
+        problem="Review this contract for risky payment terms.",
+    )
+    run_draft_v0("contract-review-agent")
+    evaluate_draft_v0("contract-review-agent")
+    fix_plan = generate_draft_fix_plan("contract-review-agent", generation_mode="live")
+
+    assert fix_plan["fix_plan"]["target_version"] == "v1-contract-grounding"
+    assert fix_plan["fix_plan"]["graph_changes"][0]["id"] == "collect_contract_source"
+    assert validate_draft_artifact(artifact_key="fix_plan", data=fix_plan)["valid"] is True
+
+
+def test_generate_draft_v1_graph_uses_live_generation(tmp_path, monkeypatch) -> None:
+    from edd_agent_lab.ui import workspace_store
+
+    class FakeModel:
+        def invoke(self, messages):
+            assert "Generate the v1 graph design" in messages[1]["content"]
+            return SimpleNamespace(
+                content="""
+                {
+                  "nodes": [
+                    {
+                      "id": "understand_request",
+                      "purpose": "Parse the user request.",
+                      "supports_rules": ["state_purpose_and_scope"]
+                    },
+                    {
+                      "id": "collect_contract_source",
+                      "purpose": "Collect contract text before advice.",
+                      "supports_rules": ["ask_for_missing_information"]
+                    },
+                    {
+                      "id": "draft_response",
+                      "purpose": "Draft a grounded contract review response.",
+                      "supports_rules": ["recommend_safe_next_actions"]
+                    }
+                  ],
+                  "edges": [
+                    {"from": "understand_request", "to": "collect_contract_source"},
+                    {"from": "collect_contract_source", "to": "draft_response"}
+                  ]
+                }
+                """
+            )
+
+    monkeypatch.setattr(workspace_store, "LAB_RUNS_DIR", tmp_path)
+    monkeypatch.setattr(workspace_store, "get_chat_model", lambda temperature: FakeModel())
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+
+    save_draft_target(
+        name="Contract Review Agent",
+        description="Help legal teams review risky clauses.",
+    )
+    save_design_scaffold("contract-review-agent")
+    save_draft_scenario(
+        agent_key="contract-review-agent",
+        problem="Review this contract for risky payment terms.",
+    )
+    run_draft_v0("contract-review-agent")
+    evaluate_draft_v0("contract-review-agent")
+    fix_plan = generate_draft_fix_plan("contract-review-agent")
+    graph = generate_draft_v1_graph("contract-review-agent", generation_mode="live")
+
+    assert graph["graph_design"]["version"] == fix_plan["fix_plan"]["target_version"]
+    assert graph["graph_design"]["nodes"][1]["id"] == "collect_contract_source"
+    assert graph["graph_design"]["edges"][0]["to"] == "collect_contract_source"
+    assert validate_draft_artifact(artifact_key="graph_design_v1", data=graph)["valid"] is True
 
 
 def test_draft_v1_run_eval_and_comparison(tmp_path, monkeypatch) -> None:

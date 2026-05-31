@@ -475,7 +475,13 @@ function App() {
           appendStepActivity(event.step_id || stepId, event.message);
           if (event.phase === "failed") sawStreamFailure = true;
         },
-        action === "run-v0" || action === "run-v1" ? generationMode : undefined,
+        action === "design" ||
+          action === "fix-plan" ||
+          action === "v1-graph" ||
+          action === "run-v0" ||
+          action === "run-v1"
+          ? generationMode
+          : undefined,
       );
       setActiveDraft(draft);
       setDrafts(await listDrafts());

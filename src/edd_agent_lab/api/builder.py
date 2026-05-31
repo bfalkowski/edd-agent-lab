@@ -650,7 +650,9 @@ def _run_action(
     generation_mode: GenerationModeRequest | None = None,
 ):
     try:
-        if action in {run_draft_v0, run_draft_v1}:
+        if action in {save_design_scaffold, run_draft_v0, run_draft_v1}:
+            return action(agent_key, generation_mode=generation_mode)
+        if action in {generate_draft_fix_plan, generate_draft_v1_graph}:
             return action(agent_key, generation_mode=generation_mode)
         return action(agent_key)
     except FileNotFoundError as exc:
@@ -664,7 +666,7 @@ def _action_message(
     message: str,
     generation_mode: GenerationModeRequest | None,
 ) -> str:
-    if action not in {"run-v0", "run-v1"}:
+    if action not in {"design", "fix-plan", "v1-graph", "run-v0", "run-v1"}:
         return message
     try:
         resolved_mode = resolve_generation_mode(generation_mode)

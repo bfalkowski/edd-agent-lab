@@ -15,7 +15,11 @@ from typing import Any
 import yaml
 
 from edd_agent_lab.agents.draft_agent import run_draft_agent
-from edd_agent_lab.agents.generation import GenerationModeSetting, resolve_generation_mode
+from edd_agent_lab.agents.generation import (
+    GenerationModeSetting,
+    get_chat_model,
+    resolve_generation_mode,
+)
 from edd_agent_lab.evals.schemas import EvalCheck
 from edd_agent_lab.evals.scoring import score_check
 from edd_agent_lab.integrations.edd_client import EDDClient, get_edd_client
@@ -107,7 +111,19 @@ def build_target_from_description(*, name: str, description: str) -> dict[str, A
     }
 
 
-def build_design_scaffold(target: dict[str, Any]) -> dict[str, dict[str, Any]]:
+def build_design_scaffold(
+    target: dict[str, Any],
+    generation_mode: GenerationModeSetting | None = None,
+) -> dict[str, dict[str, Any]]:
+    resolved_generation_mode = (
+        resolve_generation_mode(generation_mode) if generation_mode is not None else "mock"
+    )
+    if resolved_generation_mode == "live":
+        return _build_live_design_scaffold(target)
+    return build_mock_design_scaffold(target)
+
+
+def build_mock_design_scaffold(target: dict[str, Any]) -> dict[str, dict[str, Any]]:
     agent_target = target["agent_target"]
     target_id = str(agent_target["id"])
     agent_key = target_id.removesuffix("-target-v1")
@@ -258,6 +274,494 @@ def build_design_scaffold(target: dict[str, Any]) -> dict[str, dict[str, Any]]:
             }
         },
     }
+
+
+def _build_live_design_scaffold(target: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    agent_target = target["agent_target"]
+    target_id = str(agent_target["id"])
+    agent_key = target_id.removesuffix("-target-v1")
+    model = get_chat_model(temperature=0.2)
+    prompt = _live_design_prompt(target=agent_target, agent_key=agent_key, target_id=target_id)
+    answer = model.invoke(
+        [
+            {
+                "role": "system",
+                "content": (
+                    "You design draft LangGraph agent artifacts for an "
+                    "evaluation-driven design lab. Return only valid JSON. "
+                    "Keep every artifact scoped to the target, make missing "
+                    "information explicit, and do not claim production readiness."
+                ),
+            },
+            {"role": "user", "content": prompt},
+        ]
+    )
+    content = getattr(answer, "content", answer)
+    if not isinstance(content, str) or not content.strip():
+        raise RuntimeError("Live design generation returned an empty response.")
+    payload = _parse_live_design_json(content)
+    return _normalize_live_design_scaffold(
+        payload=payload,
+        agent_key=agent_key,
+        target_id=target_id,
+    )
+
+
+def _live_design_prompt(*, target: dict[str, Any], agent_key: str, target_id: str) -> str:
+    return json.dumps(
+        {
+            "task": "Generate initial EDD design artifacts for this draft agent.",
+            "target": target,
+            "required_json_shape": {
+                "behavior_rules": [
+                    {
+                        "id": "snake_case_rule_id",
+                        "severity": "high|medium|low",
+                        "description": "observable behavior rule",
+                    }
+                ],
+                "eval_contract": {
+                    "metrics": [
+                        {
+                            "id": "snake_case_metric_id",
+                            "scale": "0-5",
+                            "rules": ["snake_case_rule_id"],
+                        }
+                    ],
+                    "gates": [
+                        {
+                            "id": "snake_case_gate_id",
+                            "type": "hard|soft",
+                            "condition": "metric_id >= 4",
+                        }
+                    ],
+                },
+                "information_requirements": [
+                    {
+                        "id": "snake_case_information_id",
+                        "description": "information needed before acting",
+                        "required_for_rules": ["snake_case_rule_id"],
+                    }
+                ],
+                "tool_requirements": [
+                    {
+                        "id": "snake_case_tool_requirement_id",
+                        "suggested_tool_name": "snake_case_tool_name",
+                        "information_requirements": ["snake_case_information_id"],
+                        "implementation_status": "missing|mock_only|local_only|available",
+                        "production_blocker": True,
+                    }
+                ],
+                "graph_design": {
+                    "nodes": [
+                        {
+                            "id": "understand_request",
+                            "purpose": "what this node does",
+                            "supports_rules": ["snake_case_rule_id"],
+                        }
+                    ],
+                    "edges": [{"from": "understand_request", "to": "draft_response"}],
+                },
+            },
+            "constraints": [
+                f"Use target_id {target_id}.",
+                f"Use agent_key {agent_key}.",
+                "Return JSON only, with no markdown fences.",
+                "Create 3 to 5 behavior rules.",
+                "Create metrics that reference behavior rule ids.",
+                "Create a graph that starts with understand_request and ends with draft_response.",
+                "Mark unavailable production integrations as production blockers.",
+            ],
+        },
+        indent=2,
+    )
+
+
+def _parse_live_design_json(content: str) -> dict[str, Any]:
+    text = content.strip()
+    if text.startswith("```"):
+        text = re.sub(r"^```(?:json)?\s*", "", text)
+        text = re.sub(r"\s*```$", "", text)
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise ValueError("Live design generation did not return valid JSON.") from exc
+    if not isinstance(payload, dict):
+        raise ValueError("Live design generation must return a JSON object.")
+    return payload
+
+
+def _normalize_live_design_scaffold(
+    *,
+    payload: dict[str, Any],
+    agent_key: str,
+    target_id: str,
+) -> dict[str, dict[str, Any]]:
+    rules = _normalize_live_rules(payload.get("behavior_rules"), target_id=target_id)
+    contract = _normalize_live_eval_contract(
+        payload.get("eval_contract"),
+        agent_key=agent_key,
+        target_id=target_id,
+        rules=rules,
+    )
+    eval_suite = _build_design_eval_suite_from_contract(
+        agent_key=agent_key,
+        target_id=target_id,
+        eval_contract=contract["eval_contract"],
+    )
+    information = _normalize_live_information_requirements(
+        payload.get("information_requirements")
+    )
+    tools = _normalize_live_tool_requirements(payload.get("tool_requirements"))
+    graph = _normalize_live_graph_design(
+        payload.get("graph_design"),
+        agent_key=agent_key,
+        target_id=target_id,
+        rules=rules,
+    )
+    scaffold = {
+        "behavior_rules": {"behavior_rules": rules},
+        "eval_contract": contract,
+        "eval_suite": {"eval_suite": eval_suite},
+        "information_requirements": {"information_requirements": information},
+        "tool_requirements": {"tool_requirements": tools},
+        "graph_design": graph,
+    }
+    for artifact_key, data in scaffold.items():
+        validation = validate_draft_artifact(artifact_key=artifact_key, data=data)
+        if not validation["valid"]:
+            errors = "; ".join(validation["errors"])
+            raise ValueError(f"Live design generated invalid {artifact_key}: {errors}")
+    return scaffold
+
+
+def _normalize_live_rules(data: Any, *, target_id: str) -> list[dict[str, Any]]:
+    if not isinstance(data, list) or not data:
+        raise ValueError("Live design must include behavior_rules.")
+    rules: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for index, item in enumerate(data, start=1):
+        if not isinstance(item, dict):
+            continue
+        rule_id = _clean_identifier(item.get("id"), fallback=f"rule_{index}")
+        if rule_id in seen:
+            rule_id = f"{rule_id}_{index}"
+        seen.add(rule_id)
+        rules.append(
+            {
+                "id": rule_id,
+                "severity": _clean_choice(
+                    item.get("severity"),
+                    choices={"low", "medium", "high"},
+                    fallback="medium",
+                ),
+                "description": _clean_text(
+                    item.get("description"),
+                    fallback="State an observable behavior requirement.",
+                ),
+                "target_id": target_id,
+                "status": _clean_text(item.get("status"), fallback="draft"),
+            }
+        )
+    if not rules:
+        raise ValueError("Live design did not return usable behavior rules.")
+    return rules
+
+
+def _normalize_live_eval_contract(
+    data: Any,
+    *,
+    agent_key: str,
+    target_id: str,
+    rules: list[dict[str, Any]],
+) -> dict[str, Any]:
+    rule_ids = [rule["id"] for rule in rules]
+    contract = data if isinstance(data, dict) else {}
+    metrics = _normalize_live_metrics(contract.get("metrics"), rule_ids=rule_ids)
+    gates = _normalize_live_gates(contract.get("gates"), metrics=metrics)
+    return {
+        "eval_contract": {
+            "id": f"{agent_key}-eval-contract-v1",
+            "target_id": target_id,
+            "status": _clean_text(contract.get("status"), fallback="draft"),
+            "metrics": metrics,
+            "gates": gates,
+        }
+    }
+
+
+def _normalize_live_metrics(data: Any, *, rule_ids: list[str]) -> list[dict[str, Any]]:
+    raw_metrics = data if isinstance(data, list) else []
+    metrics: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for index, item in enumerate(raw_metrics, start=1):
+        if not isinstance(item, dict):
+            continue
+        metric_id = _clean_identifier(item.get("id"), fallback=f"metric_{index}")
+        if metric_id in seen:
+            metric_id = f"{metric_id}_{index}"
+        seen.add(metric_id)
+        metric_rules = _clean_string_list(item.get("rules"))
+        metric_rules = [rule_id for rule_id in metric_rules if rule_id in rule_ids]
+        metrics.append(
+            {
+                "id": metric_id,
+                "scale": _clean_text(item.get("scale"), fallback="0-5"),
+                "rules": metric_rules or rule_ids[:1],
+            }
+        )
+    if metrics:
+        return metrics
+    return [
+        {
+            "id": f"{rule_id}_quality",
+            "scale": "0-5",
+            "rules": [rule_id],
+        }
+        for rule_id in rule_ids[:3]
+    ]
+
+
+def _normalize_live_gates(
+    data: Any,
+    *,
+    metrics: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    raw_gates = data if isinstance(data, list) else []
+    gates: list[dict[str, Any]] = []
+    metric_ids = [metric["id"] for metric in metrics]
+    for index, item in enumerate(raw_gates, start=1):
+        if not isinstance(item, dict):
+            continue
+        gates.append(
+            {
+                "id": _clean_identifier(item.get("id"), fallback=f"gate_{index}"),
+                "type": _clean_choice(
+                    item.get("type"),
+                    choices={"hard", "soft"},
+                    fallback="hard",
+                ),
+                "condition": _clean_text(
+                    item.get("condition"),
+                    fallback=f"{metric_ids[0]} >= 4",
+                ),
+            }
+        )
+    return gates or [
+        {
+            "id": "minimum_behavior_quality",
+            "type": "hard",
+            "condition": f"{metric_ids[0]} >= 4",
+        }
+    ]
+
+
+def _build_design_eval_suite_from_contract(
+    *,
+    agent_key: str,
+    target_id: str,
+    eval_contract: dict[str, Any],
+) -> dict[str, Any]:
+    checks = [
+        {
+            "id": str(metric["id"]),
+            "metric_id": str(metric["id"]),
+            "rules": list(metric.get("rules", [])),
+            "method": "llm_generated_structure_check",
+        }
+        for metric in eval_contract["metrics"]
+    ]
+    return {
+        "id": f"{agent_key}-eval-suite-v1",
+        "target_id": target_id,
+        "contract_id": eval_contract["id"],
+        "status": "draft",
+        "mode": "deterministic",
+        "checks": checks,
+    }
+
+
+def _normalize_live_information_requirements(data: Any) -> list[dict[str, Any]]:
+    if not isinstance(data, list) or not data:
+        return [
+            {
+                "id": "source_context",
+                "description": "Source material and constraints needed before acting.",
+                "required_for_rules": [],
+                "status": "draft",
+            }
+        ]
+    requirements: list[dict[str, Any]] = []
+    for index, item in enumerate(data, start=1):
+        if not isinstance(item, dict):
+            continue
+        requirements.append(
+            {
+                "id": _clean_identifier(item.get("id"), fallback=f"requirement_{index}"),
+                "description": _clean_text(
+                    item.get("description"),
+                    fallback="Information needed before the agent can act safely.",
+                ),
+                "required_for_rules": _clean_string_list(item.get("required_for_rules")),
+                "status": _clean_text(item.get("status"), fallback="draft"),
+            }
+        )
+    return requirements or _normalize_live_information_requirements(None)
+
+
+def _normalize_live_tool_requirements(data: Any) -> list[dict[str, Any]]:
+    if not isinstance(data, list) or not data:
+        return [
+            {
+                "id": "collect_source_context",
+                "suggested_tool_name": "request_source_context",
+                "information_requirements": ["source_context"],
+                "implementation_status": "missing",
+                "production_blocker": True,
+                "status": "draft",
+            }
+        ]
+    tools: list[dict[str, Any]] = []
+    for index, item in enumerate(data, start=1):
+        if not isinstance(item, dict):
+            continue
+        tools.append(
+            {
+                "id": _clean_identifier(item.get("id"), fallback=f"tool_requirement_{index}"),
+                "suggested_tool_name": _clean_identifier(
+                    item.get("suggested_tool_name"),
+                    fallback=f"tool_{index}",
+                ),
+                "information_requirements": _clean_string_list(
+                    item.get("information_requirements")
+                ),
+                "implementation_status": _clean_text(
+                    item.get("implementation_status"),
+                    fallback="missing",
+                ),
+                "production_blocker": bool(item.get("production_blocker", True)),
+                "status": _clean_text(item.get("status"), fallback="draft"),
+            }
+        )
+    return tools or _normalize_live_tool_requirements(None)
+
+
+def _normalize_live_graph_design(
+    data: Any,
+    *,
+    agent_key: str,
+    target_id: str,
+    rules: list[dict[str, Any]],
+) -> dict[str, Any]:
+    graph = data if isinstance(data, dict) else {}
+    nodes = _normalize_live_graph_nodes(graph.get("nodes"), rules=rules)
+    edges = _normalize_live_graph_edges(graph.get("edges"), nodes=nodes)
+    return {
+        "graph_design": {
+            "id": f"{agent_key}-graph-v0",
+            "target_id": target_id,
+            "version": "v0-baseline",
+            "status": _clean_text(graph.get("status"), fallback="draft"),
+            "nodes": nodes,
+            "edges": edges,
+        }
+    }
+
+
+def _normalize_live_graph_nodes(
+    data: Any,
+    *,
+    rules: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    rule_ids = [rule["id"] for rule in rules]
+    raw_nodes = data if isinstance(data, list) else []
+    nodes: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for index, item in enumerate(raw_nodes, start=1):
+        if not isinstance(item, dict):
+            continue
+        node_id = _clean_identifier(item.get("id"), fallback=f"node_{index}")
+        if node_id in seen:
+            node_id = f"{node_id}_{index}"
+        seen.add(node_id)
+        supports_rules = [
+            rule_id
+            for rule_id in _clean_string_list(item.get("supports_rules"))
+            if rule_id in rule_ids
+        ]
+        nodes.append(
+            {
+                "id": node_id,
+                "purpose": _clean_text(
+                    item.get("purpose"),
+                    fallback="Advance the draft agent workflow.",
+                ),
+                "supports_rules": supports_rules,
+            }
+        )
+    if not any(node["id"] == "understand_request" for node in nodes):
+        nodes.insert(
+            0,
+            {
+                "id": "understand_request",
+                "purpose": "Parse the user request and identify missing context.",
+                "supports_rules": rule_ids[:2],
+            },
+        )
+    if not any(node["id"] == "draft_response" for node in nodes):
+        nodes.append(
+            {
+                "id": "draft_response",
+                "purpose": "Produce a scoped response with assumptions visible.",
+                "supports_rules": rule_ids,
+            }
+        )
+    return nodes
+
+
+def _normalize_live_graph_edges(
+    data: Any,
+    *,
+    nodes: list[dict[str, Any]],
+) -> list[dict[str, str]]:
+    node_ids = [node["id"] for node in nodes]
+    raw_edges = data if isinstance(data, list) else []
+    edges: list[dict[str, str]] = []
+    for item in raw_edges:
+        if not isinstance(item, dict):
+            continue
+        source = _clean_identifier(item.get("from"), fallback="")
+        target = _clean_identifier(item.get("to"), fallback="")
+        if source in node_ids and target in node_ids and source != target:
+            edges.append({"from": source, "to": target})
+    if edges:
+        return edges
+    return [
+        {"from": source, "to": target}
+        for source, target in zip(node_ids, node_ids[1:], strict=False)
+    ]
+
+
+def _clean_identifier(value: Any, *, fallback: str) -> str:
+    text = str(value or "").strip().lower()
+    text = re.sub(r"[^a-z0-9]+", "_", text).strip("_")
+    return text or fallback
+
+
+def _clean_text(value: Any, *, fallback: str) -> str:
+    text = str(value or "").strip()
+    return text or fallback
+
+
+def _clean_string_list(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [str(item).strip() for item in value if str(item).strip()]
+
+
+def _clean_choice(value: Any, *, choices: set[str], fallback: str) -> str:
+    text = str(value or "").strip().lower()
+    return text if text in choices else fallback
 
 
 def save_draft_target(*, name: str, description: str) -> DraftWorkspace:
@@ -575,11 +1079,14 @@ def update_graph_design(
     return payload
 
 
-def save_design_scaffold(agent_key: str) -> dict[str, Path]:
+def save_design_scaffold(
+    agent_key: str,
+    generation_mode: GenerationModeSetting | None = None,
+) -> dict[str, Path]:
     target = load_draft_target(agent_key)
     if target is None:
         raise FileNotFoundError(f"Draft target not found for agent: {agent_key}")
-    scaffold = build_design_scaffold(target)
+    scaffold = build_design_scaffold(target, generation_mode=generation_mode)
     workspace = draft_workspace_dir(agent_key)
     paths: dict[str, Path] = {}
     for artifact_key, payload in scaffold.items():
@@ -773,7 +1280,10 @@ def evaluate_draft_v0(agent_key: str) -> dict[str, Any]:
     return summary
 
 
-def generate_draft_fix_plan(agent_key: str) -> dict[str, Any]:
+def generate_draft_fix_plan(
+    agent_key: str,
+    generation_mode: GenerationModeSetting | None = None,
+) -> dict[str, Any]:
     artifacts = load_draft_artifacts(agent_key)
     failure_packet = artifacts.get("failure_packet", {}).get("failure_packet")
     graph_design = artifacts.get("graph_design", {}).get("graph_design")
@@ -782,6 +1292,35 @@ def generate_draft_fix_plan(agent_key: str) -> dict[str, Any]:
     if graph_design is None:
         raise FileNotFoundError(f"Draft graph design not found for agent: {agent_key}")
 
+    resolved_generation_mode = (
+        resolve_generation_mode(generation_mode) if generation_mode is not None else "mock"
+    )
+    if resolved_generation_mode == "live":
+        fix_plan = _generate_live_fix_plan(
+            agent_key=agent_key,
+            failure_packet=failure_packet,
+            graph_design=graph_design,
+            artifacts=artifacts,
+        )
+    else:
+        fix_plan = _generate_mock_fix_plan(
+            agent_key=agent_key,
+            failure_packet=failure_packet,
+        )
+    validation = validate_draft_artifact(artifact_key="fix_plan", data=fix_plan)
+    if not validation["valid"]:
+        errors = "; ".join(validation["errors"])
+        raise ValueError(f"Generated invalid fix plan: {errors}")
+    path = draft_workspace_dir(agent_key) / DRAFT_ARTIFACT_FILES["fix_plan"]
+    path.write_text(yaml.safe_dump(fix_plan, sort_keys=False), encoding="utf-8")
+    return fix_plan
+
+
+def _generate_mock_fix_plan(
+    *,
+    agent_key: str,
+    failure_packet: dict[str, Any],
+) -> dict[str, Any]:
     fix_plan = {
         "fix_plan": {
             "id": f"{agent_key}-fix-v1-action-quality",
@@ -815,12 +1354,139 @@ def generate_draft_fix_plan(agent_key: str) -> dict[str, Any]:
             "status": "draft",
         }
     }
-    path = draft_workspace_dir(agent_key) / DRAFT_ARTIFACT_FILES["fix_plan"]
-    path.write_text(yaml.safe_dump(fix_plan, sort_keys=False), encoding="utf-8")
     return fix_plan
 
 
-def generate_draft_v1_graph(agent_key: str) -> dict[str, Any]:
+def _generate_live_fix_plan(
+    *,
+    agent_key: str,
+    failure_packet: dict[str, Any],
+    graph_design: dict[str, Any],
+    artifacts: dict[str, Any],
+) -> dict[str, Any]:
+    model = get_chat_model(temperature=0.2)
+    answer = model.invoke(
+        [
+            {
+                "role": "system",
+                "content": (
+                    "You create bounded fix plans for draft LangGraph agents in an "
+                    "evaluation-driven design lab. Return only valid JSON. Keep fixes "
+                    "small, evidence-linked, and explicit about missing tools or context."
+                ),
+            },
+            {
+                "role": "user",
+                "content": json.dumps(
+                    {
+                        "task": "Generate a bounded fix plan from the failed eval evidence.",
+                        "agent_key": agent_key,
+                        "failure_packet": failure_packet,
+                        "current_graph_design": graph_design,
+                        "behavior_rules": artifacts.get("behavior_rules"),
+                        "eval_summary": artifacts.get("eval_summary"),
+                        "required_json_shape": {
+                            "target_version": "v1-short-kebab-or-snake-name",
+                            "summary": "short explanation of the bounded fix",
+                            "failed_rules_addressed": ["rule_id"],
+                            "graph_changes": [
+                                {
+                                    "id": "snake_case_change_or_node_id",
+                                    "change_type": "add_node|edit_node|add_edge",
+                                    "reason": "why this change addresses evidence",
+                                    "supports_rules": ["rule_id"],
+                                }
+                            ],
+                            "acceptance_checks": ["observable check"],
+                        },
+                    },
+                    indent=2,
+                ),
+            },
+        ]
+    )
+    content = getattr(answer, "content", answer)
+    if not isinstance(content, str) or not content.strip():
+        raise RuntimeError("Live fix-plan generation returned an empty response.")
+    payload = _parse_live_design_json(content)
+    return _normalize_live_fix_plan(
+        payload=payload,
+        agent_key=agent_key,
+        failure_packet=failure_packet,
+    )
+
+
+def _normalize_live_fix_plan(
+    *,
+    payload: dict[str, Any],
+    agent_key: str,
+    failure_packet: dict[str, Any],
+) -> dict[str, Any]:
+    target_version = _clean_identifier(
+        payload.get("target_version"),
+        fallback="v1-live-improvement",
+    ).replace("_", "-")
+    graph_changes = _normalize_live_graph_changes(
+        payload.get("graph_changes"),
+        fallback_rule=str(failure_packet.get("failed_rule", "")),
+    )
+    acceptance_checks = _clean_string_list(payload.get("acceptance_checks")) or [
+        "v1 addresses the failed rule with explicit evidence.",
+        "v1 keeps unsupported claims visible as assumptions.",
+    ]
+    failed_rules = _clean_string_list(payload.get("failed_rules_addressed")) or [
+        str(failure_packet.get("failed_rule", "failed_rule"))
+    ]
+    return {
+        "fix_plan": {
+            "id": f"{agent_key}-fix-{target_version}",
+            "agent": agent_key,
+            "source_failure_packet_id": str(failure_packet["id"]),
+            "target_version": target_version,
+            "failed_rules_addressed": failed_rules,
+            "summary": _clean_text(
+                payload.get("summary"),
+                fallback="Apply a bounded graph change that addresses failed eval evidence.",
+            ),
+            "graph_changes": graph_changes,
+            "acceptance_checks": acceptance_checks,
+            "status": _clean_text(payload.get("status"), fallback="draft"),
+        }
+    }
+
+
+def _normalize_live_graph_changes(data: Any, *, fallback_rule: str) -> list[dict[str, Any]]:
+    raw_changes = data if isinstance(data, list) else []
+    changes: list[dict[str, Any]] = []
+    for index, item in enumerate(raw_changes, start=1):
+        if not isinstance(item, dict):
+            continue
+        changes.append(
+            {
+                "id": _clean_identifier(item.get("id"), fallback=f"change_{index}"),
+                "change_type": _clean_text(item.get("change_type"), fallback="edit_node"),
+                "reason": _clean_text(
+                    item.get("reason"),
+                    fallback="Address failed eval evidence with a bounded graph change.",
+                ),
+                "supports_rules": _clean_string_list(item.get("supports_rules"))
+                or ([fallback_rule] if fallback_rule else []),
+            }
+        )
+    return changes or [
+        {
+            "id": "improve_failed_rule_handling",
+            "change_type": "edit_node",
+            "reason": "Address failed eval evidence with clearer context and action planning.",
+            "supports_rules": [fallback_rule] if fallback_rule else [],
+        }
+    ]
+
+
+def generate_draft_v1_graph(
+    agent_key: str,
+    generation_mode: GenerationModeSetting | None = None,
+) -> dict[str, Any]:
     artifacts = load_draft_artifacts(agent_key)
     target = load_draft_target(agent_key)
     fix_plan = artifacts.get("fix_plan", {}).get("fix_plan")
@@ -829,6 +1495,37 @@ def generate_draft_v1_graph(agent_key: str) -> dict[str, Any]:
     if fix_plan is None:
         raise FileNotFoundError(f"Draft fix plan not found for agent: {agent_key}")
 
+    resolved_generation_mode = (
+        resolve_generation_mode(generation_mode) if generation_mode is not None else "mock"
+    )
+    if resolved_generation_mode == "live":
+        graph = _generate_live_v1_graph(
+            agent_key=agent_key,
+            target=target,
+            fix_plan=fix_plan,
+            artifacts=artifacts,
+        )
+    else:
+        graph = _generate_mock_v1_graph(
+            agent_key=agent_key,
+            target=target,
+            fix_plan=fix_plan,
+        )
+    validation = validate_draft_artifact(artifact_key="graph_design_v1", data=graph)
+    if not validation["valid"]:
+        errors = "; ".join(validation["errors"])
+        raise ValueError(f"Generated invalid v1 graph: {errors}")
+    path = draft_workspace_dir(agent_key) / DRAFT_ARTIFACT_FILES["graph_design_v1"]
+    path.write_text(yaml.safe_dump(graph, sort_keys=False), encoding="utf-8")
+    return graph
+
+
+def _generate_mock_v1_graph(
+    *,
+    agent_key: str,
+    target: dict[str, Any],
+    fix_plan: dict[str, Any],
+) -> dict[str, Any]:
     target_id = target["agent_target"]["id"]
     graph = {
         "graph_design": {
@@ -872,8 +1569,72 @@ def generate_draft_v1_graph(agent_key: str) -> dict[str, Any]:
             ],
         }
     }
-    path = draft_workspace_dir(agent_key) / DRAFT_ARTIFACT_FILES["graph_design_v1"]
-    path.write_text(yaml.safe_dump(graph, sort_keys=False), encoding="utf-8")
+    return graph
+
+
+def _generate_live_v1_graph(
+    *,
+    agent_key: str,
+    target: dict[str, Any],
+    fix_plan: dict[str, Any],
+    artifacts: dict[str, Any],
+) -> dict[str, Any]:
+    model = get_chat_model(temperature=0.2)
+    answer = model.invoke(
+        [
+            {
+                "role": "system",
+                "content": (
+                    "You revise draft LangGraph graph designs from bounded fix plans. "
+                    "Return only valid JSON. Preserve useful existing nodes, add only "
+                    "necessary nodes or edges, and keep the graph executable."
+                ),
+            },
+            {
+                "role": "user",
+                "content": json.dumps(
+                    {
+                        "task": "Generate the v1 graph design from this fix plan.",
+                        "agent_key": agent_key,
+                        "target": target,
+                        "fix_plan": fix_plan,
+                        "current_graph_design": artifacts.get("graph_design"),
+                        "behavior_rules": artifacts.get("behavior_rules"),
+                        "required_json_shape": {
+                            "nodes": [
+                                {
+                                    "id": "understand_request",
+                                    "purpose": "node purpose",
+                                    "supports_rules": ["rule_id"],
+                                }
+                            ],
+                            "edges": [
+                                {"from": "understand_request", "to": "draft_response"}
+                            ],
+                        },
+                    },
+                    indent=2,
+                ),
+            },
+        ]
+    )
+    content = getattr(answer, "content", answer)
+    if not isinstance(content, str) or not content.strip():
+        raise RuntimeError("Live v1 graph generation returned an empty response.")
+    payload = _parse_live_design_json(content)
+    rules = artifacts.get("behavior_rules", {}).get("behavior_rules", [])
+    if not isinstance(rules, list) or not rules:
+        rules = [{"id": rule_id} for rule_id in fix_plan.get("failed_rules_addressed", [])]
+    graph_payload = {"nodes": payload.get("nodes"), "edges": payload.get("edges")}
+    graph = _normalize_live_graph_design(
+        graph_payload,
+        agent_key=agent_key,
+        target_id=target["agent_target"]["id"],
+        rules=rules,
+    )
+    graph["graph_design"]["id"] = f"{agent_key}-graph-v1"
+    graph["graph_design"]["version"] = fix_plan["target_version"]
+    graph["graph_design"]["source_fix_plan_id"] = fix_plan["id"]
     return graph
 
 

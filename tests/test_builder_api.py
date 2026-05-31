@@ -60,7 +60,7 @@ def test_stream_action_returns_progress_events(tmp_path, monkeypatch) -> None:
     assert events[0]["step_id"] == "behavior_rules"
     assert events[0]["retry_action"] == "design"
     assert events[0]["retryable"] is True
-    assert events[1]["message"] == "Generating design artifacts."
+    assert events[1]["message"] == "Generating design artifacts. Generation mode: mock."
     assert events[2]["artifact_id"] == "behavior_rules"
     assert events[2]["file"] == "behavior-rules.yaml"
     assert events[-1]["retryable"] is False

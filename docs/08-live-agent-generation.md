@@ -9,7 +9,7 @@ and offline development.
 same scenario + user message
   -> resolve generation mode (mock | live | auto)
   -> mock: existing LangGraph template nodes
-  -> live: structured discovery draft + chat/brief response
+  -> live: structured artifacts + runnable response
   -> evals score the final response either way
 ```
 
@@ -17,8 +17,8 @@ same scenario + user message
 
 | Mode | When | Behavior |
 |---|---|---|
-| `mock` | CI, offline dev | Existing LangGraph nodes + template chat formatter |
-| `live` | Explicit production runs | OpenAI structured discovery + LLM chat/brief |
+| `mock` | CI, offline dev | Deterministic artifacts + template response |
+| `live` | Explicit local runs | OpenAI artifact generation + LLM draft response |
 | `auto` | Default | `live` if `OPENAI_API_KEY` is set, else `mock` |
 
 Environment variables:
@@ -31,27 +31,37 @@ AGENT_MODEL=gpt-4o-mini      # optional
 
 ## Architecture
 
-### Mock path (unchanged)
+### Mock path
 
-- LangGraph topology demonstrates v0 / v1 / v3 policy differences
-- Deterministic node templates fill `CustomerSolutionState`
-- Local runs use deterministic formatters in mock mode
+- Deterministic design scaffold creates rules, eval contract, requirements,
+  tool blockers, graph design, and eval suite.
+- Local draft agent runs use deterministic formatters in mock mode.
+- CI and local tests stay offline and provider-key-free.
 
-### Live path (new)
+### Live path
 
-1. **Structured discovery draft** — one LLM call with version-specific policy prompt
-2. **State materialization** — draft mapped into `CustomerSolutionState`
-3. **Response generation**
-   - `brief` mode: render markdown brief from state
-   - `chat` mode: second LLM call grounded in state + conversation history
+1. **Structured artifact generation** — the builder asks the model for behavior
+   rules, eval metrics/gates, information requirements, tool requirements,
+   graph designs, and bounded fix plans.
+2. **Artifact normalization** — the response is parsed as JSON, repaired into
+   the expected local artifact shape, and validated before YAML is written.
+3. **Draft response generation** — `Run v0` and `Run v1` call the live model for
+   the final response when generation mode resolves to `live`.
+4. **Evaluation** — evals score the produced response. Hybrid/LLM judging can be
+   used when live generation is active.
 
-Version behavior is enforced through policy prompts in `prompts.py`, not separate template strings.
+The React builder passes generation mode to `Generate design`,
+`Create fix plan`, `Generate v1 graph`, `Run v0`, and `Run v1`. In `auto`, those
+steps use live generation when `OPENAI_API_KEY` is available and fall back to
+mock otherwise.
 
 ## Key Files
 
 | File | Role |
 |---|---|
 | `src/edd_agent_lab/agents/generation.py` | Mode resolution + model factory |
+| `src/edd_agent_lab/ui/workspace_store.py` | Builder design scaffold, normalization, run artifacts |
+| `src/edd_agent_lab/api/builder.py` | Local API and streamed workflow actions |
 | `src/edd_agent_lab/agents/customer_solution_agent/live_generation.py` | Live draft + chat generation |
 | `src/edd_agent_lab/agents/customer_solution_agent/prompts.py` | Version policy prompts |
 | `src/edd_agent_lab/agents/customer_solution_agent/runner.py` | Mock vs live orchestration |
@@ -73,21 +83,42 @@ edd-lab run-agent \
   --generation-mode live
 ```
 
+Builder usage:
+
+```bash
+export OPENAI_API_KEY=sk-...
+export AGENT_GENERATION_MODE=auto
+
+uv run --extra web --extra agent \
+  uvicorn edd_agent_lab.api.builder:app --host 127.0.0.1 --port 8002
+
+cd web/agent-builder
+npm run dev
+```
+
+Open `http://localhost:5173`, keep generation mode on `Auto` or select `Live`,
+then use `Generate design`, `Create fix plan`, `Generate v1 graph`, `Run v0`,
+and `Run v1`.
+
 ## Testing Strategy
 
 - All existing tests run in **mock** mode via `tests/conftest.py`
 - `tests/test_live_generation.py` patches live generators to avoid network calls
+- `tests/test_workspace_store.py` patches live builder models and verifies
+  normalized design, fix-plan, and v1 graph artifacts validate
 - Eval suites continue to score whichever response path produced the output
 
 ## What Is Still Not Live
 
-- Turn eval checks remain heuristic/pattern-based by default (LLM judge optional)
-- Platform publish endpoint on eval-driven-design-platform is still a seam
-- LangGraph nodes are not individually LLM-backed in live mode (single structured draft call instead)
+- Target creation from the first name/description is still deterministic.
+- Tool use is not connected to live external systems; draft tool mode remains
+  `local_draft`.
+- LangGraph nodes are not individually LLM-backed in live mode.
+- Platform publish still depends on the configured platform boundary.
 
 ## Next Steps
 
-1. Per-node LLM calls inside LangGraph for trace granularity
-2. Streaming progress events for builder workflow steps
-3. Hybrid turn eval with structure checks and optional LLM judge
-4. Platform ingest verification end-to-end
+1. Add live target drafting from the initial description.
+2. Add token streaming for long live model calls.
+3. Add per-node LLM calls inside LangGraph for trace granularity.
+4. Verify platform ingest end to end with a live-generated draft.
