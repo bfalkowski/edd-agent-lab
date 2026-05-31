@@ -92,10 +92,7 @@ def _reset_workbench() -> None:
 def _render_start_page() -> None:
     import streamlit as st
 
-    page_shell(
-        "EDD Agent Lab",
-        "Start with intent, create local design artifacts, then run and compare versions.",
-    )
+    _render_builder_header()
 
     workspaces = list_draft_workspaces()
     _render_new_agent_panel(expanded=not workspaces)
@@ -103,7 +100,6 @@ def _render_start_page() -> None:
         _render_empty_draft_state()
         return
 
-    st.markdown("## Local Drafts")
     labels = {
         f"{workspace.name} ({workspace.agent_key})": workspace.agent_key
         for workspace in workspaces
@@ -111,11 +107,16 @@ def _render_start_page() -> None:
     default_agent = st.session_state.get("active_draft_agent") or workspaces[0].agent_key
     agent_keys = list(labels.values())
     default_index = agent_keys.index(default_agent) if default_agent in agent_keys else 0
-    selected_label = st.selectbox(
-        "Draft workspace",
-        list(labels),
-        index=default_index,
-    )
+
+    rail, main = st.columns([0.28, 0.72], gap="large")
+    with rail:
+        st.markdown("### Drafts")
+        selected_label = st.selectbox(
+            "Draft workspace",
+            list(labels),
+            index=default_index,
+            label_visibility="collapsed",
+        )
     selected_agent = labels[selected_label]
     st.session_state.active_draft_agent = selected_agent
     target = load_draft_target(selected_agent)
@@ -131,47 +132,73 @@ def _render_start_page() -> None:
     status = draft_workflow_status(selected_agent)
     completed = int(status["completed"])
     total = int(status["total"])
-    _render_active_draft_header(
-        agent_target=agent_target,
-        target_path=target_path,
-        completed=completed,
-        total=total,
-        next_action=str(status["next_action"]),
-    )
-    _render_draft_progress(status)
 
-    selected_step = _draft_step_selector(selected_agent, status)
-    if selected_step == "Target":
-        _render_target_step(selected_agent, agent_target)
-    elif selected_step == "Design":
-        _render_design_step(selected_agent, artifacts, target_path)
-    elif selected_step == "Run":
-        _render_run_step(selected_agent, artifacts, target_path)
-    elif selected_step == "Evaluate":
-        _render_evaluate_step(selected_agent, target_path)
-    elif selected_step == "Improve":
-        _render_improve_step(selected_agent, target_path)
-    else:
-        _render_publish_step()
+    with rail:
+        _render_workbench_rail(
+            selected_label=selected_label,
+            target_path=target_path,
+            completed=completed,
+            total=total,
+            next_action=str(status["next_action"]),
+        )
+        _render_draft_progress(status)
+        selected_step = _draft_step_selector(selected_agent, status)
+
+    with main:
+        _render_active_draft_header(
+            agent_target=agent_target,
+            target_path=target_path,
+            completed=completed,
+            total=total,
+            next_action=str(status["next_action"]),
+        )
+        if selected_step == "Target":
+            _render_target_step(selected_agent, agent_target)
+        elif selected_step == "Design":
+            _render_design_step(selected_agent, artifacts, target_path)
+        elif selected_step == "Run":
+            _render_run_step(selected_agent, artifacts, target_path)
+        elif selected_step == "Evaluate":
+            _render_evaluate_step(selected_agent, target_path)
+        elif selected_step == "Improve":
+            _render_improve_step(selected_agent, target_path)
+        else:
+            _render_publish_step()
+
+
+def _render_builder_header() -> None:
+    import streamlit as st
+
+    st.markdown(
+        """
+        <div class="edd-builder-header">
+          <div class="edd-builder-kicker">Agent builder</div>
+          <div class="edd-builder-title">
+            Describe the agent. Shape the loop. Compare the versions.
+          </div>
+          <div class="edd-builder-subtitle">
+            Local developer workspace for turning an idea into EDD artifacts,
+            mock runs, eval evidence, and a publishable platform payload.
+          </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def _render_new_agent_panel(*, expanded: bool) -> None:
     import streamlit as st
 
-    with st.expander("Create a new agent draft", expanded=expanded):
-        st.caption(
-            "Creates the root target artifact locally. Rules, evals, requirements, "
-            "graph design, and runs build from this target."
-        )
+    with st.expander("What agent are we building?", expanded=expanded):
         with st.form("new_agent_form"):
             name = st.text_input("Agent name", placeholder="Contract Review Agent")
             description = st.text_area(
-                "Agent purpose",
+                "Agent idea",
                 placeholder=(
                     "I want an agent that helps legal teams review contracts for risky "
                     "clauses, summarize evidence, and recommend safe next actions."
                 ),
-                height=130,
+                height=110,
             )
             submitted = st.form_submit_button("Create draft target", type="primary")
 
@@ -188,6 +215,33 @@ def _render_new_agent_panel(*, expanded: bool) -> None:
                 st.session_state.active_draft_agent = workspace.agent_key
                 st.success(f"Draft target created for {workspace.name}.")
                 st.rerun()
+
+
+def _render_workbench_rail(
+    *,
+    selected_label: str,
+    target_path: Path,
+    completed: int,
+    total: int,
+    next_action: str,
+) -> None:
+    import streamlit as st
+
+    st.markdown(
+        f"""
+        <div class="edd-workbench-rail-card">
+          <div class="edd-rail-label">Active draft</div>
+          <div class="edd-rail-title">{html.escape(selected_label)}</div>
+          <div class="edd-rail-meta">{completed}/{total} steps · local YAML</div>
+        </div>
+        <div class="edd-rail-next">
+          <div class="edd-rail-label">Next</div>
+          <div>{html.escape(next_action)}</div>
+        </div>
+        <div class="edd-rail-path">{html.escape(str(target_path))}</div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def _render_empty_draft_state() -> None:

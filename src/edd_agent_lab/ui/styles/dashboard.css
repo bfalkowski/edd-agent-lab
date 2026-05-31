@@ -2,17 +2,14 @@
 
 /* ---------- App shell ---------- */
 .stApp {
-  background:
-    radial-gradient(circle at top left, rgba(64, 99, 255, 0.16), transparent 32rem),
-    radial-gradient(circle at top right, rgba(16, 185, 129, 0.10), transparent 28rem),
-    #0b1020;
+  background: #0d1117;
   color: #e5e7eb;
 }
 
 .block-container {
-  padding-top: 2rem;
+  padding-top: 1.1rem;
   padding-bottom: 4rem;
-  max-width: 1320px;
+  max-width: 1440px;
 }
 
 /* ---------- Sidebar ---------- */
@@ -156,16 +153,96 @@ label {
 }
 
 /* ---------- Draft workbench ---------- */
+.edd-builder-header {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+  margin-bottom: 0.85rem;
+  padding: 0.25rem 0 0.85rem 0;
+}
+
+.edd-builder-kicker {
+  color: #8b949e;
+  font-size: 0.76rem;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 0.28rem;
+}
+
+.edd-builder-title {
+  color: #f0f6fc;
+  font-size: 1.55rem;
+  font-weight: 780;
+  line-height: 1.18;
+}
+
+.edd-builder-subtitle {
+  color: #8b949e;
+  font-size: 0.92rem;
+  line-height: 1.4;
+  max-width: 820px;
+  margin-top: 0.35rem;
+}
+
+.edd-workbench-rail-card {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  padding: 0.85rem;
+  margin: 0.6rem 0 0.55rem 0;
+}
+
+.edd-rail-label {
+  color: #8b949e;
+  font-size: 0.72rem;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 0.28rem;
+}
+
+.edd-rail-title {
+  color: #f0f6fc;
+  font-size: 0.96rem;
+  font-weight: 740;
+  line-height: 1.25;
+}
+
+.edd-rail-meta {
+  color: #8b949e;
+  font-size: 0.78rem;
+  margin-top: 0.35rem;
+}
+
+.edd-rail-next {
+  background: rgba(35, 134, 54, 0.12);
+  border: 1px solid rgba(46, 160, 67, 0.32);
+  border-radius: 8px;
+  color: #c9d1d9;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  padding: 0.75rem 0.8rem;
+  margin-bottom: 0.55rem;
+}
+
+.edd-rail-path {
+  color: #6e7681;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  margin-bottom: 0.85rem;
+}
+
 .edd-draft-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  background: rgba(15, 23, 42, 0.82);
-  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: #161b22;
+  border: 1px solid #30363d;
   border-radius: 8px;
   padding: 1rem 1.05rem;
-  margin: 0.85rem 0 0.4rem 0;
+  margin: 0 0 0.4rem 0;
 }
 
 .edd-draft-eyebrow {
@@ -218,8 +295,8 @@ label {
   justify-content: space-between;
   gap: 1rem;
   color: #cbd5e1;
-  background: rgba(30, 41, 59, 0.46);
-  border: 1px solid rgba(148, 163, 184, 0.12);
+  background: rgba(22, 27, 34, 0.72);
+  border: 1px solid #30363d;
   border-radius: 8px;
   padding: 0.65rem 0.8rem;
   font-size: 0.84rem;
@@ -242,7 +319,7 @@ label {
   padding: 0.55rem 0.75rem;
   font-size: 0.82rem;
   font-weight: 650;
-  margin-bottom: 0.7rem;
+  margin-bottom: 0.9rem;
 }
 
 .edd-empty-state {
@@ -272,7 +349,7 @@ label {
   gap: 1rem;
   border: 1px solid rgba(148, 163, 184, 0.16);
   border-radius: 8px;
-  background: rgba(15, 23, 42, 0.72);
+  background: #161b22;
   padding: 0.95rem 1rem;
   margin: 0.8rem 0 0.85rem 0;
 }
@@ -325,20 +402,20 @@ label {
 /* ---------- Workflow strip ---------- */
 .edd-draft-stepper {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 0.55rem;
-  margin: 0.65rem 0 1rem 0;
+  grid-template-columns: 1fr;
+  gap: 0.4rem;
+  margin: 0.6rem 0 1rem 0;
 }
 
 .edd-draft-step {
   display: flex;
   align-items: center;
   gap: 0.65rem;
-  min-height: 68px;
+  min-height: 52px;
   border: 1px solid rgba(148, 163, 184, 0.16);
   border-radius: 8px;
-  background: rgba(15, 23, 42, 0.72);
-  padding: 0.7rem;
+  background: #161b22;
+  padding: 0.55rem 0.65rem;
 }
 
 .edd-draft-step-current {
