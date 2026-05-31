@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import html
+from pathlib import Path
 
 from dotenv import load_dotenv
 
@@ -56,6 +57,15 @@ _SESSION_KEYS = (
     "last_publish_batch",
 )
 
+_DRAFT_STEP_LABELS = [
+    "Target",
+    "Design",
+    "Run",
+    "Evaluate",
+    "Improve",
+    "Publish",
+]
+
 
 def _reset_workbench() -> None:
     import streamlit as st
@@ -66,7 +76,6 @@ def _reset_workbench() -> None:
 
 def _render_start_page() -> None:
     import streamlit as st
-    import yaml
 
     page_shell(
         "EDD Agent Lab",
@@ -151,18 +160,86 @@ def _render_start_page() -> None:
     )
     st.caption(str(target_path))
     artifacts = load_draft_artifacts(selected_agent)
+    status = draft_workflow_status(selected_agent)
     st.info(
         "Local draft only: this workspace is saved as YAML under `lab-runs/` and "
         "has not been persisted to platform/Postgres."
     )
-    _render_target_editor(selected_agent, agent_target)
-    _render_draft_progress(draft_workflow_status(selected_agent))
-    _render_artifact_cards(draft_artifact_cards(selected_agent))
+    _render_draft_progress(status)
 
+    selected_step = _draft_step_selector(selected_agent, status)
+    if selected_step == "Target":
+        _render_target_step(selected_agent, agent_target)
+    elif selected_step == "Design":
+        _render_design_step(selected_agent, artifacts, target_path)
+    elif selected_step == "Run":
+        _render_run_step(selected_agent, artifacts, target_path)
+    elif selected_step == "Evaluate":
+        _render_evaluate_step(selected_agent, target_path)
+    elif selected_step == "Improve":
+        _render_improve_step(selected_agent, target_path)
+    else:
+        _render_publish_step()
+
+
+def _draft_step_selector(agent_key: str, status: dict[str, object]) -> str:
+    import streamlit as st
+
+    default_step = _default_draft_step(status)
+    session_key = f"draft_step_{agent_key}"
+    if st.session_state.get(session_key) not in _DRAFT_STEP_LABELS:
+        st.session_state[session_key] = default_step
+
+    return st.radio(
+        "Workflow step",
+        _DRAFT_STEP_LABELS,
+        horizontal=True,
+        key=session_key,
+    )
+
+
+def _default_draft_step(status: dict[str, object]) -> str:
+    first_pending = next(
+        (row["id"] for row in status["steps"] if not row["complete"]),
+        "comparison",
+    )
+    if first_pending in {"target"}:
+        return "Target"
+    if first_pending in {
+        "behavior_rules",
+        "eval_contract",
+        "information_requirements",
+        "tool_requirements",
+        "graph_design",
+    }:
+        return "Design"
+    if first_pending in {"scenario", "v0_run"}:
+        return "Run"
+    if first_pending in {"eval_summary", "failure_packet", "fix_plan"}:
+        return "Evaluate"
+    if first_pending in {"graph_design_v1", "v1_run", "eval_summary_v1", "comparison"}:
+        return "Improve"
+    return "Publish"
+
+
+def _render_target_step(agent_key: str, agent_target: dict[str, object]) -> None:
+    _render_target_editor(agent_key, agent_target)
+    _render_artifact_cards(draft_artifact_cards(agent_key))
+
+
+def _render_design_step(
+    agent_key: str,
+    artifacts: dict[str, dict[str, object]],
+    target_path: Path,
+) -> None:
+    import streamlit as st
+    import yaml
+
+    st.markdown("## Design Artifacts")
     ready_count = len(artifacts) - (0 if "target" not in artifacts else 1)
     col_scaffold, col_status = st.columns([1, 2])
     if col_scaffold.button("Scaffold design artifacts", type="primary"):
-        save_design_scaffold(selected_agent)
+        save_design_scaffold(agent_key)
         st.rerun()
     col_status.caption(f"{max(ready_count, 0)} downstream artifacts ready.")
 
@@ -186,6 +263,14 @@ def _render_start_page() -> None:
                 st.caption(str(target_path.parent / DRAFT_ARTIFACT_FILES[artifact_key]))
                 st.code(yaml.safe_dump(payload, sort_keys=False), language="yaml")
 
+
+def _render_run_step(
+    agent_key: str,
+    artifacts: dict[str, dict[str, object]],
+    target_path: Path,
+) -> None:
+    import streamlit as st
+
     st.markdown("## First Local Run")
     scenario = artifacts.get("scenario", {}).get("scenario", {})
     default_problem = str(
@@ -200,11 +285,11 @@ def _render_start_page() -> None:
         if not clean_problem:
             st.error("A test scenario is required before running v0.")
         else:
-            save_draft_scenario(agent_key=selected_agent, problem=clean_problem)
-            run_draft_v0(selected_agent)
+            save_draft_scenario(agent_key=agent_key, problem=clean_problem)
+            run_draft_v0(agent_key)
             st.rerun()
 
-    run = load_draft_artifacts(selected_agent).get("v0_run", {}).get("run")
+    run = load_draft_artifacts(agent_key).get("v0_run", {}).get("run")
     if run:
         st.caption(str(target_path.parent / DRAFT_ARTIFACT_FILES["v0_run"]))
         st.markdown(run["final_response"])
@@ -212,14 +297,25 @@ def _render_start_page() -> None:
             f"Run `{run['id']}` · mode `{run['generation_mode']}` · "
             f"tool mode `{run['tool_mode']}`"
         )
-        if st.button("Evaluate v0", type="primary"):
-            evaluate_draft_v0(selected_agent)
-            st.rerun()
 
-    latest_artifacts = load_draft_artifacts(selected_agent)
+
+def _render_evaluate_step(agent_key: str, target_path: Path) -> None:
+    import streamlit as st
+
+    latest_artifacts = load_draft_artifacts(agent_key)
+    run = latest_artifacts.get("v0_run", {}).get("run")
+    if not run:
+        st.info("Run v0 before evaluating this draft.")
+        return
+
+    if st.button("Evaluate v0", type="primary"):
+        evaluate_draft_v0(agent_key)
+        st.rerun()
+
     eval_summary = latest_artifacts.get("eval_summary", {}).get("eval_summary")
     if eval_summary:
         st.markdown("## Local Eval Summary")
+        st.caption(str(target_path.parent / DRAFT_ARTIFACT_FILES["eval_summary"]))
         st.metric("Overall score", f"{eval_summary['overall_score']:.1f} / 5")
         st.dataframe(eval_summary["checks"], use_container_width=True, hide_index=True)
         failure = latest_artifacts.get("failure_packet", {}).get("failure_packet")
@@ -230,77 +326,96 @@ def _render_start_page() -> None:
             )
             st.markdown(f"**Recommended fix:** {failure['recommended_fix']}")
             if st.button("Generate fix plan", type="primary"):
-                generate_draft_fix_plan(selected_agent)
+                generate_draft_fix_plan(agent_key)
                 st.rerun()
 
+
+def _render_improve_step(agent_key: str, target_path: Path) -> None:
+    import streamlit as st
+    import yaml
+
+    latest_artifacts = load_draft_artifacts(agent_key)
     fix_plan = latest_artifacts.get("fix_plan", {}).get("fix_plan")
-    if fix_plan:
-        st.markdown("## Draft Fix Plan")
-        st.caption(str(target_path.parent / DRAFT_ARTIFACT_FILES["fix_plan"]))
-        st.markdown(f"**Target version:** `{fix_plan['target_version']}`")
-        st.markdown(fix_plan["summary"])
-        st.dataframe(fix_plan["graph_changes"], use_container_width=True, hide_index=True)
-        with st.expander("Acceptance checks", expanded=False):
-            for check in fix_plan["acceptance_checks"]:
-                st.markdown(f"- {check}")
+    if not fix_plan:
+        st.info("Generate a fix plan from the v0 failure before creating v1.")
+        return
 
-        v1_graph = latest_artifacts.get("graph_design_v1", {}).get("graph_design")
-        v1_run = latest_artifacts.get("v1_run", {}).get("run")
-        v1_eval = latest_artifacts.get("eval_summary_v1", {}).get("eval_summary")
-        comparison = latest_artifacts.get("comparison", {}).get("comparison")
+    st.markdown("## Draft Fix Plan")
+    st.caption(str(target_path.parent / DRAFT_ARTIFACT_FILES["fix_plan"]))
+    st.markdown(f"**Target version:** `{fix_plan['target_version']}`")
+    st.markdown(fix_plan["summary"])
+    st.dataframe(fix_plan["graph_changes"], use_container_width=True, hide_index=True)
+    with st.expander("Acceptance checks", expanded=False):
+        for check in fix_plan["acceptance_checks"]:
+            st.markdown(f"- {check}")
 
-        col_graph, col_run, col_eval, col_compare = st.columns(4)
-        if col_graph.button("Generate v1 graph"):
-            generate_draft_v1_graph(selected_agent)
-            st.rerun()
-        if col_run.button("Run v1", disabled=v1_graph is None):
-            run_draft_v1(selected_agent)
-            st.rerun()
-        if col_eval.button("Evaluate v1", disabled=v1_run is None):
-            evaluate_draft_v1(selected_agent)
-            st.rerun()
-        if col_compare.button("Compare v0/v1", disabled=v1_eval is None):
-            compare_draft_versions(selected_agent)
-            st.rerun()
+    v1_graph = latest_artifacts.get("graph_design_v1", {}).get("graph_design")
+    v1_run = latest_artifacts.get("v1_run", {}).get("run")
+    v1_eval = latest_artifacts.get("eval_summary_v1", {}).get("eval_summary")
+    comparison = latest_artifacts.get("comparison", {}).get("comparison")
 
-        if v1_graph:
-            with st.expander("v1 graph design", expanded=False):
-                st.caption(str(target_path.parent / DRAFT_ARTIFACT_FILES["graph_design_v1"]))
-                st.code(
-                    yaml.safe_dump({"graph_design": v1_graph}, sort_keys=False),
-                    language="yaml",
-                )
-        if v1_run:
-            st.markdown("## v1 Local Run")
-            st.caption(str(target_path.parent / DRAFT_ARTIFACT_FILES["v1_run"]))
-            st.markdown(v1_run["final_response"])
-            st.caption(
-                f"Run `{v1_run['id']}` · mode `{v1_run['generation_mode']}` · "
-                f"tool mode `{v1_run['tool_mode']}`"
+    col_graph, col_run, col_eval, col_compare = st.columns(4)
+    if col_graph.button("Generate v1 graph"):
+        generate_draft_v1_graph(agent_key)
+        st.rerun()
+    if col_run.button("Run v1", disabled=v1_graph is None):
+        run_draft_v1(agent_key)
+        st.rerun()
+    if col_eval.button("Evaluate v1", disabled=v1_run is None):
+        evaluate_draft_v1(agent_key)
+        st.rerun()
+    if col_compare.button("Compare v0/v1", disabled=v1_eval is None):
+        compare_draft_versions(agent_key)
+        st.rerun()
+
+    if v1_graph:
+        with st.expander("v1 graph design", expanded=False):
+            st.caption(str(target_path.parent / DRAFT_ARTIFACT_FILES["graph_design_v1"]))
+            st.code(
+                yaml.safe_dump({"graph_design": v1_graph}, sort_keys=False),
+                language="yaml",
             )
-        if v1_eval:
-            st.markdown("## v1 Eval Summary")
-            st.metric("v1 overall score", f"{v1_eval['overall_score']:.1f} / 5")
-            st.dataframe(v1_eval["checks"], use_container_width=True, hide_index=True)
-        if comparison:
-            st.markdown("## v0/v1 Comparison")
-            metric_cols = st.columns(3)
-            metric_cols[0].metric("v0", f"{comparison['baseline_score']:.1f} / 5")
-            metric_cols[1].metric("v1", f"{comparison['candidate_score']:.1f} / 5")
-            metric_cols[2].metric("Delta", f"{comparison['score_delta']:+.1f}")
-            comparison_view = draft_comparison_view(selected_agent)
-            if comparison_view:
-                left, right = st.columns(2, gap="medium")
-                with left:
-                    _render_draft_version_panel("v0", comparison_view["v0"])
-                with right:
-                    _render_draft_version_panel("v1", comparison_view["v1"])
-                verdict = comparison_view["verdict"]
-                st.markdown("## Draft EDD Verdict")
-                st.success(f"{verdict['decision']}: {verdict['summary']}")
-                st.markdown(f"**What failed:** {verdict['what_failed']}")
-                st.markdown(f"**What changed:** {verdict['what_changed']}")
-                st.warning(f"Remaining blocker: {verdict['remaining_blocker']}")
+    if v1_run:
+        st.markdown("## v1 Local Run")
+        st.caption(str(target_path.parent / DRAFT_ARTIFACT_FILES["v1_run"]))
+        st.markdown(v1_run["final_response"])
+        st.caption(
+            f"Run `{v1_run['id']}` · mode `{v1_run['generation_mode']}` · "
+            f"tool mode `{v1_run['tool_mode']}`"
+        )
+    if v1_eval:
+        st.markdown("## v1 Eval Summary")
+        st.metric("v1 overall score", f"{v1_eval['overall_score']:.1f} / 5")
+        st.dataframe(v1_eval["checks"], use_container_width=True, hide_index=True)
+    if comparison:
+        st.markdown("## v0/v1 Comparison")
+        metric_cols = st.columns(3)
+        metric_cols[0].metric("v0", f"{comparison['baseline_score']:.1f} / 5")
+        metric_cols[1].metric("v1", f"{comparison['candidate_score']:.1f} / 5")
+        metric_cols[2].metric("Delta", f"{comparison['score_delta']:+.1f}")
+        comparison_view = draft_comparison_view(agent_key)
+        if comparison_view:
+            left, right = st.columns(2, gap="medium")
+            with left:
+                _render_draft_version_panel("v0", comparison_view["v0"])
+            with right:
+                _render_draft_version_panel("v1", comparison_view["v1"])
+            verdict = comparison_view["verdict"]
+            st.markdown("## Draft EDD Verdict")
+            st.success(f"{verdict['decision']}: {verdict['summary']}")
+            st.markdown(f"**What failed:** {verdict['what_failed']}")
+            st.markdown(f"**What changed:** {verdict['what_changed']}")
+            st.warning(f"Remaining blocker: {verdict['remaining_blocker']}")
+
+
+def _render_publish_step() -> None:
+    import streamlit as st
+
+    st.markdown("## Publish")
+    st.info(
+        "Greenfield publish is not wired yet. The current draft artifacts remain local "
+        "until the platform persistence boundary is implemented."
+    )
 
 
 def _render_draft_version_panel(label: str, panel: dict[str, object]) -> None:

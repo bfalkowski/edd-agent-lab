@@ -48,7 +48,7 @@ Make `edd-agent-lab` a usable local workbench where someone can:
 
 ## Phase 3: Make It Feel Like an App
 
-- [ ] Replace giant single Start page with step navigation:
+- [x] Replace giant single Start page with step navigation:
   - Target
   - Rules
   - Eval Contract
