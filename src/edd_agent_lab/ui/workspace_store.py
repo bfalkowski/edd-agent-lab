@@ -704,6 +704,38 @@ def draft_workflow_status(agent_key: str) -> dict[str, Any]:
     }
 
 
+def draft_artifact_cards(agent_key: str) -> list[dict[str, str]]:
+    artifacts = load_draft_artifacts(agent_key)
+    definitions = [
+        ("target", "Target", "Intent", "Review"),
+        ("behavior_rules", "Rules", "Design", "Review"),
+        ("eval_contract", "Eval Contract", "Design", "Review"),
+        ("information_requirements", "Information", "Design", "Review"),
+        ("tool_requirements", "Tools", "Design", "Review blockers"),
+        ("graph_design", "v0 Graph", "Build", "Review"),
+        ("scenario", "Scenario", "Run", "Edit"),
+        ("v0_run", "v0 Run", "Run", "Inspect"),
+        ("eval_summary", "v0 Eval", "Evaluate", "Inspect"),
+        ("failure_packet", "Failure Packet", "Diagnose", "Review"),
+        ("fix_plan", "Fix Plan", "Fix", "Review"),
+        ("graph_design_v1", "v1 Graph", "Build", "Inspect"),
+        ("v1_run", "v1 Run", "Run", "Inspect"),
+        ("eval_summary_v1", "v1 Eval", "Evaluate", "Inspect"),
+        ("comparison", "Comparison", "Compare", "Inspect"),
+    ]
+    return [
+        {
+            "id": artifact_key,
+            "artifact": label,
+            "group": group,
+            "status": "ready" if artifact_key in artifacts else "pending",
+            "action": action,
+            "file": DRAFT_ARTIFACT_FILES[artifact_key],
+        }
+        for artifact_key, label, group, action in definitions
+    ]
+
+
 def _draft_v0_response(*, agent_target: dict[str, Any], scenario: dict[str, Any]) -> str:
     return "\n".join(
         [

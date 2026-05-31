@@ -60,9 +60,9 @@ Make `edd-agent-lab` a usable local workbench where someone can:
   - Compare
   - Publish
 - [x] Add progress/status indicators for each step.
-- [ ] Add compact artifact cards with edit/review states.
+- [x] Add compact artifact cards with edit/review states.
 - [x] Add "next recommended action" panel.
-- [ ] Reduce raw YAML exposure to an advanced/details view.
+- [x] Reduce raw YAML exposure to an advanced/details view.
 - [ ] Improve Streamlit styling toward a focused developer workbench.
 - [ ] Add empty, loading, success, failure states.
 

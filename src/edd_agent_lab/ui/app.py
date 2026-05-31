@@ -29,6 +29,7 @@ from edd_agent_lab.ui.workbench_views import (
 from edd_agent_lab.ui.workspace_store import (
     DRAFT_ARTIFACT_FILES,
     compare_draft_versions,
+    draft_artifact_cards,
     draft_comparison_view,
     draft_workflow_status,
     evaluate_draft_v0,
@@ -156,6 +157,7 @@ def _render_start_page() -> None:
     )
     _render_target_editor(selected_agent, agent_target)
     _render_draft_progress(draft_workflow_status(selected_agent))
+    _render_artifact_cards(draft_artifact_cards(selected_agent))
 
     ready_count = len(artifacts) - (0 if "target" not in artifacts else 1)
     col_scaffold, col_status = st.columns([1, 2])
@@ -164,24 +166,25 @@ def _render_start_page() -> None:
         st.rerun()
     col_status.caption(f"{max(ready_count, 0)} downstream artifacts ready.")
 
-    display_order = [
-        ("target", "Target"),
-        ("behavior_rules", "Rules"),
-        ("eval_contract", "Eval Contract"),
-        ("information_requirements", "Information"),
-        ("tool_requirements", "Tools"),
-        ("graph_design", "Graph"),
-    ]
-    tabs = st.tabs([label for _, label in display_order])
-    for tab, (artifact_key, _label) in zip(tabs, display_order, strict=True):
-        with tab:
-            payload = artifacts.get(artifact_key)
-            if payload is None:
-                filename = DRAFT_ARTIFACT_FILES[artifact_key]
-                st.info(f"{filename} has not been generated yet.")
-                continue
-            st.caption(str(target_path.parent / DRAFT_ARTIFACT_FILES[artifact_key]))
-            st.code(yaml.safe_dump(payload, sort_keys=False), language="yaml")
+    with st.expander("Artifact YAML", expanded=False):
+        display_order = [
+            ("target", "Target"),
+            ("behavior_rules", "Rules"),
+            ("eval_contract", "Eval Contract"),
+            ("information_requirements", "Information"),
+            ("tool_requirements", "Tools"),
+            ("graph_design", "Graph"),
+        ]
+        tabs = st.tabs([label for _, label in display_order])
+        for tab, (artifact_key, _label) in zip(tabs, display_order, strict=True):
+            with tab:
+                payload = artifacts.get(artifact_key)
+                if payload is None:
+                    filename = DRAFT_ARTIFACT_FILES[artifact_key]
+                    st.info(f"{filename} has not been generated yet.")
+                    continue
+                st.caption(str(target_path.parent / DRAFT_ARTIFACT_FILES[artifact_key]))
+                st.code(yaml.safe_dump(payload, sort_keys=False), language="yaml")
 
     st.markdown("## First Local Run")
     scenario = artifacts.get("scenario", {}).get("scenario", {})
@@ -353,6 +356,31 @@ def _render_target_editor(agent_key: str, agent_target: dict[str, object]) -> No
             else:
                 st.success("Target updated.")
                 st.rerun()
+
+
+def _render_artifact_cards(cards: list[dict[str, str]]) -> None:
+    import streamlit as st
+
+    st.markdown("## Artifact Review")
+    for start in range(0, len(cards), 3):
+        columns = st.columns(3)
+        for column, card in zip(columns, cards[start : start + 3], strict=False):
+            status = card["status"]
+            pill = status_pill(status.upper(), "green" if status == "ready" else "blue")
+            with column:
+                st.markdown(
+                    f"""
+                    <div class="edd-card-soft">
+                      <div class="edd-card-title">{html.escape(card["artifact"])}</div>
+                      <div class="edd-card-subtitle">
+                        {html.escape(card["group"])} · {pill}<br/>
+                        {html.escape(card["action"])} ·
+                        <code>{html.escape(card["file"])}</code>
+                      </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
 
 
 def _render_draft_progress(status: dict[str, object]) -> None:

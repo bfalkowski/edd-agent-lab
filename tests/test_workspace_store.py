@@ -5,6 +5,7 @@ from edd_agent_lab.ui.workspace_store import (
     build_draft_scenario,
     build_target_from_description,
     compare_draft_versions,
+    draft_artifact_cards,
     draft_comparison_view,
     draft_workflow_status,
     evaluate_draft_v0,
@@ -302,3 +303,22 @@ def test_draft_workflow_status_reports_next_action(tmp_path, monkeypatch) -> Non
     assert initial["next_action"] == "Scaffold rules, eval, requirements, and graph."
     assert scaffolded["completed"] == 2
     assert scaffolded["next_action"] == "Add a first local test scenario."
+
+
+def test_draft_artifact_cards_report_ready_and_pending(tmp_path, monkeypatch) -> None:
+    from edd_agent_lab.ui import workspace_store
+
+    monkeypatch.setattr(workspace_store, "LAB_RUNS_DIR", tmp_path)
+
+    save_draft_target(
+        name="Contract Review Agent",
+        description="Help legal teams review risky clauses.",
+    )
+    save_design_scaffold("contract-review-agent")
+    cards = draft_artifact_cards("contract-review-agent")
+    by_id = {card["id"]: card for card in cards}
+
+    assert by_id["target"]["status"] == "ready"
+    assert by_id["behavior_rules"]["status"] == "ready"
+    assert by_id["scenario"]["status"] == "pending"
+    assert by_id["comparison"]["file"] == "comparison.yaml"
