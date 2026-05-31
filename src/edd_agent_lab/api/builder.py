@@ -35,6 +35,7 @@ from edd_agent_lab.ui.workspace_store import (
     save_draft_artifact_source,
     save_draft_scenario,
     save_draft_target,
+    update_draft_target,
 )
 
 
@@ -49,6 +50,13 @@ class ScenarioRequest(BaseModel):
 
 class ArtifactSourceRequest(BaseModel):
     source: str
+
+
+class TargetUpdateRequest(BaseModel):
+    name: str
+    purpose: str
+    risk_tolerance: str
+    expected_output_format: str
 
 
 GenerationModeRequest = Literal["mock", "live", "auto"]
@@ -208,6 +216,22 @@ def create_app():
         except FileNotFoundError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         return list_drafts()
+
+    @app.put("/api/drafts/{agent_key}/target")
+    def update_target(agent_key: str, request: TargetUpdateRequest) -> dict[str, Any]:
+        try:
+            update_draft_target(
+                agent_key=agent_key,
+                name=request.name,
+                purpose=request.purpose,
+                risk_tolerance=request.risk_tolerance,
+                expected_output_format=request.expected_output_format,
+            )
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return load_draft(agent_key)
 
     @app.put("/api/drafts/{agent_key}/artifacts/{artifact_key}")
     def update_artifact(

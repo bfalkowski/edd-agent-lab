@@ -94,6 +94,40 @@ def test_stream_action_returns_retryable_failure(tmp_path, monkeypatch) -> None:
     assert "Draft scenario not found" in events[-1]["message"]
 
 
+def test_update_target_returns_refreshed_draft(tmp_path, monkeypatch) -> None:
+    from edd_agent_lab.ui import workspace_store
+
+    monkeypatch.setattr(workspace_store, "LAB_RUNS_DIR", tmp_path)
+    client = TestClient(create_app())
+
+    created = client.post(
+        "/api/drafts",
+        json={
+            "name": "Contract Review Agent",
+            "description": "Review contract clauses.",
+        },
+    )
+    assert created.status_code == 200
+
+    updated = client.put(
+        "/api/drafts/contract-review-agent/target",
+        json={
+            "name": "Contract Risk Review Agent",
+            "purpose": "Review risky contract clauses.",
+            "risk_tolerance": "low",
+            "expected_output_format": "risk summary",
+        },
+    )
+
+    assert updated.status_code == 200
+    target = updated.json()["target"]["agent_target"]
+    assert target["name"] == "Contract Risk Review Agent"
+    assert target["purpose"] == "Review risky contract clauses."
+    assert target["risk_tolerance"] == "low"
+    assert target["expected_output_format"] == "risk summary"
+    assert "risk summary" in updated.json()["artifact_sources"]["target"]
+
+
 def test_stream_run_action_accepts_generation_mode(tmp_path, monkeypatch) -> None:
     from edd_agent_lab.ui import workspace_store
 

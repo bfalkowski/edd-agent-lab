@@ -27,6 +27,8 @@ import {
   RuntimeConfig,
   saveArtifactSource,
   saveScenario,
+  saveTarget,
+  TargetUpdate,
   streamDraftAction,
 } from "./api";
 import "./styles.css";
@@ -96,6 +98,16 @@ function artifactStepId(artifactId: string): string {
   return outputToStep[artifactId] ?? "target";
 }
 
+function targetUpdateFromDraft(draft: DraftDetail): TargetUpdate {
+  const target = draft.target.agent_target;
+  return {
+    name: target.name ?? "",
+    purpose: target.purpose ?? "",
+    risk_tolerance: target.risk_tolerance ?? "needs_review",
+    expected_output_format: target.expected_output_format ?? "needs_review",
+  };
+}
+
 type DiffLine = {
   key: string;
   prefix: string;
@@ -149,6 +161,12 @@ function App() {
   const [scenario, setScenario] = useState("");
   const [selectedArtifact, setSelectedArtifact] = useState("");
   const [artifactDraft, setArtifactDraft] = useState("");
+  const [targetDraft, setTargetDraft] = useState<TargetUpdate>({
+    name: "",
+    purpose: "",
+    risk_tolerance: "",
+    expected_output_format: "",
+  });
   const [reviewMode, setReviewMode] = useState<"edit" | "diff">("edit");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isReviewPanelOpen, setIsReviewPanelOpen] = useState(false);
@@ -294,6 +312,10 @@ function App() {
 
   async function handleSaveArtifact() {
     if (!activeDraft || !selectedArtifact) return;
+    if (selectedArtifact === "target") {
+      await handleSaveTarget();
+      return;
+    }
     setIsLoading(true);
     setError("");
     appendStepActivity(artifactStepId(selectedArtifact), `Saving ${selectedArtifact}.`);
@@ -311,6 +333,27 @@ function App() {
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not save artifact.");
       appendStepActivity(artifactStepId(selectedArtifact), `Save failed for ${selectedArtifact}.`);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleSaveTarget() {
+    if (!activeDraft) return;
+    setIsLoading(true);
+    setError("");
+    appendStepActivity("target", "Saving target.");
+    try {
+      const draft = await saveTarget(activeDraft.agent_key, targetDraft);
+      setActiveDraft(draft);
+      setArtifactDraft(draft.artifact_sources.target ?? "");
+      setTargetDraft(targetUpdateFromDraft(draft));
+      setReviewMode("edit");
+      setDrafts(await listDrafts());
+      appendStepActivity("target", "Saved target.");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not save target.");
+      appendStepActivity("target", "Target save failed.");
     } finally {
       setIsLoading(false);
     }
@@ -339,6 +382,9 @@ function App() {
     if (!activeDraft) return;
     setSelectedArtifact(artifactKey);
     setArtifactDraft(activeDraft.artifact_sources[artifactKey] ?? "");
+    if (artifactKey === "target") {
+      setTargetDraft(targetUpdateFromDraft(activeDraft));
+    }
     setReviewMode("edit");
     setIsReviewPanelOpen(true);
   }
@@ -370,6 +416,14 @@ function App() {
     ? activeDraft?.artifact_sources[selectedArtifact] ?? ""
     : "";
   const hasArtifactChanges = artifactDraft !== savedArtifactSource;
+  const savedTargetDraft = activeDraft ? targetUpdateFromDraft(activeDraft) : targetDraft;
+  const hasTargetChanges =
+    selectedArtifact === "target" &&
+    (targetDraft.name !== savedTargetDraft.name ||
+      targetDraft.purpose !== savedTargetDraft.purpose ||
+      targetDraft.risk_tolerance !== savedTargetDraft.risk_tolerance ||
+      targetDraft.expected_output_format !== savedTargetDraft.expected_output_format);
+  const hasReviewChanges = selectedArtifact === "target" ? hasTargetChanges : hasArtifactChanges;
   const artifactDiff = useMemo(
     () => buildLineDiff(savedArtifactSource, artifactDraft),
     [artifactDraft, savedArtifactSource],
@@ -740,8 +794,14 @@ function App() {
               <button
                 className={reviewMode === "diff" ? "secondary active" : "secondary"}
                 onClick={() => setReviewMode("diff")}
-                disabled={!hasArtifactChanges}
-                title={hasArtifactChanges ? "Review unsaved changes" : "No unsaved changes"}
+                disabled={!hasReviewChanges || selectedArtifact === "target"}
+                title={
+                  selectedArtifact === "target"
+                    ? "YAML diff is available for raw artifacts."
+                    : hasArtifactChanges
+                      ? "Review unsaved changes"
+                      : "No unsaved changes"
+                }
               >
                 Diff
               </button>
@@ -771,6 +831,48 @@ function App() {
                   <code>{line.text || " "}</code>
                 </div>
               ))}
+            </div>
+          ) : selectedArtifact === "target" ? (
+            <div className="target-editor">
+              <label>
+                Name
+                <input
+                  value={targetDraft.name}
+                  onChange={(event) =>
+                    setTargetDraft({ ...targetDraft, name: event.target.value })
+                  }
+                />
+              </label>
+              <label>
+                Purpose
+                <textarea
+                  value={targetDraft.purpose}
+                  onChange={(event) =>
+                    setTargetDraft({ ...targetDraft, purpose: event.target.value })
+                  }
+                />
+              </label>
+              <label>
+                Risk tolerance
+                <input
+                  value={targetDraft.risk_tolerance}
+                  onChange={(event) =>
+                    setTargetDraft({ ...targetDraft, risk_tolerance: event.target.value })
+                  }
+                />
+              </label>
+              <label>
+                Expected output
+                <input
+                  value={targetDraft.expected_output_format}
+                  onChange={(event) =>
+                    setTargetDraft({
+                      ...targetDraft,
+                      expected_output_format: event.target.value,
+                    })
+                  }
+                />
+              </label>
             </div>
           ) : (
             <textarea

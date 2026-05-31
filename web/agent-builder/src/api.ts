@@ -19,6 +19,8 @@ export type DraftDetail = {
       id: string;
       name: string;
       purpose: string;
+      risk_tolerance: string;
+      expected_output_format: string;
       status: string;
     };
   };
@@ -166,6 +168,23 @@ export async function saveScenario(agentKey: string, problem: string): Promise<D
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ problem }),
+  });
+  await assertOk(response);
+  return response.json();
+}
+
+export type TargetUpdate = {
+  name: string;
+  purpose: string;
+  risk_tolerance: string;
+  expected_output_format: string;
+};
+
+export async function saveTarget(agentKey: string, target: TargetUpdate): Promise<DraftDetail> {
+  const response = await fetch(`/api/drafts/${agentKey}/target`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(target),
   });
   await assertOk(response);
   return response.json();

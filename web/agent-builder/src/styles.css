@@ -816,7 +816,8 @@ kbd {
 }
 
 .artifact-review textarea,
-.artifact-diff {
+.artifact-diff,
+.target-editor {
   width: 100%;
   min-height: 0;
   border: 1px solid #dedede;
@@ -828,6 +829,43 @@ kbd {
   line-height: 1.5;
   outline: 0;
   padding: 14px;
+  resize: vertical;
+}
+
+.target-editor {
+  align-content: start;
+  display: grid;
+  gap: 14px;
+  overflow: auto;
+  font-family: inherit;
+}
+
+.target-editor label {
+  display: grid;
+  gap: 7px;
+  color: #6b7280;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.target-editor input,
+.target-editor textarea {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid #dedede;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #202123;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 400;
+  outline: 0;
+  padding: 9px 11px;
+}
+
+.target-editor textarea {
+  min-height: 140px;
+  line-height: 1.45;
   resize: vertical;
 }
 
