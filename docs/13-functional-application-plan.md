@@ -47,28 +47,28 @@ Make the local builder support the complete draft-agent loop:
 - [x] Emit a deterministic event shape for mock workflow actions.
 - [x] Show progress inline on the active step.
 - [x] Clear transient activity when the workflow advances.
-- [ ] Extend the same event shape to live mode.
-- [ ] Show written artifacts as they are created during longer-running steps.
-- [ ] Preserve failures with retry context on the owning step.
+- [x] Use one event shape that can carry mock or live workflow progress.
+- [x] Show written artifacts as they are created during longer-running steps.
+- [x] Preserve failures with retry context on the owning step.
 
 ## Phase 4: Better Agent Execution
 
-- [ ] Replace deterministic v0 text with a generic runnable LangGraph template.
-- [ ] Generate a minimal agent package or folder for draft agents.
-- [ ] Add mock tool binding generation.
-- [ ] Run draft agents through the same runner/eval artifact format as existing agents.
+- [x] Replace deterministic v0 text with a generic runnable LangGraph template.
+- [x] Generate a minimal agent package or folder for draft agents.
+- [x] Add mock tool binding generation.
+- [x] Run draft agents through the same runner/eval artifact format as existing agents.
 - [ ] Support optional live generation when provider credentials exist.
-- [ ] Keep CI and local tests deterministic by default.
+- [x] Keep CI and local tests deterministic by default.
 
 ## Phase 5: Evaluation Maturity
 
-- [ ] Convert draft eval contracts into runnable eval suites.
-- [ ] Add deterministic structure and keyword checks from generated rules.
+- [x] Convert draft eval contracts into runnable eval suites.
+- [x] Add deterministic structure and keyword checks from generated rules.
 - [ ] Add optional LLM judge path.
-- [ ] Add failure packet generation per failed rule.
+- [x] Add failure packet generation per failed rule.
 - [ ] Add overfitting or variant scenario generation.
 - [ ] Add regression comparison across multiple scenarios.
-- [ ] Show rule-level pass/fail, not only an aggregate score.
+- [x] Show rule-level pass/fail, not only an aggregate score.
 
 ## Phase 6: Platform Publish Loop
 
@@ -91,8 +91,8 @@ Make the local builder support the complete draft-agent loop:
 
 ## Near-Term Build Order
 
-1. Add API streaming for workflow actions.
+1. Add optional live generation for draft graph steps.
 2. Add schema validation in artifact review.
 3. Add structured editors for the highest-value artifacts.
 4. Publish draft evidence to the platform.
-5. Generate runnable draft agent packages.
+5. Add regression comparison across multiple scenarios.

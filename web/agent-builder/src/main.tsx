@@ -173,15 +173,19 @@ function App() {
     setError("");
     const label = actionLabelById[action] ?? action;
     const stepId = actionStepId(action);
+    let sawStreamFailure = false;
     try {
       const draft = await streamDraftAction(activeDraft.agent_key, action, (event) => {
         appendStepActivity(event.step_id || stepId, event.message);
+        if (event.phase === "failed") sawStreamFailure = true;
       });
       setActiveDraft(draft);
       setDrafts(await listDrafts());
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Action failed.");
-      appendStepActivity(stepId, `${label} failed.`);
+      if (!sawStreamFailure) {
+        appendStepActivity(stepId, `${label} failed.`);
+      }
     } finally {
       setIsLoading(false);
     }

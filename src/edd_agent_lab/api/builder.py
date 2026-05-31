@@ -56,14 +56,53 @@ ACTION_HANDLERS = {
 }
 
 ACTION_EVENTS = {
-    "design": ("behavior_rules", "Generating design artifacts."),
-    "run-v0": ("v0_run", "Running v0 candidate."),
-    "evaluate-v0": ("eval_summary", "Evaluating v0 response."),
-    "fix-plan": ("fix_plan", "Creating fix plan."),
-    "v1-graph": ("graph_design_v1", "Generating v1 graph."),
-    "run-v1": ("v1_run", "Running v1 candidate."),
-    "evaluate-v1": ("eval_summary_v1", "Evaluating v1 response."),
-    "compare": ("comparison", "Comparing v0 and v1."),
+    "design": {
+        "step_id": "behavior_rules",
+        "message": "Generating design artifacts.",
+        "outputs": [
+            "behavior_rules",
+            "eval_contract",
+            "eval_suite",
+            "information_requirements",
+            "tool_requirements",
+            "graph_design",
+        ],
+    },
+    "run-v0": {
+        "step_id": "v0_run",
+        "message": "Running v0 candidate.",
+        "outputs": ["v0_run"],
+    },
+    "evaluate-v0": {
+        "step_id": "eval_summary",
+        "message": "Evaluating v0 response.",
+        "outputs": ["eval_summary", "failure_packet"],
+    },
+    "fix-plan": {
+        "step_id": "fix_plan",
+        "message": "Creating fix plan.",
+        "outputs": ["fix_plan"],
+    },
+    "v1-graph": {
+        "step_id": "graph_design_v1",
+        "message": "Generating v1 graph.",
+        "outputs": ["graph_design_v1"],
+    },
+    "run-v1": {
+        "step_id": "v1_run",
+        "message": "Running v1 candidate.",
+        "outputs": ["v1_run"],
+    },
+    "evaluate-v1": {
+        "step_id": "eval_summary_v1",
+        "message": "Evaluating v1 response.",
+        "outputs": ["eval_summary_v1"],
+    },
+    "compare": {
+        "step_id": "comparison",
+        "message": "Comparing v0 and v1.",
+        "outputs": ["comparison"],
+    },
 }
 
 
@@ -181,35 +220,60 @@ def create_app():
             raise HTTPException(status_code=404, detail=f"Unknown action: {action}")
 
         def events():
-            artifact_id, message = ACTION_EVENTS[action]
+            metadata = ACTION_EVENTS[action]
+            step_id = metadata["step_id"]
             yield _event(
-                step_id=artifact_id,
+                step_id=step_id,
                 phase="starting",
                 message=f"Starting {action}.",
-                artifact_id=artifact_id,
+                retry_action=action,
+                retryable=True,
             )
             yield _event(
-                step_id=artifact_id,
+                step_id=step_id,
                 phase="running",
-                message=message,
-                artifact_id=artifact_id,
+                message=metadata["message"],
+                retry_action=action,
+                retryable=True,
             )
             try:
                 _run_action(agent_key, ACTION_HANDLERS[action])
                 draft = load_draft(agent_key)
             except Exception as exc:
                 yield _event(
-                    step_id=artifact_id,
+                    step_id=step_id,
                     phase="failed",
                     message=str(exc),
-                    artifact_id=artifact_id,
+                    retry_action=action,
+                    retryable=True,
                 )
                 return
+            for output_id in metadata["outputs"]:
+                artifact = next(
+                    (
+                        card
+                        for card in draft["artifact_cards"]
+                        if card["id"] == output_id and card["status"] == "ready"
+                    ),
+                    None,
+                )
+                if artifact is None:
+                    continue
+                yield _event(
+                    step_id=step_id,
+                    phase="artifact",
+                    message=f"Wrote {artifact['file']}.",
+                    artifact_id=output_id,
+                    file=artifact["file"],
+                    retry_action=action,
+                    retryable=True,
+                )
             yield _event(
-                step_id=artifact_id,
+                step_id=step_id,
                 phase="completed",
-                message=f"Wrote {artifact_id}.",
-                artifact_id=artifact_id,
+                message="Step complete.",
+                retry_action=action,
+                retryable=False,
                 draft=draft,
             )
 

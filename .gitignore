@@ -15,6 +15,7 @@ node_modules/
 .idea/
 .vscode/
 lab-runs/_platform_publish_queue/
+lab-runs/*/agent/
 lab-runs/*/draft/
 **/_test_publish_queue/
 lab-runs/customer_solution_agent/console-sessions/

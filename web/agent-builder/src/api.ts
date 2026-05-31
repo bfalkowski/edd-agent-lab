@@ -44,9 +44,12 @@ export type DraftDetail = {
 
 export type WorkflowEvent = {
   step_id: string;
-  phase: "starting" | "running" | "completed" | "failed";
+  phase: "starting" | "running" | "artifact" | "completed" | "failed";
   message: string;
   artifact_id?: string;
+  file?: string;
+  retry_action?: string;
+  retryable?: boolean;
   draft?: DraftDetail;
 };
 
@@ -103,6 +106,7 @@ export async function streamDraftAction(
   const decoder = new TextDecoder();
   let buffer = "";
   let finalDraft: DraftDetail | null = null;
+  let failedEvent: WorkflowEvent | null = null;
 
   while (true) {
     const { done, value } = await reader.read();
@@ -114,6 +118,7 @@ export async function streamDraftAction(
       const event = JSON.parse(line) as WorkflowEvent;
       onEvent(event);
       if (event.draft) finalDraft = event.draft;
+      if (event.phase === "failed") failedEvent = event;
     }
     if (done) break;
   }
@@ -122,8 +127,12 @@ export async function streamDraftAction(
     const event = JSON.parse(buffer) as WorkflowEvent;
     onEvent(event);
     if (event.draft) finalDraft = event.draft;
+    if (event.phase === "failed") failedEvent = event;
   }
 
+  if (failedEvent) {
+    throw new Error(failedEvent.message);
+  }
   if (!finalDraft) {
     throw new Error("Workflow action did not return a draft.");
   }

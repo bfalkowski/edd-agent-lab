@@ -12,6 +12,7 @@ from edd_agent_lab.ui.workspace_store import (
     draft_workflow_status,
     evaluate_draft_v0,
     evaluate_draft_v1,
+    generate_draft_agent_package,
     generate_draft_fix_plan,
     generate_draft_v1_graph,
     list_draft_workspaces,
@@ -108,6 +109,9 @@ def test_build_design_scaffold_links_artifacts_to_target() -> None:
     assert scaffold["eval_contract"]["eval_contract"]["target_id"] == (
         "contract-review-agent-target-v1"
     )
+    assert scaffold["eval_suite"]["eval_suite"]["contract_id"] == (
+        "contract-review-agent-eval-contract-v1"
+    )
     assert scaffold["graph_design"]["graph_design"]["id"] == "contract-review-agent-graph-v0"
 
 
@@ -125,6 +129,7 @@ def test_save_design_scaffold_writes_downstream_artifacts(tmp_path, monkeypatch)
 
     assert paths["behavior_rules"].is_file()
     assert paths["eval_contract"].is_file()
+    assert paths["eval_suite"].is_file()
     assert paths["information_requirements"].is_file()
     assert paths["tool_requirements"].is_file()
     assert paths["graph_design"].is_file()
@@ -161,9 +166,15 @@ def test_run_draft_v0_writes_local_run_artifacts(tmp_path, monkeypatch) -> None:
 
     assert run["run"]["agent_version"] == "v0-baseline"
     assert run["run"]["generation_mode"] == "mock"
+    assert run["run"]["tool_mode"] == "local_draft"
+    assert run["run"]["node_trace"] == [
+        "understand_request: scoped to Help legal teams review risky clauses.",
+        "draft_response",
+    ]
     assert "no tools or domain evidence wired yet" in run["run"]["final_response"]
     assert artifacts["v0_run"]["run"]["scenario_id"] == "contract-review-agent-scenario-001"
     assert (tmp_path / "contract_review_agent" / "draft" / "run-record.json").is_file()
+    assert (tmp_path / "contract_review_agent" / "agent" / "manifest.yaml").is_file()
 
 
 def test_evaluate_draft_v0_writes_summary_and_failure_packet(tmp_path, monkeypatch) -> None:
@@ -186,8 +197,29 @@ def test_evaluate_draft_v0_writes_summary_and_failure_packet(tmp_path, monkeypat
 
     assert summary["eval_summary"]["passed"] is False
     assert summary["eval_summary"]["overall_score"] == 4.0
+    assert summary["eval_summary"]["eval_suite_id"] == "contract-review-agent-eval-suite-v1"
+    assert summary["eval_summary"]["rule_results"] == [
+        {
+            "rule_id": "ask_for_missing_information",
+            "passed": True,
+            "checks": ["information_discipline"],
+        },
+        {
+            "rule_id": "recommend_safe_next_actions",
+            "passed": False,
+            "checks": ["action_quality"],
+        },
+        {
+            "rule_id": "state_purpose_and_scope",
+            "passed": True,
+            "checks": ["scope_alignment"],
+        },
+    ]
     assert artifacts["failure_packet"]["failure_packet"]["failed_rule"] == (
         "recommend_safe_next_actions"
+    )
+    assert artifacts["failure_packet"]["failure_packet"]["failures"][0]["metric_id"] == (
+        "action_quality"
     )
     assert (tmp_path / "contract_review_agent" / "draft" / "eval-summary.yaml").is_file()
 
@@ -246,6 +278,12 @@ def test_draft_v1_run_eval_and_comparison(tmp_path, monkeypatch) -> None:
 
     assert graph["graph_design"]["version"] == "v1-evidence-aware-actions"
     assert run["run"]["agent_version"] == "v1-evidence-aware-actions"
+    assert run["run"]["node_trace"] == [
+        "understand_request: scoped to Help legal teams review risky clauses.",
+        "collect_domain_context",
+        "plan_grounded_next_actions",
+        "draft_response",
+    ]
     assert summary["eval_summary"]["passed"] is True
     assert comparison["comparison"]["score_delta"] > 0
     assert comparison["comparison"]["decision"] == "candidate_improved"
@@ -253,6 +291,29 @@ def test_draft_v1_run_eval_and_comparison(tmp_path, monkeypatch) -> None:
         "contract-review-agent-v0-action-quality-failure"
     ]
     assert (tmp_path / "contract_review_agent" / "draft" / "graph-design-v1.yaml").is_file()
+
+
+def test_generate_draft_agent_package_writes_manifest_graph_and_tools(
+    tmp_path, monkeypatch
+) -> None:
+    from edd_agent_lab.ui import workspace_store
+
+    monkeypatch.setattr(workspace_store, "LAB_RUNS_DIR", tmp_path)
+
+    save_draft_target(
+        name="Contract Review Agent",
+        description="Help legal teams review risky clauses.",
+    )
+    save_design_scaffold("contract-review-agent")
+    package = generate_draft_agent_package("contract-review-agent")
+
+    package_dir = tmp_path / "contract_review_agent" / "agent"
+    assert package["manifest"]["agent"]["entrypoint"] == "graph.py:run"
+    assert package["manifest"]["agent"]["tool_mode"] == "local_draft"
+    assert package_dir.joinpath("manifest.yaml").is_file()
+    assert package_dir.joinpath("graph.py").is_file()
+    assert package_dir.joinpath("graph-design.yaml").is_file()
+    assert package_dir.joinpath("tools.yaml").is_file()
 
 
 def test_draft_comparison_view_summarizes_versions_and_verdict(tmp_path, monkeypatch) -> None:
@@ -323,6 +384,7 @@ def test_draft_artifact_cards_report_ready_and_pending(tmp_path, monkeypatch) ->
 
     assert by_id["target"]["status"] == "ready"
     assert by_id["behavior_rules"]["status"] == "ready"
+    assert by_id["eval_suite"]["status"] == "ready"
     assert by_id["scenario"]["status"] == "pending"
     assert by_id["comparison"]["file"] == "comparison.yaml"
 

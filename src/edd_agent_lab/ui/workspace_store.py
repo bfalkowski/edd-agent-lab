@@ -12,6 +12,7 @@ from typing import Any
 
 import yaml
 
+from edd_agent_lab.agents.draft_agent import run_draft_agent
 from edd_agent_lab.paths import LAB_RUNS_DIR
 
 
@@ -28,6 +29,7 @@ DRAFT_ARTIFACT_FILES = {
     "target": "agent-target.yaml",
     "behavior_rules": "behavior-rules.yaml",
     "eval_contract": "eval-contract.yaml",
+    "eval_suite": "eval-suite.yaml",
     "information_requirements": "information-requirements.yaml",
     "tool_requirements": "tool-requirements.yaml",
     "graph_design": "graph-design.yaml",
@@ -131,6 +133,35 @@ def build_design_scaffold(target: dict[str, Any]) -> dict[str, dict[str, Any]]:
                         "type": "hard",
                         "condition": "scope_alignment >= 4",
                     }
+                ],
+            }
+        },
+        "eval_suite": {
+            "eval_suite": {
+                "id": f"{agent_key}-eval-suite-v1",
+                "target_id": target_id,
+                "contract_id": f"{agent_key}-eval-contract-v1",
+                "status": "draft",
+                "mode": "deterministic",
+                "checks": [
+                    {
+                        "id": "scope_alignment",
+                        "metric_id": "scope_alignment",
+                        "rules": ["state_purpose_and_scope"],
+                        "method": "structure_and_target_reference",
+                    },
+                    {
+                        "id": "information_discipline",
+                        "metric_id": "information_discipline",
+                        "rules": ["ask_for_missing_information"],
+                        "method": "missing_context_reference",
+                    },
+                    {
+                        "id": "action_quality",
+                        "metric_id": "action_quality",
+                        "rules": ["recommend_safe_next_actions"],
+                        "method": "grounded_action_reference",
+                    },
                 ],
             }
         },
@@ -301,18 +332,31 @@ def run_draft_v0(agent_key: str) -> dict[str, Any]:
 
     agent_target = target["agent_target"]
     scenario_data = scenario["scenario"]
+    graph = artifacts.get("graph_design", {}).get("graph_design")
+    if graph is None:
+        graph = build_design_scaffold(target)["graph_design"]["graph_design"]
     now = datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
-    response = _draft_v0_response(agent_target=agent_target, scenario=scenario_data)
+    agent_run = run_draft_agent(
+        agent_key=agent_key,
+        agent_version="v0-baseline",
+        target=agent_target,
+        scenario=scenario_data,
+        graph_design=graph,
+    )
+    package = generate_draft_agent_package(agent_key)
     run = {
         "run": {
             "id": f"{agent_key}-v0-{now}",
             "agent": agent_key,
             "agent_version": "v0-baseline",
             "generation_mode": "mock",
-            "tool_mode": "none",
+            "tool_mode": "local_draft",
+            "graph_id": graph["id"],
             "scenario_id": scenario_data["id"],
             "created_at": now,
-            "final_response": response,
+            "final_response": agent_run.final_response,
+            "node_trace": agent_run.state.node_trace,
+            "package_path": str(package["path"]),
             "status": "local_draft",
         }
     }
@@ -327,32 +371,18 @@ def evaluate_draft_v0(agent_key: str) -> dict[str, Any]:
     artifacts = load_draft_artifacts(agent_key)
     run = artifacts.get("v0_run", {}).get("run")
     eval_contract = artifacts.get("eval_contract", {}).get("eval_contract")
+    eval_suite = artifacts.get("eval_suite", {}).get("eval_suite")
     if run is None:
         raise FileNotFoundError(f"Draft v0 run not found for agent: {agent_key}")
     if eval_contract is None:
         raise FileNotFoundError(f"Draft eval contract not found for agent: {agent_key}")
 
-    checks = [
-        {
-            "id": "scope_alignment",
-            "score": 4.0,
-            "passed": True,
-            "comment": "The response restates the target and stays within the draft scope.",
-        },
-        {
-            "id": "information_discipline",
-            "score": 5.0,
-            "passed": True,
-            "comment": "The response asks for missing source material before making claims.",
-        },
-        {
-            "id": "action_quality",
-            "score": 3.0,
-            "passed": False,
-            "comment": "The response gives generic setup actions, not domain-specific next steps.",
-        },
-    ]
-    overall_score = round(sum(check["score"] for check in checks) / len(checks), 3)
+    result = _evaluate_draft_run(
+        agent_key=agent_key,
+        run=run,
+        eval_contract=eval_contract,
+        eval_suite=eval_suite,
+    )
     summary = {
         "eval_summary": {
             "id": f"{agent_key}-v0-eval",
@@ -360,19 +390,31 @@ def evaluate_draft_v0(agent_key: str) -> dict[str, Any]:
             "agent_version": run["agent_version"],
             "run_id": run["id"],
             "eval_contract_id": eval_contract["id"],
-            "overall_score": overall_score,
-            "passed": False,
-            "checks": checks,
+            "eval_suite_id": result["eval_suite_id"],
+            "overall_score": result["overall_score"],
+            "passed": result["passed"],
+            "checks": result["checks"],
+            "rule_results": result["rule_results"],
         }
     }
+    failures = result["failed_checks"]
     failure_packet = {
         "failure_packet": {
-            "id": f"{agent_key}-v0-action-quality-failure",
+            "id": f"{agent_key}-v0-{failures[0]['id'].replace('_', '-')}-failure",
             "agent": agent_key,
             "agent_version": run["agent_version"],
             "run_id": run["id"],
-            "failed_rule": "recommend_safe_next_actions",
-            "observed_behavior": "The v0 baseline recommends generic setup work.",
+            "failed_rule": failures[0]["rules"][0],
+            "failures": [
+                {
+                    "metric_id": failure["id"],
+                    "failed_rules": failure["rules"],
+                    "score": failure["score"],
+                    "comment": failure["comment"],
+                }
+                for failure in failures
+            ],
+            "observed_behavior": failures[0]["comment"],
             "expected_behavior": (
                 "The agent should recommend safe next actions grounded in the target, "
                 "scenario, and available information."
@@ -513,10 +555,14 @@ def run_draft_v1(agent_key: str) -> dict[str, Any]:
         raise FileNotFoundError(f"Draft v1 graph not found for agent: {agent_key}")
 
     now = datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
-    response = _draft_v1_response(
-        agent_target=target["agent_target"],
+    agent_run = run_draft_agent(
+        agent_key=agent_key,
+        agent_version=graph["version"],
+        target=target["agent_target"],
         scenario=scenario["scenario"],
+        graph_design=graph,
     )
+    package = generate_draft_agent_package(agent_key)
     run = {
         "run": {
             "id": f"{agent_key}-v1-{now}",
@@ -524,9 +570,12 @@ def run_draft_v1(agent_key: str) -> dict[str, Any]:
             "agent_version": graph["version"],
             "generation_mode": "mock",
             "tool_mode": "local_draft",
+            "graph_id": graph["id"],
             "scenario_id": scenario["scenario"]["id"],
             "created_at": now,
-            "final_response": response,
+            "final_response": agent_run.final_response,
+            "node_trace": agent_run.state.node_trace,
+            "package_path": str(package["path"]),
             "status": "local_draft",
         }
     }
@@ -539,32 +588,18 @@ def evaluate_draft_v1(agent_key: str) -> dict[str, Any]:
     artifacts = load_draft_artifacts(agent_key)
     run = artifacts.get("v1_run", {}).get("run")
     eval_contract = artifacts.get("eval_contract", {}).get("eval_contract")
+    eval_suite = artifacts.get("eval_suite", {}).get("eval_suite")
     if run is None:
         raise FileNotFoundError(f"Draft v1 run not found for agent: {agent_key}")
     if eval_contract is None:
         raise FileNotFoundError(f"Draft eval contract not found for agent: {agent_key}")
 
-    checks = [
-        {
-            "id": "scope_alignment",
-            "score": 4.0,
-            "passed": True,
-            "comment": "The response stays scoped to the target and scenario.",
-        },
-        {
-            "id": "information_discipline",
-            "score": 5.0,
-            "passed": True,
-            "comment": "The response names missing context before making assumptions.",
-        },
-        {
-            "id": "action_quality",
-            "score": 4.0,
-            "passed": True,
-            "comment": "The response gives safer, scenario-aware next actions.",
-        },
-    ]
-    overall_score = round(sum(check["score"] for check in checks) / len(checks), 3)
+    result = _evaluate_draft_run(
+        agent_key=agent_key,
+        run=run,
+        eval_contract=eval_contract,
+        eval_suite=eval_suite,
+    )
     summary = {
         "eval_summary": {
             "id": f"{agent_key}-v1-eval",
@@ -572,9 +607,11 @@ def evaluate_draft_v1(agent_key: str) -> dict[str, Any]:
             "agent_version": run["agent_version"],
             "run_id": run["id"],
             "eval_contract_id": eval_contract["id"],
-            "overall_score": overall_score,
-            "passed": True,
-            "checks": checks,
+            "eval_suite_id": result["eval_suite_id"],
+            "overall_score": result["overall_score"],
+            "passed": result["passed"],
+            "checks": result["checks"],
+            "rule_results": result["rule_results"],
         }
     }
     path = draft_workspace_dir(agent_key) / DRAFT_ARTIFACT_FILES["eval_summary_v1"]
@@ -619,6 +656,129 @@ def compare_draft_versions(agent_key: str) -> dict[str, Any]:
     path = draft_workspace_dir(agent_key) / DRAFT_ARTIFACT_FILES["comparison"]
     path.write_text(yaml.safe_dump(comparison, sort_keys=False), encoding="utf-8")
     return comparison
+
+
+def _evaluate_draft_run(
+    *,
+    agent_key: str,
+    run: dict[str, Any],
+    eval_contract: dict[str, Any],
+    eval_suite: dict[str, Any] | None,
+) -> dict[str, Any]:
+    suite = eval_suite or _build_eval_suite_from_contract(
+        agent_key=agent_key,
+        eval_contract=eval_contract,
+    )
+    checks = [
+        _run_deterministic_check(
+            check=check,
+            run=run,
+            metric=_metric_by_id(eval_contract, check["metric_id"]),
+        )
+        for check in suite["checks"]
+    ]
+    rule_results = [
+        {
+            "rule_id": rule_id,
+            "passed": all(check["passed"] for check in checks if rule_id in check["rules"]),
+            "checks": [check["id"] for check in checks if rule_id in check["rules"]],
+        }
+        for rule_id in sorted({rule for check in checks for rule in check["rules"]})
+    ]
+    failed_checks = [check for check in checks if not check["passed"]]
+    return {
+        "eval_suite_id": suite["id"],
+        "overall_score": round(sum(check["score"] for check in checks) / len(checks), 3),
+        "passed": not failed_checks,
+        "checks": checks,
+        "rule_results": rule_results,
+        "failed_checks": failed_checks,
+    }
+
+
+def _build_eval_suite_from_contract(
+    *, agent_key: str, eval_contract: dict[str, Any]
+) -> dict[str, Any]:
+    return {
+        "id": f"{agent_key}-eval-suite-derived",
+        "contract_id": eval_contract["id"],
+        "mode": "deterministic",
+        "checks": [
+            {
+                "id": metric["id"],
+                "metric_id": metric["id"],
+                "rules": metric.get("rules", []),
+                "method": metric["id"],
+            }
+            for metric in eval_contract.get("metrics", [])
+        ],
+    }
+
+
+def _metric_by_id(eval_contract: dict[str, Any], metric_id: str) -> dict[str, Any]:
+    return next(
+        (
+            metric
+            for metric in eval_contract.get("metrics", [])
+            if metric.get("id") == metric_id
+        ),
+        {"id": metric_id, "rules": []},
+    )
+
+
+def _run_deterministic_check(
+    *,
+    check: dict[str, Any],
+    run: dict[str, Any],
+    metric: dict[str, Any],
+) -> dict[str, Any]:
+    metric_id = check["metric_id"]
+    response = str(run.get("final_response", "")).lower()
+    agent_version = str(run.get("agent_version", ""))
+    rules = list(check.get("rules") or metric.get("rules") or [])
+    passed = False
+    score = 0.0
+    comment = "No deterministic check is configured for this metric."
+
+    if metric_id == "scope_alignment":
+        passed = all(term in response for term in ["target purpose", "scenario"])
+        score = 4.0 if passed else 2.0
+        comment = (
+            "The response names the target purpose and scenario."
+            if passed
+            else "The response does not clearly name the target purpose and scenario."
+        )
+    elif metric_id == "information_discipline":
+        passed = "missing context" in response and (
+            "source material" in response or "records" in response
+        )
+        score = 5.0 if passed else 2.0
+        comment = (
+            "The response names missing context before making assumptions."
+            if passed
+            else "The response does not clearly ask for missing source context."
+        )
+    elif metric_id == "action_quality":
+        passed = all(
+            term in response
+            for term in ["available evidence", "explicit assumption", "readiness blocker"]
+        )
+        score = 4.0 if passed else 3.0
+        comment = (
+            "The response gives safer, evidence-aware next actions."
+            if passed
+            else "The response gives generic setup actions, not evidence-aware next steps."
+        )
+
+    return {
+        "id": metric_id,
+        "score": score,
+        "passed": passed,
+        "rules": rules,
+        "method": check.get("method", metric_id),
+        "agent_version": agent_version,
+        "comment": comment,
+    }
 
 
 def draft_comparison_view(agent_key: str) -> dict[str, Any]:
@@ -711,6 +871,7 @@ def draft_artifact_cards(agent_key: str) -> list[dict[str, str]]:
         ("target", "Target", "Intent", "Review"),
         ("behavior_rules", "Rules", "Design", "Review"),
         ("eval_contract", "Eval Contract", "Design", "Review"),
+        ("eval_suite", "Eval Suite", "Evaluate", "Review"),
         ("information_requirements", "Information", "Design", "Review"),
         ("tool_requirements", "Tools", "Design", "Review blockers"),
         ("graph_design", "v0 Graph", "Build", "Review"),
@@ -737,55 +898,82 @@ def draft_artifact_cards(agent_key: str) -> list[dict[str, str]]:
     ]
 
 
-def _draft_v0_response(*, agent_target: dict[str, Any], scenario: dict[str, Any]) -> str:
-    return "\n".join(
-        [
-            f"# {agent_target['name']} v0 baseline",
-            "",
-            f"**Target purpose:** {agent_target['purpose']}",
-            "",
-            f"**Scenario:** {scenario['problem']}",
-            "",
-            "## Initial response",
-            "I can help with this, but this draft v0 has no tools or domain evidence wired yet.",
-            "Before making a recommendation, I would need the missing source material, "
-            "constraints, "
-            "and any examples of acceptable output.",
-            "",
-            "## Safe next actions",
-            "- Confirm the user, workflow, and decision this agent should support.",
-            "- Add representative scenarios and expected behavior themes.",
-            "- Review the generated rules, eval contract, information needs, and tool blockers.",
-            "- Run v1 only after the graph design and tool assumptions are explicit.",
-        ]
-    )
+def generate_draft_agent_package(agent_key: str) -> dict[str, Any]:
+    target = load_draft_target(agent_key)
+    artifacts = load_draft_artifacts(agent_key)
+    if target is None:
+        raise FileNotFoundError(f"Draft target not found for agent: {agent_key}")
 
+    workspace = draft_workspace_dir(agent_key)
+    package_dir = workspace.parent / "agent"
+    package_dir.mkdir(parents=True, exist_ok=True)
 
-def _draft_v1_response(*, agent_target: dict[str, Any], scenario: dict[str, Any]) -> str:
-    return "\n".join(
-        [
-            f"# {agent_target['name']} v1 draft",
-            "",
-            f"**Target purpose:** {agent_target['purpose']}",
-            "",
-            f"**Scenario:** {scenario['problem']}",
-            "",
-            "## What I can say now",
-            "The request is in scope for this draft agent, but the answer should remain "
-            "grounded in source material and constraints that are not fully wired yet.",
-            "",
-            "## Missing context to collect",
-            "- Source material or records the agent should inspect.",
-            "- User constraints, risk tolerance, and required output format.",
-            "- Examples of acceptable and unacceptable recommendations.",
-            "",
-            "## Safer next actions",
-            "- Gather the missing context before making final recommendations.",
-            "- Map each recommendation to a piece of available evidence or an explicit assumption.",
-            "- Keep any unsupported claim in an assumptions section.",
-            "- Treat missing production tools as a readiness blocker, not as success.",
-        ]
+    graph = (
+        artifacts.get("graph_design_v1", {}).get("graph_design")
+        or artifacts.get("graph_design", {}).get("graph_design")
+        or build_design_scaffold(target)["graph_design"]["graph_design"]
     )
+    tools = artifacts.get("tool_requirements", {}).get("tool_requirements", [])
+    manifest = {
+        "agent": {
+            "key": agent_key,
+            "name": target["agent_target"]["name"],
+            "target_id": target["agent_target"]["id"],
+            "version": graph["version"],
+            "generation_mode": "mock",
+            "tool_mode": "local_draft",
+            "graph_id": graph["id"],
+            "entrypoint": "graph.py:run",
+        }
+    }
+    (package_dir / "manifest.yaml").write_text(
+        yaml.safe_dump(manifest, sort_keys=False),
+        encoding="utf-8",
+    )
+    (package_dir / "graph-design.yaml").write_text(
+        yaml.safe_dump({"graph_design": graph}, sort_keys=False),
+        encoding="utf-8",
+    )
+    (package_dir / "tools.yaml").write_text(
+        yaml.safe_dump({"tool_requirements": tools}, sort_keys=False),
+        encoding="utf-8",
+    )
+    (package_dir / "README.md").write_text(
+        "\n".join(
+            [
+                f"# {target['agent_target']['name']}",
+                "",
+                "Local draft agent package generated by the builder.",
+                "",
+                f"- Target: `{target['agent_target']['id']}`",
+                f"- Graph: `{graph['id']}`",
+                f"- Version: `{graph['version']}`",
+                "- Runtime: `edd_agent_lab.agents.draft_agent.run_draft_agent`",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (package_dir / "graph.py").write_text(
+        "\n".join(
+            [
+                '"""Generated local draft-agent entrypoint."""',
+                "",
+                "from edd_agent_lab.agents.draft_agent import run_draft_agent",
+                "",
+                "",
+                "def run(*, agent_key, agent_version, target, scenario, graph_design):",
+                "    return run_draft_agent(",
+                "        agent_key=agent_key,",
+                "        agent_version=agent_version,",
+                "        target=target,",
+                "        scenario=scenario,",
+                "        graph_design=graph_design,",
+                "    )",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    return {"path": package_dir, "manifest": manifest, "graph": graph}
 
 
 def load_draft_target(agent_key: str) -> dict[str, Any] | None:
