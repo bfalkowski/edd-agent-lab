@@ -300,6 +300,61 @@ def create_app():
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return load_draft(workspace.agent_key)
 
+    @app.post("/api/drafts/create/stream")
+    def stream_create_draft(request: CreateDraftRequest):
+        def events():
+            yield _event(
+                step_id="target",
+                phase="starting",
+                message="Starting draft creation.",
+                retryable=True,
+            )
+            yield _event(
+                step_id="target",
+                phase="running",
+                message=_create_draft_message(request.generation_mode),
+                retryable=True,
+            )
+            for message in _live_create_progress_messages(request.generation_mode):
+                yield _event(
+                    step_id="target",
+                    phase="running",
+                    message=message,
+                    retryable=True,
+                )
+            try:
+                workspace = save_draft_target(
+                    name=request.name,
+                    description=request.description,
+                    generation_mode=request.generation_mode,
+                )
+                draft = load_draft(workspace.agent_key)
+            except Exception as exc:
+                yield _event(
+                    step_id="target",
+                    phase="failed",
+                    message=str(exc),
+                    retryable=True,
+                )
+                return
+            yield _event(
+                step_id="target",
+                phase="artifact",
+                message="Wrote agent-target.yaml.",
+                artifact_id="target",
+                file="agent-target.yaml",
+                retryable=True,
+            )
+            yield _event(
+                step_id="target",
+                phase="completed",
+                message="Draft created.",
+                retryable=False,
+                draft=draft,
+            )
+
+        return StreamingResponse(events(), media_type="application/x-ndjson")
+
     @app.get("/api/drafts/{agent_key}")
     def load_draft(agent_key: str) -> dict[str, Any]:
         try:
@@ -540,6 +595,14 @@ def create_app():
                 retry_action=action,
                 retryable=True,
             )
+            for message in _live_progress_messages(action, generation_mode):
+                yield _event(
+                    step_id=step_id,
+                    phase="running",
+                    message=message,
+                    retry_action=action,
+                    retryable=True,
+                )
             try:
                 _run_action(
                     agent_key,
@@ -674,6 +737,71 @@ def _action_message(
     except RuntimeError:
         resolved_mode = "unavailable"
     return f"{message} Generation mode: {resolved_mode}."
+
+
+def _create_draft_message(generation_mode: GenerationModeRequest | None) -> str:
+    try:
+        resolved_mode = resolve_generation_mode(generation_mode)
+    except RuntimeError:
+        resolved_mode = "unavailable"
+    return f"Creating draft target. Generation mode: {resolved_mode}."
+
+
+def _live_create_progress_messages(
+    generation_mode: GenerationModeRequest | None,
+) -> list[str]:
+    try:
+        resolved_mode = resolve_generation_mode(generation_mode)
+    except RuntimeError:
+        return []
+    if resolved_mode != "live":
+        return []
+    return [
+        "Preparing initial agent intent for the model.",
+        "Will validate and normalize the target before writing YAML.",
+        "Waiting for the live target draft.",
+    ]
+
+
+def _live_progress_messages(
+    action: str,
+    generation_mode: GenerationModeRequest | None,
+) -> list[str]:
+    if action not in {"design", "fix-plan", "v1-graph", "run-v0", "run-v1"}:
+        return []
+    try:
+        resolved_mode = resolve_generation_mode(generation_mode)
+    except RuntimeError:
+        return []
+    if resolved_mode != "live":
+        return []
+    return {
+        "design": [
+            "Preparing target context for the model.",
+            "Will validate and normalize model JSON before writing YAML.",
+            "Waiting for live design artifacts.",
+        ],
+        "fix-plan": [
+            "Preparing eval evidence for the model.",
+            "Will validate graph changes before writing YAML.",
+            "Waiting for a bounded live fix plan.",
+        ],
+        "v1-graph": [
+            "Preparing fix-plan context for the model.",
+            "Will validate graph nodes and edges before writing YAML.",
+            "Waiting for the revised live graph design.",
+        ],
+        "run-v0": [
+            "Preparing v0 draft-agent state.",
+            "Will write run evidence after the model returns.",
+            "Waiting for the live candidate response.",
+        ],
+        "run-v1": [
+            "Preparing v1 draft-agent state.",
+            "Will write run evidence after the model returns.",
+            "Waiting for the live revised response.",
+        ],
+    }[action]
 
 
 def _event(**payload: Any) -> str:

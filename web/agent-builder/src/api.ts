@@ -102,6 +102,21 @@ export async function createDraft(
   return response.json();
 }
 
+export async function streamCreateDraft(
+  name: string,
+  description: string,
+  onEvent: (event: WorkflowEvent) => void,
+  generationMode?: GenerationMode,
+): Promise<DraftDetail> {
+  const response = await fetch("/api/drafts/create/stream", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, description, generation_mode: generationMode }),
+  });
+  await assertOk(response);
+  return readWorkflowStream(response, onEvent);
+}
+
 export async function loadDraft(agentKey: string): Promise<DraftDetail> {
   const response = await fetch(`/api/drafts/${agentKey}`);
   await assertOk(response);
@@ -151,10 +166,16 @@ export async function streamDraftAction(
     method: "POST",
   });
   await assertOk(response);
+  return readWorkflowStream(response, onEvent);
+}
+
+async function readWorkflowStream(
+  response: Response,
+  onEvent: (event: WorkflowEvent) => void,
+): Promise<DraftDetail> {
   if (!response.body) {
     throw new Error("Streaming response was empty.");
   }
-
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";

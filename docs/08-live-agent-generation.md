@@ -49,6 +49,9 @@ AGENT_MODEL=gpt-4o-mini      # optional
    the final response when generation mode resolves to `live`.
 4. **Evaluation** — evals score the produced response. Hybrid/LLM judging can be
    used when live generation is active.
+5. **Progress events** — live builder create/action calls stream
+   prompt/model/validation status before the blocking provider call completes,
+   then stream written artifacts when YAML is available.
 
 The React builder passes generation mode to `Create draft`, `Generate design`,
 `Create fix plan`, `Generate v1 graph`, `Run v0`, and `Run v1`. In `auto`, those
@@ -117,6 +120,6 @@ then create a draft and use `Generate design`, `Create fix plan`,
 
 ## Next Steps
 
-1. Add token streaming for long live model calls.
+1. Add token streaming for live candidate responses.
 2. Add per-node LLM calls inside LangGraph for trace granularity.
 3. Verify platform ingest end to end with a live-generated draft.

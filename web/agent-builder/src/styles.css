@@ -498,6 +498,11 @@ kbd {
   font-size: 14px;
 }
 
+.composer-status {
+  color: #6b7280;
+  font-size: 14px;
+}
+
 .workspace {
   max-width: 1040px;
   margin: 0 auto;

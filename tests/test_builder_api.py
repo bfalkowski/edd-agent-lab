@@ -7,7 +7,11 @@ import pytest
 pytest.importorskip("fastapi")
 from fastapi.testclient import TestClient
 
-from edd_agent_lab.api.builder import create_app
+from edd_agent_lab.api.builder import (
+    _live_create_progress_messages,
+    _live_progress_messages,
+    create_app,
+)
 
 
 def test_runtime_reports_generation_config(monkeypatch) -> None:
@@ -24,6 +28,82 @@ def test_runtime_reports_generation_config(monkeypatch) -> None:
     assert generation["model"]
     assert response.json()["platform"]["configured"] is False
     assert response.json()["platform"]["auth_configured"] is False
+
+
+def test_live_progress_messages_describe_blocking_model_steps(monkeypatch) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+
+    assert _live_create_progress_messages("live") == [
+        "Preparing initial agent intent for the model.",
+        "Will validate and normalize the target before writing YAML.",
+        "Waiting for the live target draft.",
+    ]
+    messages = _live_progress_messages("design", "live")
+
+    assert messages == [
+        "Preparing target context for the model.",
+        "Will validate and normalize model JSON before writing YAML.",
+        "Waiting for live design artifacts.",
+    ]
+    assert _live_progress_messages("compare", "live") == []
+    assert _live_progress_messages("design", "mock") == []
+
+
+def test_stream_create_draft_returns_progress_events(tmp_path, monkeypatch) -> None:
+    from types import SimpleNamespace
+
+    from edd_agent_lab.ui import workspace_store
+
+    class FakeModel:
+        def invoke(self, messages):
+            assert "Expand this initial agent idea" in messages[1]["content"]
+            return SimpleNamespace(
+                content=json.dumps(
+                    {
+                        "name": "Contract Risk Review Agent",
+                        "purpose": "Review contract clauses and surface risks.",
+                        "intended_users": ["legal operations"],
+                        "primary_goals": ["identify risky clauses"],
+                        "non_goals": ["provide legal advice"],
+                        "allowed_tool_categories": ["local_files"],
+                        "risk_tolerance": "low",
+                        "expected_output_format": "risk summary",
+                        "example_scenarios": ["Review a vendor clause."],
+                    }
+                )
+            )
+
+    monkeypatch.setattr(workspace_store, "LAB_RUNS_DIR", tmp_path)
+    monkeypatch.setattr(workspace_store, "get_chat_model", lambda temperature: FakeModel())
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    client = TestClient(create_app())
+
+    streamed = client.post(
+        "/api/drafts/create/stream",
+        json={
+            "name": "Contract Review Agent",
+            "description": "Review contract clauses.",
+            "generation_mode": "live",
+        },
+    )
+    assert streamed.status_code == 200
+
+    events = [json.loads(line) for line in streamed.text.splitlines()]
+
+    assert [event["phase"] for event in events] == [
+        "starting",
+        "running",
+        "running",
+        "running",
+        "running",
+        "artifact",
+        "completed",
+    ]
+    assert events[1]["message"] == "Creating draft target. Generation mode: live."
+    assert events[4]["message"] == "Waiting for the live target draft."
+    assert events[-1]["draft"]["target"]["agent_target"]["name"] == (
+        "Contract Risk Review Agent"
+    )
 
 
 def test_stream_action_returns_progress_events(tmp_path, monkeypatch) -> None:
@@ -67,6 +147,49 @@ def test_stream_action_returns_progress_events(tmp_path, monkeypatch) -> None:
     assert events[-1]["draft"]["status"]["completed"] == 2
     assert "behavior_rules" in events[-1]["draft"]["artifact_sources"]
     assert events[-1]["draft"]["artifact_validations"]["behavior_rules"]["valid"] is True
+
+
+def test_stream_action_includes_live_progress_events(tmp_path, monkeypatch) -> None:
+    from edd_agent_lab.api import builder
+    from edd_agent_lab.ui import workspace_store
+
+    def fake_live_step(agent_key: str) -> None:
+        path = workspace_store.draft_workspace_dir(agent_key) / "behavior-rules.yaml"
+        path.write_text(
+            "behavior_rules:\n"
+            "  - id: stay_in_scope\n"
+            "    description: Stay inside the target scope.\n",
+            encoding="utf-8",
+        )
+
+    monkeypatch.setattr(workspace_store, "LAB_RUNS_DIR", tmp_path)
+    monkeypatch.setitem(builder.ACTION_HANDLERS, "design", fake_live_step)
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    client = TestClient(create_app())
+
+    created = client.post(
+        "/api/drafts",
+        json={
+            "name": "Contract Review Agent",
+            "description": "Review contract clauses and surface negotiation risks.",
+        },
+    )
+    assert created.status_code == 200
+
+    streamed = client.post(
+        "/api/drafts/contract-review-agent/actions/design/stream?generation_mode=live"
+    )
+    assert streamed.status_code == 200
+
+    messages = [json.loads(line)["message"] for line in streamed.text.splitlines()]
+
+    assert messages[:5] == [
+        "Starting design.",
+        "Generating design artifacts. Generation mode: live.",
+        "Preparing target context for the model.",
+        "Will validate and normalize model JSON before writing YAML.",
+        "Waiting for live design artifacts.",
+    ]
 
 
 def test_stream_action_returns_retryable_failure(tmp_path, monkeypatch) -> None:

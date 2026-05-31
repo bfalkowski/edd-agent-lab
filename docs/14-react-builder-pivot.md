@@ -72,6 +72,7 @@ Each workflow step owns:
 - `GET /health`
 - `GET /api/drafts`
 - `POST /api/drafts`
+- `POST /api/drafts/create/stream`
 - `GET /api/drafts/{agent_key}`
 - `DELETE /api/drafts/{agent_key}`
 - `POST /api/drafts/{agent_key}/design`

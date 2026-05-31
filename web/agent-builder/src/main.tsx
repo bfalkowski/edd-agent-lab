@@ -19,7 +19,6 @@ import { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   archiveDraft,
-  createDraft,
   deleteDraft,
   BehaviorRule,
   DraftDetail,
@@ -43,6 +42,7 @@ import {
   saveScenario,
   saveTarget,
   saveToolRequirements,
+  streamCreateDraft,
   TargetUpdate,
   ToolRequirement,
   streamDraftAction,
@@ -322,6 +322,7 @@ function App() {
     return stored === "mock" || stored === "live" || stored === "auto" ? stored : "auto";
   });
   const [activityByStep, setActivityByStep] = useState<Record<string, string[]>>({});
+  const [composerActivity, setComposerActivity] = useState("");
   const [lastCurrentStep, setLastCurrentStep] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isCreating, setIsCreating] = useState(true);
@@ -360,16 +361,24 @@ function App() {
     }
     setIsLoading(true);
     setError("");
+    setComposerActivity("");
     try {
-      const draft = await createDraft(name.trim(), description.trim(), generationMode);
+      const draft = await streamCreateDraft(
+        name.trim(),
+        description.trim(),
+        (event) => setComposerActivity(event.message),
+        generationMode,
+      );
       setActiveDraft(draft);
       closeReviewPanel();
       setIsCreating(false);
       setName("");
       setDescription("");
+      setComposerActivity("");
       setDrafts(await listDrafts());
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not create draft.");
+      setComposerActivity("");
     } finally {
       setIsLoading(false);
     }
@@ -1049,7 +1058,13 @@ function App() {
                 placeholder="Describe the agent purpose, users, constraints, and safe behavior."
               />
               <div className="composer-actions">
-                {error ? <span className="error">{error}</span> : <span />}
+                {error ? (
+                  <span className="error">{error}</span>
+                ) : composerActivity ? (
+                  <span className="composer-status">{composerActivity}</span>
+                ) : (
+                  <span />
+                )}
                 <button onClick={handleCreateDraft} disabled={isLoading}>
                   Create draft
                 </button>
