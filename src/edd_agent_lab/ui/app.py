@@ -333,10 +333,37 @@ def _render_design_step(
     import streamlit as st
     import yaml
 
-    st.markdown("## Design Artifacts")
+    design_keys = [
+        "behavior_rules",
+        "eval_contract",
+        "information_requirements",
+        "tool_requirements",
+        "graph_design",
+    ]
+    ready_count = sum(1 for key in design_keys if key in artifacts)
+    design_ready = ready_count == len(design_keys)
+    _render_step_panel(
+        title="Design artifacts",
+        body=(
+            "Generate the first pass rules, eval contract, information needs, "
+            "tool blockers, and graph design from the target."
+        ),
+        state="complete" if design_ready else "ready",
+        state_label="Complete" if design_ready else "Ready",
+    )
+
+    design_cards = [
+        card for card in draft_artifact_cards(agent_key) if card["id"] in design_keys
+    ]
+    _render_artifact_cards(design_cards, title="Design Review")
+
     ready_count = len(artifacts) - (0 if "target" not in artifacts else 1)
     col_scaffold, col_status = st.columns([1, 2])
-    if col_scaffold.button("Scaffold design artifacts", type="primary"):
+    if col_scaffold.button(
+        "Scaffold design artifacts",
+        type="primary",
+        disabled=design_ready,
+    ):
         save_design_scaffold(agent_key)
         st.rerun()
     col_status.caption(f"{max(ready_count, 0)} downstream artifacts ready.")
@@ -369,7 +396,26 @@ def _render_run_step(
 ) -> None:
     import streamlit as st
 
-    st.markdown("## First Local Run")
+    graph_ready = "graph_design" in artifacts
+    run = load_draft_artifacts(agent_key).get("v0_run", {}).get("run")
+    if not graph_ready:
+        _render_step_panel(
+            title="First local run",
+            body="Scaffold design artifacts before running the deterministic v0 baseline.",
+            state="blocked",
+            state_label="Blocked",
+        )
+        return
+
+    _render_step_panel(
+        title="First local run",
+        body=(
+            "Save a first scenario and run the local mock baseline. This creates "
+            "the v0 run artifact without calling live model providers."
+        ),
+        state="complete" if run else "ready",
+        state_label="Complete" if run else "Ready",
+    )
     scenario = artifacts.get("scenario", {}).get("scenario", {})
     default_problem = str(
         scenario.get("problem")
@@ -387,10 +433,9 @@ def _render_run_step(
             run_draft_v0(agent_key)
             st.rerun()
 
-    run = load_draft_artifacts(agent_key).get("v0_run", {}).get("run")
     if run:
         st.caption(str(target_path.parent / DRAFT_ARTIFACT_FILES["v0_run"]))
-        st.markdown(run["final_response"])
+        _render_run_response(run["final_response"])
         st.caption(
             f"Run `{run['id']}` · mode `{run['generation_mode']}` · "
             f"tool mode `{run['tool_mode']}`"
@@ -516,6 +561,49 @@ def _render_publish_step() -> None:
     )
 
 
+def _render_step_panel(
+    *,
+    title: str,
+    body: str,
+    state: str,
+    state_label: str,
+) -> None:
+    import streamlit as st
+
+    pill_status = {
+        "complete": "green",
+        "ready": "blue",
+        "blocked": "yellow",
+        "failed": "red",
+    }.get(state, "blue")
+    st.markdown(
+        f"""
+        <div class="edd-step-panel edd-step-panel-{html.escape(state)}">
+          <div>
+            <div class="edd-step-panel-title">{html.escape(title)}</div>
+            <div class="edd-step-panel-body">{html.escape(body)}</div>
+          </div>
+          <div>{status_pill(state_label.upper(), pill_status)}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def _render_run_response(response: str) -> None:
+    import streamlit as st
+
+    response_html = html.escape(response).replace("\n", "<br/>")
+    st.markdown(
+        f"""
+        <div class="edd-run-response">
+          {response_html}
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def _render_draft_version_panel(label: str, panel: dict[str, object]) -> None:
     import streamlit as st
 
@@ -571,10 +659,10 @@ def _render_target_editor(agent_key: str, agent_target: dict[str, object]) -> No
                 st.rerun()
 
 
-def _render_artifact_cards(cards: list[dict[str, str]]) -> None:
+def _render_artifact_cards(cards: list[dict[str, str]], title: str = "Artifact Review") -> None:
     import streamlit as st
 
-    st.markdown("## Artifact Review")
+    st.markdown(f"## {title}")
     for start in range(0, len(cards), 3):
         columns = st.columns(3)
         for column, card in zip(columns, cards[start : start + 3], strict=False):
