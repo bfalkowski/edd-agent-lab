@@ -1001,3 +1001,102 @@ div[data-testid="stChatMessage"] {
   background: #f7f7f8;
   border-color: #ececec;
 }
+
+/* ---------- Final light-theme cleanup for Streamlit chrome/widgets ---------- */
+[data-testid="stHeader"],
+[data-testid="stToolbar"],
+[data-testid="stDecoration"],
+header {
+  background: #ffffff !important;
+  color: #0d0d0d !important;
+}
+
+[data-testid="stHeader"]::before,
+[data-testid="stHeader"]::after {
+  background: #ffffff !important;
+}
+
+[data-testid="stToolbar"] button,
+[data-testid="stToolbar"] svg,
+header button,
+header svg {
+  color: #0d0d0d !important;
+  fill: #0d0d0d !important;
+}
+
+.stSelectbox,
+.stSelectbox * {
+  color: #0d0d0d !important;
+}
+
+.stSelectbox div[data-baseweb="select"],
+.stSelectbox div[data-baseweb="select"] > div,
+.stSelectbox [data-baseweb="select"] div,
+.stSelectbox [role="combobox"] {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  border-color: #d1d5db !important;
+  color: #0d0d0d !important;
+}
+
+.stSelectbox svg {
+  color: #6b7280 !important;
+  fill: #6b7280 !important;
+}
+
+[data-testid="stSegmentedControl"],
+[data-testid="stSegmentedControl"] * {
+  color: #0d0d0d !important;
+}
+
+[data-testid="stSegmentedControl"] button {
+  background: #ffffff !important;
+  border: 1px solid #e5e7eb !important;
+  color: #374151 !important;
+  box-shadow: none !important;
+}
+
+[data-testid="stSegmentedControl"] button[aria-pressed="true"],
+[data-testid="stSegmentedControl"] button[aria-checked="true"],
+[data-testid="stSegmentedControl"] button[kind="primary"] {
+  background: #f7f7f8 !important;
+  border-color: #0d0d0d !important;
+  color: #0d0d0d !important;
+}
+
+[data-testid="stButtonGroup"] [data-baseweb="button-group"] button,
+[data-testid="stBaseButton-segmented_control"] {
+  background: #ffffff !important;
+  border: 1px solid #e5e7eb !important;
+  color: #374151 !important;
+  box-shadow: none !important;
+}
+
+[data-testid="stButtonGroup"] [data-baseweb="button-group"] button p,
+[data-testid="stBaseButton-segmented_control"] p {
+  color: #374151 !important;
+}
+
+[data-testid="stButtonGroup"] [data-baseweb="button-group"] button[kind="segmented_controlActive"],
+[data-testid="stBaseButton-segmented_controlActive"] {
+  background: #f7f7f8 !important;
+  border: 1px solid #0d0d0d !important;
+  color: #0d0d0d !important;
+}
+
+[data-testid="stButtonGroup"] [data-baseweb="button-group"] button[kind="segmented_controlActive"] p,
+[data-testid="stBaseButton-segmented_controlActive"] p {
+  color: #0d0d0d !important;
+}
+
+[data-testid="stExpander"] summary,
+[data-testid="stExpander"] summary *,
+[data-testid="stExpander"] details,
+[data-testid="stExpander"] details * {
+  color: #374151 !important;
+}
+
+[data-testid="stProgress"] > div > div,
+[role="progressbar"] > div {
+  background-color: #10a37f !important;
+}
