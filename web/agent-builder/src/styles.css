@@ -314,6 +314,18 @@ kbd {
   padding: 0 8px 0 5px;
 }
 
+.platform-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  border: 1px solid #ececf1;
+  border-radius: 999px;
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 0 10px;
+}
+
 .topbar-button,
 .topbar-icon-button,
 .sidebar-toggle {

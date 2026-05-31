@@ -88,7 +88,7 @@ const stepOutputs: Record<string, string[]> = {
     "tool_requirements",
     "graph_design",
   ],
-  scenario: ["scenario"],
+  scenario: ["scenario", "scenario_variants"],
   v0_run: ["v0_run"],
   eval_summary: ["eval_summary", "failure_packet"],
   fix_plan: ["fix_plan"],
@@ -802,6 +802,11 @@ function App() {
           ? `Live: ${runtimeConfig.generation.model}`
           : "Live unavailable"
         : "Mock: deterministic";
+  const platformStatus = runtimeConfig?.platform.configured
+    ? runtimeConfig.platform.auth_configured
+      ? "Platform: HTTP + auth"
+      : "Platform: HTTP"
+    : "Platform: local";
 
   useEffect(() => {
     const currentStepId = activeStep?.id ?? "";
@@ -964,6 +969,9 @@ function App() {
               ))}
               <span>{generationStatus}</span>
             </div>
+            <span className="platform-status" title={runtimeConfig?.platform.publish_endpoint ?? ""}>
+              {platformStatus}
+            </span>
             {!shouldShowComposer && !showReviewPanel ? (
               <button
                 className="topbar-button"
@@ -1069,6 +1077,15 @@ function App() {
                       }
                     ).run?.generation_mode
                   : undefined;
+              const publishRetryable =
+                step.id === "publish_result" &&
+                Boolean(
+                  (
+                    activeDraft.artifacts.publish_result as
+                      | { publish_result?: { delivery?: { retryable?: boolean } } }
+                      | undefined
+                  )?.publish_result?.delivery?.retryable,
+                );
 
               return (
                 <section
@@ -1113,6 +1130,17 @@ function App() {
                     >
                       {Icon ? <Icon size={17} /> : null}
                       {actionLabelById[action]}
+                    </button>
+                  ) : null}
+
+                  {publishRetryable ? (
+                    <button
+                      className="step-action"
+                      onClick={() => void handleAction("publish")}
+                      disabled={isLoading}
+                    >
+                      <ArrowRight size={17} />
+                      Retry publish
                     </button>
                   ) : null}
 

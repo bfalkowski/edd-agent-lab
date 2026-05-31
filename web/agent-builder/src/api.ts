@@ -65,6 +65,14 @@ export type RuntimeConfig = {
     live_available: boolean;
     model: string;
   };
+  platform: {
+    client_mode: string;
+    api_base_url: string | null;
+    configured: boolean;
+    auth_configured: boolean;
+    tenant_configured: boolean;
+    publish_endpoint: string | null;
+  };
 };
 
 export async function loadRuntimeConfig(): Promise<RuntimeConfig> {

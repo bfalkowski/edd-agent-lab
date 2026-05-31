@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
@@ -243,13 +244,26 @@ def create_app():
 
     @app.get("/api/runtime")
     def runtime() -> dict[str, Any]:
+        api_base_url = os.environ.get("EDD_API_BASE_URL", "").strip()
         return {
             "generation": {
                 "default_mode": "auto",
                 "resolved_mode": resolve_generation_mode("auto"),
                 "live_available": live_generation_available(),
                 "model": agent_model_name(),
-            }
+            },
+            "platform": {
+                "client_mode": os.environ.get("EDD_CLIENT_MODE", "auto"),
+                "api_base_url": api_base_url or None,
+                "configured": bool(api_base_url),
+                "auth_configured": bool(os.environ.get("EDD_API_KEY")),
+                "tenant_configured": bool(os.environ.get("EDD_TENANT_ID")),
+                "publish_endpoint": (
+                    f"{api_base_url.rstrip('/')}/v1/integrations/runs/publish"
+                    if api_base_url
+                    else None
+                ),
+            },
         }
 
     @app.get("/api/drafts")

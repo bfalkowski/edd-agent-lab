@@ -9,6 +9,7 @@ from edd_agent_lab.ui.workspace_store import (
     archive_draft_workspace,
     build_design_scaffold,
     build_draft_scenario,
+    build_draft_scenario_variants,
     build_target_from_description,
     compare_draft_versions,
     draft_artifact_cards,
@@ -336,6 +337,27 @@ def test_build_draft_scenario() -> None:
     assert "Ask for missing information" in payload["expected_themes"]
 
 
+def test_build_draft_scenario_variants() -> None:
+    scenario = build_draft_scenario(
+        agent_key="contract-review-agent",
+        problem="Review risky clauses.",
+    )
+
+    variants = build_draft_scenario_variants(
+        agent_key="contract-review-agent",
+        scenario=scenario,
+    )
+
+    payload = variants["scenario_variants"]
+    assert [variant["mutation_type"] for variant in payload] == [
+        "missing_context",
+        "risk_shift",
+        "action_specificity",
+    ]
+    assert payload[0]["base_scenario_id"] == "contract-review-agent-scenario-001"
+    assert "Review risky clauses." in payload[0]["problem"]
+
+
 def test_run_draft_v0_writes_local_run_artifacts(tmp_path, monkeypatch) -> None:
     from edd_agent_lab.ui import workspace_store
 
@@ -351,6 +373,7 @@ def test_run_draft_v0_writes_local_run_artifacts(tmp_path, monkeypatch) -> None:
     )
     run = run_draft_v0("contract-review-agent")
     artifacts = load_draft_artifacts("contract-review-agent")
+    validations = load_draft_artifact_validations("contract-review-agent")
 
     assert run["run"]["agent_version"] == "v0-baseline"
     assert run["run"]["generation_mode"] == "mock"
@@ -359,6 +382,10 @@ def test_run_draft_v0_writes_local_run_artifacts(tmp_path, monkeypatch) -> None:
         "understand_request: scoped to Help legal teams review risky clauses.",
         "draft_response",
     ]
+    assert artifacts["scenario_variants"]["scenario_variants"][0]["mutation_type"] == (
+        "missing_context"
+    )
+    assert validations["scenario_variants"]["valid"] is True
     assert "no tools or domain evidence wired yet" in run["run"]["final_response"]
     assert artifacts["v0_run"]["run"]["scenario_id"] == "contract-review-agent-scenario-001"
     assert (tmp_path / "contract_review_agent" / "draft" / "run-record.json").is_file()
@@ -608,6 +635,9 @@ def test_publish_draft_evidence_writes_publish_result(tmp_path, monkeypatch) -> 
     assert publish_result["publish_envelope"]["target"]["id"] == (
         "contract-review-agent-target-v1"
     )
+    assert publish_result["delivery"]["mode"] == "queued"
+    assert publish_result["delivery"]["retryable"] is True
+    assert publish_result["delivery"]["retry_action"] == "publish"
     assert artifacts["publish_result"]["publish_result"]["queue_path"].endswith(".json")
     assert (tmp_path / "contract_review_agent" / "draft" / "publish-result.yaml").is_file()
 
@@ -666,6 +696,44 @@ def test_draft_comparison_view_summarizes_versions_and_verdict(tmp_path, monkeyp
     assert view["verdict"]["remaining_blocker"] == (
         "Draft tools are local placeholders, not production connectors."
     )
+
+
+def test_compare_draft_versions_includes_variant_regression_results(
+    tmp_path, monkeypatch
+) -> None:
+    from edd_agent_lab.ui import workspace_store
+
+    monkeypatch.setattr(workspace_store, "LAB_RUNS_DIR", tmp_path)
+
+    save_draft_target(
+        name="Contract Review Agent",
+        description="Help legal teams review risky clauses.",
+    )
+    save_design_scaffold("contract-review-agent")
+    save_draft_scenario(
+        agent_key="contract-review-agent",
+        problem="Review this contract for risky payment terms.",
+    )
+    run_draft_v0("contract-review-agent")
+    evaluate_draft_v0("contract-review-agent")
+    generate_draft_fix_plan("contract-review-agent")
+    generate_draft_v1_graph("contract-review-agent")
+    run_draft_v1("contract-review-agent")
+    evaluate_draft_v1("contract-review-agent")
+
+    comparison = compare_draft_versions("contract-review-agent")["comparison"]
+
+    assert comparison["scenario_set"]["base_scenario_id"] == (
+        "contract-review-agent-scenario-001"
+    )
+    assert comparison["scenario_set"]["variant_scenario_ids"] == [
+        "contract-review-agent-scenario-001-missing-context",
+        "contract-review-agent-scenario-001-higher-risk",
+        "contract-review-agent-scenario-001-action-specificity",
+    ]
+    assert len(comparison["variant_results"]) == 3
+    assert comparison["variant_results"][0]["candidate_passed"] is True
+    assert comparison["regression_warnings"] == []
 
 
 def test_draft_workflow_status_reports_next_action(tmp_path, monkeypatch) -> None:

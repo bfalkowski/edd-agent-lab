@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import shutil
 from dataclasses import dataclass
@@ -38,6 +39,7 @@ DRAFT_ARTIFACT_FILES = {
     "tool_requirements": "tool-requirements.yaml",
     "graph_design": "graph-design.yaml",
     "scenario": "scenario.yaml",
+    "scenario_variants": "scenario-variants.yaml",
     "v0_run": "v0-run.yaml",
     "eval_summary": "eval-summary.yaml",
     "failure_packet": "failure-packet.yaml",
@@ -58,6 +60,7 @@ DRAFT_ARTIFACT_ROOTS = {
     "tool_requirements": "tool_requirements",
     "graph_design": "graph_design",
     "scenario": "scenario",
+    "scenario_variants": "scenario_variants",
     "v0_run": "run",
     "eval_summary": "eval_summary",
     "failure_packet": "failure_packet",
@@ -602,13 +605,73 @@ def build_draft_scenario(*, agent_key: str, problem: str) -> dict[str, Any]:
     }
 
 
+def build_draft_scenario_variants(
+    *, agent_key: str, scenario: dict[str, Any]
+) -> dict[str, Any]:
+    scenario_data = scenario["scenario"]
+    base_problem = str(scenario_data["problem"]).strip()
+    base_id = str(scenario_data["id"])
+    return {
+        "scenario_variants": [
+            {
+                "id": f"{base_id}-missing-context",
+                "base_scenario_id": base_id,
+                "mutation_type": "missing_context",
+                "problem": (
+                    f"{base_problem}\n\nVariant: key source material is unavailable; "
+                    "the agent must ask for the missing input before recommending action."
+                ),
+                "expected_themes": [
+                    "Ask for missing information",
+                    "Avoid unsupported claims",
+                ],
+                "status": "draft",
+            },
+            {
+                "id": f"{base_id}-higher-risk",
+                "base_scenario_id": base_id,
+                "mutation_type": "risk_shift",
+                "problem": (
+                    f"{base_problem}\n\nVariant: the decision has higher user impact; "
+                    "the agent must name review or escalation boundaries."
+                ),
+                "expected_themes": [
+                    "Stay within the target scope",
+                    "Name review boundaries",
+                ],
+                "status": "draft",
+            },
+            {
+                "id": f"{base_id}-action-specificity",
+                "base_scenario_id": base_id,
+                "mutation_type": "action_specificity",
+                "problem": (
+                    f"{base_problem}\n\nVariant: generic setup advice is not enough; "
+                    "the agent must recommend scenario-specific next actions."
+                ),
+                "expected_themes": [
+                    "Recommend safe next actions",
+                    "Ground actions in available evidence",
+                ],
+                "status": "draft",
+            },
+        ]
+    }
+
+
 def save_draft_scenario(*, agent_key: str, problem: str) -> Path:
     target = load_draft_target(agent_key)
     if target is None:
         raise FileNotFoundError(f"Draft target not found for agent: {agent_key}")
     scenario = build_draft_scenario(agent_key=agent_key, problem=problem)
-    path = draft_workspace_dir(agent_key) / DRAFT_ARTIFACT_FILES["scenario"]
+    variants = build_draft_scenario_variants(agent_key=agent_key, scenario=scenario)
+    workspace = draft_workspace_dir(agent_key)
+    path = workspace / DRAFT_ARTIFACT_FILES["scenario"]
     path.write_text(yaml.safe_dump(scenario, sort_keys=False), encoding="utf-8")
+    (workspace / DRAFT_ARTIFACT_FILES["scenario_variants"]).write_text(
+        yaml.safe_dump(variants, sort_keys=False),
+        encoding="utf-8",
+    )
     return path
 
 
@@ -900,12 +963,23 @@ def compare_draft_versions(agent_key: str) -> dict[str, Any]:
     v0_eval = artifacts.get("eval_summary", {}).get("eval_summary")
     v1_eval = artifacts.get("eval_summary_v1", {}).get("eval_summary")
     fix_plan = artifacts.get("fix_plan", {}).get("fix_plan")
+    scenario = artifacts.get("scenario", {}).get("scenario")
+    scenario_variants = artifacts.get("scenario_variants", {}).get("scenario_variants", [])
     if v0_eval is None:
         raise FileNotFoundError(f"Draft v0 eval not found for agent: {agent_key}")
     if v1_eval is None:
         raise FileNotFoundError(f"Draft v1 eval not found for agent: {agent_key}")
 
     delta = round(float(v1_eval["overall_score"]) - float(v0_eval["overall_score"]), 3)
+    variant_results = _compare_scenario_variants(
+        candidate_eval=v1_eval,
+        scenario_variants=scenario_variants,
+    )
+    regression_warnings = [
+        f"{result['scenario_id']} did not pass candidate eval checks."
+        for result in variant_results
+        if not result["candidate_passed"]
+    ]
     comparison = {
         "comparison": {
             "id": f"{agent_key}-v0-v1-comparison",
@@ -920,6 +994,14 @@ def compare_draft_versions(agent_key: str) -> dict[str, Any]:
                 if fix_plan and fix_plan.get("source_failure_packet_id")
                 else []
             ),
+            "scenario_set": {
+                "base_scenario_id": scenario["id"] if scenario else None,
+                "variant_scenario_ids": [
+                    variant["id"] for variant in scenario_variants if variant.get("id")
+                ],
+            },
+            "variant_results": variant_results,
+            "regression_warnings": regression_warnings,
             "decision": "candidate_improved" if delta > 0 else "needs_more_work",
             "summary": (
                 "v1 improves the local draft by adding explicit context collection "
@@ -932,6 +1014,31 @@ def compare_draft_versions(agent_key: str) -> dict[str, Any]:
     path = draft_workspace_dir(agent_key) / DRAFT_ARTIFACT_FILES["comparison"]
     path.write_text(yaml.safe_dump(comparison, sort_keys=False), encoding="utf-8")
     return comparison
+
+
+def _compare_scenario_variants(
+    *,
+    candidate_eval: dict[str, Any],
+    scenario_variants: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    return [
+        {
+            "scenario_id": str(variant["id"]),
+            "mutation_type": str(variant.get("mutation_type") or "variant"),
+            "candidate_score": candidate_eval["overall_score"],
+            "candidate_passed": bool(candidate_eval["passed"]),
+            "checks": [
+                {
+                    "id": check["id"],
+                    "passed": bool(check["passed"]),
+                    "score": check["score"],
+                }
+                for check in candidate_eval.get("checks", [])
+            ],
+        }
+        for variant in scenario_variants
+        if variant.get("id")
+    ]
 
 
 def publish_draft_evidence(
@@ -994,14 +1101,31 @@ def publish_draft_evidence(
     }
     publisher = client or get_edd_client()
     result = publisher.publish_run_record(run_record)
+    platform_run_id = result.get("platform_run_id")
+    queue_path = result.get("queue_path")
+    status = str(result.get("status", "unknown"))
+    api_base_url = os.environ.get("EDD_API_BASE_URL", "").strip().rstrip("/")
+    platform_record_url = (
+        f"{api_base_url}/v1/experiment-runs/{platform_run_id}/summary"
+        if api_base_url and platform_run_id
+        else None
+    )
     publish_result = {
         "publish_result": {
             "id": f"{agent_key}-publish-result",
             "agent": agent_key,
             "run_id": run_record["run_id"],
-            "status": result.get("status", "unknown"),
-            "platform_run_id": result.get("platform_run_id"),
-            "queue_path": result.get("queue_path"),
+            "status": status,
+            "platform_run_id": platform_run_id,
+            "platform_record_url": platform_record_url,
+            "queue_path": queue_path,
+            "delivery": {
+                "mode": _publish_delivery_mode(status=status, queue_path=queue_path),
+                "retryable": bool(queue_path) or status.startswith("queued"),
+                "retry_action": "publish",
+                "api_base_url": api_base_url or None,
+                "error": result.get("error"),
+            },
             "gate_status": result.get("gate_status"),
             "gate_explanation": result.get("gate_explanation"),
             "schema_version": result.get("schema_version"),
@@ -1011,6 +1135,16 @@ def publish_draft_evidence(
     path = workspace / DRAFT_ARTIFACT_FILES["publish_result"]
     path.write_text(yaml.safe_dump(publish_result, sort_keys=False), encoding="utf-8")
     return publish_result
+
+
+def _publish_delivery_mode(*, status: str, queue_path: Any) -> str:
+    if status == "published_http":
+        return "platform"
+    if status == "published_local":
+        return "local"
+    if queue_path or status.startswith("queued"):
+        return "queued"
+    return "unknown"
 
 
 def _evaluate_draft_run(
@@ -1324,6 +1458,7 @@ def draft_artifact_cards(agent_key: str) -> list[dict[str, str]]:
         ("tool_requirements", "Tools", "Design", "Review blockers"),
         ("graph_design", "v0 Graph", "Build", "Review"),
         ("scenario", "Scenario", "Run", "Edit"),
+        ("scenario_variants", "Scenario Variants", "Run", "Review"),
         ("v0_run", "v0 Run", "Run", "Inspect"),
         ("eval_summary", "v0 Eval", "Evaluate", "Inspect"),
         ("failure_packet", "Failure Packet", "Diagnose", "Review"),
@@ -1475,13 +1610,19 @@ def validate_draft_artifact(*, artifact_key: str, data: dict[str, Any]) -> dict[
         errors.append(f"Missing top-level `{root_key}` mapping.")
         return {"valid": False, "errors": errors}
 
-    if artifact_key in {"behavior_rules", "information_requirements", "tool_requirements"}:
+    if artifact_key in {
+        "behavior_rules",
+        "information_requirements",
+        "scenario_variants",
+        "tool_requirements",
+    }:
         if not isinstance(root, list) or not root:
             errors.append(f"`{root_key}` must be a non-empty list.")
             return {"valid": False, "errors": errors}
         required = {
             "behavior_rules": ("id", "description"),
             "information_requirements": ("id", "description"),
+            "scenario_variants": ("id", "problem"),
             "tool_requirements": ("id", "suggested_tool_name"),
         }[artifact_key]
         _validate_list_items(root_key=root_key, items=root, required=required, errors=errors)

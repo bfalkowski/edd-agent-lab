@@ -72,8 +72,8 @@ Make the local builder support the complete draft-agent loop:
 - [x] Add deterministic structure and keyword checks from generated rules.
 - [x] Add optional LLM judge path.
 - [x] Add failure packet generation per failed rule.
-- [ ] Add overfitting or variant scenario generation.
-- [ ] Add regression comparison across multiple scenarios.
+- [x] Add overfitting or variant scenario generation.
+- [x] Add regression comparison across multiple scenarios.
 - [x] Show rule-level pass/fail, not only an aggregate score.
 
 ## Phase 6: Platform Publish Loop
@@ -81,10 +81,10 @@ Make the local builder support the complete draft-agent loop:
 - [x] Publish draft run records through the existing publish integration.
 - [x] Include target, rule, eval, graph, and comparison identifiers in the publish envelope.
 - [x] Show publish result and platform run ID in the builder.
-- [ ] Link to relevant platform records.
-- [ ] Handle queued/offline publish clearly.
-- [ ] Add retry publish for queued runs.
-- [ ] Add platform health and auth diagnostics in the UI.
+- [x] Link to relevant platform records.
+- [x] Handle queued/offline publish clearly.
+- [x] Add retry publish for queued runs.
+- [x] Add platform health and auth diagnostics in the UI.
 
 ## Phase 7: Product Hardening
 

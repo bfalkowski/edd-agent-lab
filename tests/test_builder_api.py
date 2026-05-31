@@ -22,6 +22,8 @@ def test_runtime_reports_generation_config(monkeypatch) -> None:
     assert generation["resolved_mode"] == "mock"
     assert generation["live_available"] is False
     assert generation["model"]
+    assert response.json()["platform"]["configured"] is False
+    assert response.json()["platform"]["auth_configured"] is False
 
 
 def test_stream_action_returns_progress_events(tmp_path, monkeypatch) -> None:
@@ -173,6 +175,36 @@ def test_archive_draft_hides_project(tmp_path, monkeypatch) -> None:
     assert archived.status_code == 200
     assert archived.json()["drafts"] == []
     assert workspace_store.draft_workspace_dir("contract-review-agent").is_dir()
+
+
+def test_save_scenario_returns_generated_variants(tmp_path, monkeypatch) -> None:
+    from edd_agent_lab.ui import workspace_store
+
+    monkeypatch.setattr(workspace_store, "LAB_RUNS_DIR", tmp_path)
+    client = TestClient(create_app())
+
+    created = client.post(
+        "/api/drafts",
+        json={
+            "name": "Contract Review Agent",
+            "description": "Review contract clauses.",
+        },
+    )
+    assert created.status_code == 200
+
+    updated = client.post(
+        "/api/drafts/contract-review-agent/scenario",
+        json={"problem": "Review risky payment terms."},
+    )
+
+    assert updated.status_code == 200
+    artifacts = updated.json()["artifacts"]
+    assert artifacts["scenario"]["scenario"]["problem"] == "Review risky payment terms."
+    assert artifacts["scenario_variants"]["scenario_variants"][0]["mutation_type"] == (
+        "missing_context"
+    )
+    cards = {card["id"]: card for card in updated.json()["artifact_cards"]}
+    assert cards["scenario_variants"]["status"] == "ready"
 
 
 def test_update_rules_returns_refreshed_draft(tmp_path, monkeypatch) -> None:
@@ -469,3 +501,6 @@ def test_stream_publish_action_returns_publish_result(tmp_path, monkeypatch) -> 
     assert events[-1]["draft"]["artifacts"]["publish_result"]["publish_result"]["status"] == (
         "published_local"
     )
+    assert events[-1]["draft"]["artifacts"]["publish_result"]["publish_result"]["delivery"][
+        "mode"
+    ] == "local"
