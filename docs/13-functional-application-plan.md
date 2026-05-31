@@ -37,6 +37,7 @@ Make the local builder support the complete draft-agent loop:
 - [x] Save edited artifact YAML.
 - [x] Keep activity status local to the step that produced it.
 - [x] Add structured editor for the target artifact.
+- [x] Add structured editor for behavior rules.
 - [ ] Add structured editors for target, rules, eval contract, requirements, and graph.
 - [x] Add YAML/schema validation errors in the review drawer.
 - [x] Add artifact diff view before saving edits.

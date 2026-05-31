@@ -18,6 +18,7 @@ import {
   createDraft,
   deleteDraft,
   deleteArtifact,
+  BehaviorRule,
   DraftDetail,
   DraftSummary,
   GenerationMode,
@@ -26,6 +27,7 @@ import {
   loadDraft,
   RuntimeConfig,
   saveArtifactSource,
+  saveBehaviorRules,
   saveScenario,
   saveTarget,
   TargetUpdate,
@@ -108,6 +110,19 @@ function targetUpdateFromDraft(draft: DraftDetail): TargetUpdate {
   };
 }
 
+function behaviorRulesFromDraft(draft: DraftDetail): BehaviorRule[] {
+  const artifact = draft.artifacts.behavior_rules as
+    | { behavior_rules?: BehaviorRule[] }
+    | undefined;
+  return (artifact?.behavior_rules ?? []).map((rule) => ({
+    id: rule.id ?? "",
+    severity: rule.severity ?? "medium",
+    description: rule.description ?? "",
+    target_id: rule.target_id ?? draft.target.agent_target.id,
+    status: rule.status ?? "draft",
+  }));
+}
+
 type DiffLine = {
   key: string;
   prefix: string;
@@ -167,6 +182,7 @@ function App() {
     risk_tolerance: "",
     expected_output_format: "",
   });
+  const [rulesDraft, setRulesDraft] = useState<BehaviorRule[]>([]);
   const [reviewMode, setReviewMode] = useState<"edit" | "diff">("edit");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isReviewPanelOpen, setIsReviewPanelOpen] = useState(false);
@@ -316,6 +332,10 @@ function App() {
       await handleSaveTarget();
       return;
     }
+    if (selectedArtifact === "behavior_rules") {
+      await handleSaveRules();
+      return;
+    }
     setIsLoading(true);
     setError("");
     appendStepActivity(artifactStepId(selectedArtifact), `Saving ${selectedArtifact}.`);
@@ -333,6 +353,27 @@ function App() {
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not save artifact.");
       appendStepActivity(artifactStepId(selectedArtifact), `Save failed for ${selectedArtifact}.`);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleSaveRules() {
+    if (!activeDraft) return;
+    setIsLoading(true);
+    setError("");
+    appendStepActivity("behavior_rules", "Saving behavior rules.");
+    try {
+      const draft = await saveBehaviorRules(activeDraft.agent_key, rulesDraft);
+      setActiveDraft(draft);
+      setArtifactDraft(draft.artifact_sources.behavior_rules ?? "");
+      setRulesDraft(behaviorRulesFromDraft(draft));
+      setReviewMode("edit");
+      setDrafts(await listDrafts());
+      appendStepActivity("behavior_rules", "Saved behavior rules.");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not save behavior rules.");
+      appendStepActivity("behavior_rules", "Behavior rule save failed.");
     } finally {
       setIsLoading(false);
     }
@@ -385,6 +426,9 @@ function App() {
     if (artifactKey === "target") {
       setTargetDraft(targetUpdateFromDraft(activeDraft));
     }
+    if (artifactKey === "behavior_rules") {
+      setRulesDraft(behaviorRulesFromDraft(activeDraft));
+    }
     setReviewMode("edit");
     setIsReviewPanelOpen(true);
   }
@@ -423,7 +467,16 @@ function App() {
       targetDraft.purpose !== savedTargetDraft.purpose ||
       targetDraft.risk_tolerance !== savedTargetDraft.risk_tolerance ||
       targetDraft.expected_output_format !== savedTargetDraft.expected_output_format);
-  const hasReviewChanges = selectedArtifact === "target" ? hasTargetChanges : hasArtifactChanges;
+  const savedRulesDraft = activeDraft ? behaviorRulesFromDraft(activeDraft) : rulesDraft;
+  const hasRulesChanges =
+    selectedArtifact === "behavior_rules" &&
+    JSON.stringify(rulesDraft) !== JSON.stringify(savedRulesDraft);
+  const hasReviewChanges =
+    selectedArtifact === "target"
+      ? hasTargetChanges
+      : selectedArtifact === "behavior_rules"
+        ? hasRulesChanges
+        : hasArtifactChanges;
   const artifactDiff = useMemo(
     () => buildLineDiff(savedArtifactSource, artifactDraft),
     [artifactDraft, savedArtifactSource],
@@ -794,9 +847,13 @@ function App() {
               <button
                 className={reviewMode === "diff" ? "secondary active" : "secondary"}
                 onClick={() => setReviewMode("diff")}
-                disabled={!hasReviewChanges || selectedArtifact === "target"}
+                disabled={
+                  !hasReviewChanges ||
+                  selectedArtifact === "target" ||
+                  selectedArtifact === "behavior_rules"
+                }
                 title={
-                  selectedArtifact === "target"
+                  selectedArtifact === "target" || selectedArtifact === "behavior_rules"
                     ? "YAML diff is available for raw artifacts."
                     : hasArtifactChanges
                       ? "Review unsaved changes"
@@ -873,6 +930,61 @@ function App() {
                   }
                 />
               </label>
+            </div>
+          ) : selectedArtifact === "behavior_rules" ? (
+            <div className="rules-editor">
+              {rulesDraft.map((rule, index) => (
+                <section className="rule-editor-card" key={`${rule.id}-${index}`}>
+                  <label>
+                    Rule id
+                    <input
+                      value={rule.id}
+                      onChange={(event) => {
+                        const nextRules = [...rulesDraft];
+                        nextRules[index] = { ...rule, id: event.target.value };
+                        setRulesDraft(nextRules);
+                      }}
+                    />
+                  </label>
+                  <label>
+                    Severity
+                    <select
+                      value={rule.severity}
+                      onChange={(event) => {
+                        const nextRules = [...rulesDraft];
+                        nextRules[index] = { ...rule, severity: event.target.value };
+                        setRulesDraft(nextRules);
+                      }}
+                    >
+                      <option value="low">low</option>
+                      <option value="medium">medium</option>
+                      <option value="high">high</option>
+                    </select>
+                  </label>
+                  <label>
+                    Description
+                    <textarea
+                      value={rule.description}
+                      onChange={(event) => {
+                        const nextRules = [...rulesDraft];
+                        nextRules[index] = { ...rule, description: event.target.value };
+                        setRulesDraft(nextRules);
+                      }}
+                    />
+                  </label>
+                  <label>
+                    Status
+                    <input
+                      value={rule.status}
+                      onChange={(event) => {
+                        const nextRules = [...rulesDraft];
+                        nextRules[index] = { ...rule, status: event.target.value };
+                        setRulesDraft(nextRules);
+                      }}
+                    />
+                  </label>
+                </section>
+              ))}
             </div>
           ) : (
             <textarea

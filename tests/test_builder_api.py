@@ -128,6 +128,44 @@ def test_update_target_returns_refreshed_draft(tmp_path, monkeypatch) -> None:
     assert "risk summary" in updated.json()["artifact_sources"]["target"]
 
 
+def test_update_rules_returns_refreshed_draft(tmp_path, monkeypatch) -> None:
+    from edd_agent_lab.ui import workspace_store
+
+    monkeypatch.setattr(workspace_store, "LAB_RUNS_DIR", tmp_path)
+    client = TestClient(create_app())
+
+    created = client.post(
+        "/api/drafts",
+        json={
+            "name": "Contract Review Agent",
+            "description": "Review contract clauses.",
+        },
+    )
+    assert created.status_code == 200
+    assert client.post("/api/drafts/contract-review-agent/design").status_code == 200
+
+    updated = client.put(
+        "/api/drafts/contract-review-agent/rules",
+        json={
+            "rules": [
+                {
+                    "id": "state_purpose_and_scope",
+                    "severity": "high",
+                    "description": "Stay inside contract review scope.",
+                    "status": "draft",
+                }
+            ]
+        },
+    )
+
+    assert updated.status_code == 200
+    rules = updated.json()["artifacts"]["behavior_rules"]["behavior_rules"]
+    assert rules[0]["description"] == "Stay inside contract review scope."
+    assert "Stay inside contract review scope." in updated.json()["artifact_sources"][
+        "behavior_rules"
+    ]
+
+
 def test_stream_run_action_accepts_generation_mode(tmp_path, monkeypatch) -> None:
     from edd_agent_lab.ui import workspace_store
 

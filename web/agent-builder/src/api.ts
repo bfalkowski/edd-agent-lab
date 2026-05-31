@@ -180,11 +180,32 @@ export type TargetUpdate = {
   expected_output_format: string;
 };
 
+export type BehaviorRule = {
+  id: string;
+  severity: string;
+  description: string;
+  target_id?: string;
+  status: string;
+};
+
 export async function saveTarget(agentKey: string, target: TargetUpdate): Promise<DraftDetail> {
   const response = await fetch(`/api/drafts/${agentKey}/target`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(target),
+  });
+  await assertOk(response);
+  return response.json();
+}
+
+export async function saveBehaviorRules(
+  agentKey: string,
+  rules: BehaviorRule[],
+): Promise<DraftDetail> {
+  const response = await fetch(`/api/drafts/${agentKey}/rules`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ rules }),
   });
   await assertOk(response);
   return response.json();

@@ -35,6 +35,7 @@ from edd_agent_lab.ui.workspace_store import (
     save_draft_artifact_source,
     save_draft_scenario,
     save_draft_target,
+    update_behavior_rules,
     update_draft_target,
 )
 
@@ -57,6 +58,18 @@ class TargetUpdateRequest(BaseModel):
     purpose: str
     risk_tolerance: str
     expected_output_format: str
+
+
+class BehaviorRuleRequest(BaseModel):
+    id: str
+    severity: str
+    description: str
+    target_id: str | None = None
+    status: str
+
+
+class BehaviorRulesUpdateRequest(BaseModel):
+    rules: list[BehaviorRuleRequest]
 
 
 GenerationModeRequest = Literal["mock", "live", "auto"]
@@ -226,6 +239,19 @@ def create_app():
                 purpose=request.purpose,
                 risk_tolerance=request.risk_tolerance,
                 expected_output_format=request.expected_output_format,
+            )
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return load_draft(agent_key)
+
+    @app.put("/api/drafts/{agent_key}/rules")
+    def update_rules(agent_key: str, request: BehaviorRulesUpdateRequest) -> dict[str, Any]:
+        try:
+            update_behavior_rules(
+                agent_key=agent_key,
+                rules=[rule.model_dump() for rule in request.rules],
             )
         except FileNotFoundError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc

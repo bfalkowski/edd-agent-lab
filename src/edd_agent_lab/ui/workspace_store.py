@@ -304,6 +304,44 @@ def update_draft_target(
     return target
 
 
+def update_behavior_rules(
+    *,
+    agent_key: str,
+    rules: list[dict[str, Any]],
+) -> dict[str, Any]:
+    artifacts = load_draft_artifacts(agent_key)
+    existing = artifacts.get("behavior_rules", {}).get("behavior_rules")
+    target = load_draft_target(agent_key)
+    if target is None:
+        raise FileNotFoundError(f"Draft target not found for agent: {agent_key}")
+    if existing is None:
+        raise FileNotFoundError(f"Draft behavior rules not found for agent: {agent_key}")
+    if not rules:
+        raise ValueError("At least one behavior rule is required.")
+
+    target_id = target["agent_target"]["id"]
+    cleaned: list[dict[str, Any]] = []
+    for rule in rules:
+        rule_id = str(rule.get("id", "")).strip()
+        description = str(rule.get("description", "")).strip()
+        if not rule_id or not description:
+            raise ValueError("Rule id and description are required.")
+        cleaned.append(
+            {
+                "id": rule_id,
+                "severity": str(rule.get("severity", "")).strip() or "medium",
+                "description": description,
+                "target_id": str(rule.get("target_id", "")).strip() or target_id,
+                "status": str(rule.get("status", "")).strip() or "draft",
+            }
+        )
+
+    payload = {"behavior_rules": cleaned}
+    path = draft_workspace_dir(agent_key) / DRAFT_ARTIFACT_FILES["behavior_rules"]
+    path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+    return payload
+
+
 def save_design_scaffold(agent_key: str) -> dict[str, Path]:
     target = load_draft_target(agent_key)
     if target is None:

@@ -817,7 +817,8 @@ kbd {
 
 .artifact-review textarea,
 .artifact-diff,
-.target-editor {
+.target-editor,
+.rules-editor {
   width: 100%;
   min-height: 0;
   border: 1px solid #dedede;
@@ -832,7 +833,8 @@ kbd {
   resize: vertical;
 }
 
-.target-editor {
+.target-editor,
+.rules-editor {
   align-content: start;
   display: grid;
   gap: 14px;
@@ -840,7 +842,8 @@ kbd {
   font-family: inherit;
 }
 
-.target-editor label {
+.target-editor label,
+.rule-editor-card label {
   display: grid;
   gap: 7px;
   color: #6b7280;
@@ -849,7 +852,10 @@ kbd {
 }
 
 .target-editor input,
-.target-editor textarea {
+.target-editor textarea,
+.rule-editor-card input,
+.rule-editor-card textarea,
+.rule-editor-card select {
   width: 100%;
   min-height: 40px;
   border: 1px solid #dedede;
@@ -863,10 +869,24 @@ kbd {
   padding: 9px 11px;
 }
 
-.target-editor textarea {
+.target-editor textarea,
+.rule-editor-card textarea {
   min-height: 140px;
   line-height: 1.45;
   resize: vertical;
+}
+
+.rule-editor-card {
+  display: grid;
+  gap: 12px;
+  border: 1px solid #ececf1;
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 12px;
+}
+
+.rule-editor-card textarea {
+  min-height: 92px;
 }
 
 .artifact-diff {

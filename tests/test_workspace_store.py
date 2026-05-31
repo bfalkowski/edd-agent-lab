@@ -30,6 +30,7 @@ from edd_agent_lab.ui.workspace_store import (
     save_draft_scenario,
     save_draft_target,
     slugify_agent_name,
+    update_behavior_rules,
     update_draft_target,
     validate_draft_artifact,
 )
@@ -140,6 +141,38 @@ def test_save_design_scaffold_writes_downstream_artifacts(tmp_path, monkeypatch)
     assert paths["tool_requirements"].is_file()
     assert paths["graph_design"].is_file()
     assert artifacts["tool_requirements"]["tool_requirements"][0]["production_blocker"] is True
+
+
+def test_update_behavior_rules_edits_generated_rules(tmp_path, monkeypatch) -> None:
+    from edd_agent_lab.ui import workspace_store
+
+    monkeypatch.setattr(workspace_store, "LAB_RUNS_DIR", tmp_path)
+
+    save_draft_target(
+        name="Contract Review Agent",
+        description="Help legal teams review risky clauses.",
+    )
+    save_design_scaffold("contract-review-agent")
+
+    updated = update_behavior_rules(
+        agent_key="contract-review-agent",
+        rules=[
+            {
+                "id": "state_purpose_and_scope",
+                "severity": "high",
+                "description": "Stay inside the reviewed contract scope.",
+                "status": "draft",
+            }
+        ],
+    )
+    artifacts = load_draft_artifacts("contract-review-agent")
+
+    assert updated["behavior_rules"][0]["description"] == (
+        "Stay inside the reviewed contract scope."
+    )
+    assert artifacts["behavior_rules"]["behavior_rules"][0]["target_id"] == (
+        "contract-review-agent-target-v1"
+    )
 
 
 def test_build_draft_scenario() -> None:
